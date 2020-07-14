@@ -10,93 +10,131 @@
 // https://perceptualmahjong.blog.ss-blog.jp/2010-10-08
 // http://arcturus.su/wiki/List_of_terminology_by_alphabetical_order
 
+#define MJ_HAN_YAKUMAN  (-1) // 役満
+#define MJ_HAN_YAKUMAN2 (-2) // ダブル役満
 
-#if 0
-class MJYaku {
+class CMentsuSort {
 public:
-	int check(int tsumo) const {
-		int han = 0;
+	bool operator()(const MJMentsu &a, const MJMentsu &b) const {
+		return a.id < b.id;
+	}
+};
+
+class MJYaku {
+	MJHand mHand; // 手牌(13牌）
+	std::vector<MJMentsu> mAgariMentsuList; // アガリ時の面子構成
+	std::vector<MJMentsu> mMentsuList; // テンパイ時の完成面子
+	MJTaatsuType mTaatsuType; // テンパイ時の塔子の形
+	MJID mTaatsuId; // 塔子構成牌の最初の1個
+	MJID mAmari; // 面子にも塔子にもならない余り牌（単騎待ちの場合に設定される。それ以外では必ず0)
+	MJID mTsumo; // ツモ牌
+public:
+	MJYaku() {
+		mTsumo = 0;
+	}
+	void onEnumYaku(int han, const char *name) {
+		printf("%s\n", name);
+	}
+
+	// 国士無双ができていることが分かっている状態で、役満かダブル役満を判定する
+	void checkKokushimusou(const MJHand &hand, MJID tsumo) {
+		isKokushimusou();
+	}
+
+	// 七対子ができていることが分かっている状態で、複合役を探す
+	void checkChitoitsu(const MJHand &hand, MJID tsumo) {
+		check(hand, tsumo, std::vector<MJMentsu>(), std::vector<MJMentsu>(), (MJTaatsuType)0, 0, 0);
+	}
+
+	// ４面子１雀頭ができていることが分かっている状態で、成立役を探す
+	void check(const MJHand &hand, MJID tsumo, const std::vector<MJMentsu> agariMentsu, const std::vector<MJMentsu> &mentsu, MJTaatsuType taatsuType, MJID taatsuId, MJID amari) {
+		mHand = hand;
+		mAgariMentsuList = agariMentsu;
+		mMentsuList = mentsu;
+		mTaatsuType = taatsuType;
+		mTaatsuId = taatsuId;
+		mTsumo = tsumo;
+		mAmari = amari;
+		
 		// 役満
-		if (isKokushimusou(tsumo, &han))  han += h;
-		if (isDaisuushi(tsumo, &han)) han += h;
-		if (isShousuushi(tsumo, &han)) han += h;
-		if (isDaisangen(tsumo, &han)) han += h;
-		if (isTsuuiisou(tsumo, &han)) han += h;
-		if (isChinroutou(tsumo, &han)) han += h;
-		if (isChuurenpoutou(tsumo, &han)) han += h;
-		if (isRyuuiisou(tsumo, &han)) han += h;
-		if (isSuuankou(tsumo, &han)) han += h;
-		if (han < 0) {
-			return han;
-		}
+		isKokushimusou();
+		isDaisuushi();
+		isShousuushi();
+		isDaisangen();
+		isTsuuiisou();
+		isChinroutou();
+		isChuurenpoutou();
+		isRyuuiisou();
+		isSuuankou();
 		
 		// 通常役
-		han = 0;
-		int h = 0;
-		
 		// 6
-		if (isChinitsu(tsumo, &h)) han += h;
-		
+		isChinitsu();
 		// 3
-		if (isHonitsu(tsumo, &h)) han += h;
-		if (isRyanpeikou(tsumo, &h)) han += h;
-		if (isJumchan(tsumo, &h)) han += h;
-		
+		isHonitsu();
+		isRyanpeikou();
+		isJumchan();
 		// 2
-		if (isChitoi(tsumo, &h)) han += h;
-		if (isSanAnko(tsumo, &h)) han += h;
+		isChitoi();
+		isSananko();
+		isHonroto();
+		isSanshokudoko();
+		isSanshokudojun();
+		isShousangen();
+		isIkkitsukan();
 	}
+private:
 	int allMan() {
-		for (int i=0; i<size(); i++) {
-			if (!MJ_IS_MAN(get(i))) {
+		for (int i=0; i<mHand.size(); i++) {
+			if (!MJ_IS_MAN(mHand.get(i))) {
 				return 0;
 			}
 		}
 		return 1;
 	}
 	int allPin() {
-		for (int i=0; i<size(); i++) {
-			if (!MJ_IS_PIN(get(i))) {
+		for (int i=0; i<mHand.size(); i++) {
+			if (!MJ_IS_PIN(mHand.get(i))) {
 				return 0;
 			}
 		}
 		return 1;
 	}
 	int allSou() {
-		for (int i=0; i<size(); i++) {
-			if (!MJ_IS_SOU(get(i))) {
+		for (int i=0; i<mHand.size(); i++) {
+			if (!MJ_IS_SOU(mHand.get(i))) {
 				return 0;
 			}
 		}
 		return 1;
 	}
 	int allKaze() {
-		for (int i=0; i<size(); i++) {
-			if (!MJ_IS_KAZE(get(i))) {
+		for (int i=0; i<mHand.size(); i++) {
+			if (!MJ_IS_KAZE(mHand.get(i))) {
 				return 0;
 			}
 		}
 		return 1;
 	}
 	int all_19() {
-		for (int i=0; i<size(); i++) {
-			if (!MJ_IS_1or9(get(i))) {
+		for (int i=0; i<mHand.size(); i++) {
+			if (!MJ_IS_1or9(mHand.get(i))) {
 				return 0;
 			}
 		}
 		return 1;
 	}
 	int all_zi() {
-		for (int i=0; i<size(); i++) {
-			if (!MJ_IS_ZIH(get(i))) {
+		for (int i=0; i<mHand.size(); i++) {
+			if (!MJ_IS_ZI(mHand.get(i))) {
 				return 0;
 			}
 		}
 		return 1;
 	}
 	// 国士無双
-	static bool isKokushimusou(const MJHand &hand, MJID tsumo, int *han) {
-		MJHand tmp(hand);
+	bool isKokushimusou() {
+		MJHand tmp(mHand);
 		tmp.findRemove(MJ_MAN(1)); tmp.findRemove(MJ_MAN(9));
 		tmp.findRemove(MJ_PIN(1)); tmp.findRemove(MJ_PIN(9));
 		tmp.findRemove(MJ_SOU(1)); tmp.findRemove(MJ_SOU(9));
@@ -104,227 +142,212 @@ public:
 		tmp.findRemove(MJ_HAK); tmp.findRemove(MJ_HAZ); tmp.findRemove(MJ_CHUN);
 		// この時点でヤオチュウ牌が１個だけ残っていた場合、それが頭になっている
 		if (tmp.size() == 1 && MJ_IS_YAOCHU(tmp.get(0))) {
-	 		if (tmp.get(0) == tsumo) { // 単騎待ち
-		 		*han = MJ_HAN_YAKUMAN2;
+	 		if (tmp.get(0) == mTsumo) { // 単騎待ち
+		 		onEnumYaku(MJ_HAN_YAKUMAN, "国士無双");
 			} else {
-		 		*han = MJ_HAN_YAKUMAN;
+		 		onEnumYaku(MJ_HAN_YAKUMAN2, "純正国士無双");
 			}
 			return true;
 		}
 		return false; // 不成立
 	}
-
 	// 大四喜
-	static bool isDaisuushi(const MJHand &hand, int tsumo, int *han) {
-		MJHand tmp(hand);
-		tmp.add(tsumo); // ツモ牌を加えておく
-		tmp.removePong(MJ_TON);
-		tmp.removePong(MJ_NAN);
-		tmp.removePong(MJ_SHA);
-		tmp.removePong(MJ_PEI);
+	bool isDaisuushi() {
+		MJHand tmp(mHand);
+		tmp.add(mTsumo); // ツモ牌を加えておく
+		tmp.findRemovePong(MJ_TON);
+		tmp.findRemovePong(MJ_NAN);
+		tmp.findRemovePong(MJ_SHA);
+		tmp.findRemovePong(MJ_PEI);
 		tmp.removePair();
 		if (tmp.empty()) { // この時点で一つも牌が無ければOK
-	 		*han = MJ_HAN_YAKUMAN2;
+	 		onEnumYaku(MJ_HAN_YAKUMAN, "大四喜");
 			return true;
 		}
 		return false; // 不成立
-	}
-	
-	// ショウスーシ
-	bool isShousuushi(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		tmp.removePong(MJ_TON);
-		tmp.removePong(MJ_NAN);
-		tmp.removePong(MJ_SHA);
-		tmp.removePong(MJ_PEI);
+	}	
+	// 小四喜
+	bool isShousuushi() {
+		MJHand tmp(mHand);
+		tmp.add(mTsumo); // ツモ牌を加えておく
+		tmp.findRemovePong(MJ_TON);
+		tmp.findRemovePong(MJ_NAN);
+		tmp.findRemovePong(MJ_SHA);
+		tmp.findRemovePong(MJ_PEI);
 		tmp.removePong();
-		tmp.removeCunz();
+		tmp.removeChunz();
 		int pair = tmp.removePair();
 		if (tmp.empty() && MJ_IS_KAZE(pair)) { // この時点で一つも牌が無く、頭が風牌ならOK
-	 		*han = HAN_YAKUMAN;
+	 		onEnumYaku(MJ_HAN_YAKUMAN, "小四喜");
 			return true;
 		}
 		return false; // 不成立
-	}
-	
+	}	
 	// 大三元
-	bool isDaisangen(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK()) {
-			if (tmp.removePong(MJ_HAK) && tmp.removePong(MJ_HAZ) && tmp.removePong(CHU)) {
-		 		*han = HAN_YAKUMAN;
-				return true;
-			}
+	bool isDaisangen() {
+		// 既に4面子1雀頭または七対子のアガリ系であることが分かっているものとする
+		MJHand tmp(mHand);
+		tmp.add(mTsumo); // ツモ牌を加えておく
+		if (tmp.findRemovePong(MJ_HAK) && tmp.findRemovePong(MJ_HAZ) && tmp.findRemovePong(MJ_CHUN)) {
+	 		onEnumYaku(MJ_HAN_YAKUMAN, "大三元");
+			return true;
 		}
 		return false; // 不成立
-	}
-	
+	}	
 	// 字一色
-	bool isTsuuiisou(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK() && tmp.all_zi()) {
-			*han = HAN_YAKUMAN;
+	bool isTsuuiisou() {
+		// 既に4面子1雀頭または七対子のアガリ系であることが分かっているものとする
+		if (all_zi()) {
+	 		onEnumYaku(MJ_HAN_YAKUMAN, "字一色");
 			return true;
 		}
 		return false; // 不成立
-	}
-	
+	}	
 	// 清老頭
-	bool isChinroutou(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK() && tmp.all_19()) {
-	 		*han = HAN_YAKUMAN;
+	bool isChinroutou() {
+		// 既に4面子1雀頭または七対子のアガリ系であることが分かっているものとする
+		if (all_19()) {
+	 		onEnumYaku(MJ_HAN_YAKUMAN, "清老頭");
 			return true;
 		}
 		return false; // 不成立
-	}
-	
+	}	
 	// 九蓮宝燈
-	bool isChuurenpoutou(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		if (tmp.allMan()) {
-			tmp.removeOne(MJ_MAN(1));
-			tmp.removeOne(MJ_MAN(1));
-			tmp.removeOne(MJ_MAN(1));
-			tmp.removeOne(MJ_MAN(2));
-			tmp.removeOne(MJ_MAN(3));
-			tmp.removeOne(MJ_MAN(4));
-			tmp.removeOne(MJ_MAN(5));
-			tmp.removeOne(MJ_MAN(6));
-			tmp.removeOne(MJ_MAN(7));
-			tmp.removeOne(MJ_MAN(8));
-			tmp.removeOne(MJ_MAN(9));
-			tmp.removeOne(MJ_MAN(9));
-			tmp.removeOne(MJ_MAN(9));
+	bool isChuurenpoutou() {
+		if (allMan()) {
+			MJHand tmp(mHand); // テンパイ形で調べるのでツモ牌加えない
+			tmp.findRemove(MJ_MAN(1));
+			tmp.findRemove(MJ_MAN(1));
+			tmp.findRemove(MJ_MAN(1));
+			tmp.findRemove(MJ_MAN(2));
+			tmp.findRemove(MJ_MAN(3));
+			tmp.findRemove(MJ_MAN(4));
+			tmp.findRemove(MJ_MAN(5));
+			tmp.findRemove(MJ_MAN(6));
+			tmp.findRemove(MJ_MAN(7));
+			tmp.findRemove(MJ_MAN(8));
+			tmp.findRemove(MJ_MAN(9));
+			tmp.findRemove(MJ_MAN(9));
+			tmp.findRemove(MJ_MAN(9));
 			tmp.removePair();
 			if (tmp.size() == 1) { // この時点で牌が1個残っていたら、それが頭になっている
-				if (tmp.get(0) == tsumo && MJ_IS_MAN(tsumo)) {
-		 			*han = HAN_YAKUMAN;
+				if (tmp.get(0) == mTsumo && MJ_IS_MAN(mTsumo)) {
+	 				onEnumYaku(MJ_HAN_YAKUMAN, "九蓮宝燈");
 					return true;
 				}
 			}
 			if (tmp.empty()) { // この時点で牌が残っていない場合1個残っていたら、純正九蓮宝燈
-				if (MJ_IS_MAN(tsumo)) {
-			 		*han = HAN_YAKUMAN2;
+				if (MJ_IS_MAN(mTsumo)) {
+	 				onEnumYaku(MJ_HAN_YAKUMAN, "純正九蓮宝燈");
 					return true;
 				}
 			}
 		}
 		return false; // 不成立
 	}
-	
 	// 緑一色
-	bool isRyuuiisou(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK()) {
-			tmp.removeAll(MJ_SOU(2));
-			tmp.removeAll(MJ_SOU(3));
-			tmp.removeAll(MJ_SOU(4));
-			tmp.removeAll(MJ_SOU(6));
-			tmp.removeAll(MJ_SOU(8));
-			tmp.removeAll(MJ_HAZ);
-			if (tmp.empty()) { // この時点で一つも牌が無ければOK
-		 		*han = HAN_YAKUMAN;
-				retrun true;
-			}
-		}
-		return false; // 不成立
-	}
-	
-	// スーアンコウ
-	bool isSuuankou(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		tmp.removePong();
-		tmp.removePong();
-		tmp.removePong();
-		tmp.removePong();
-		int pair = tmp.removePair();
+	bool isRyuuiisou() {
+		// 既に4面子1雀頭または七対子のアガリ系であることが分かっているものとする
+		MJHand tmp(mHand);
+		tmp.add(mTsumo); // ツモ牌を加えておく
+		tmp.findRemoveAll(MJ_SOU(2));
+		tmp.findRemoveAll(MJ_SOU(3));
+		tmp.findRemoveAll(MJ_SOU(4));
+		tmp.findRemoveAll(MJ_SOU(6));
+		tmp.findRemoveAll(MJ_SOU(8));
+		tmp.findRemoveAll(MJ_HAZ);
 		if (tmp.empty()) { // この時点で一つも牌が無ければOK
-			if (pair == tsumo) { // 単騎待ち
-		 		*han = HAN_YAKUMAN2;
-			} else {
-		 		*han = HAN_YAKUMAN;
-			}
-			retrun true;
+	 		onEnumYaku(MJ_HAN_YAKUMAN, "緑一色");
+			return true;
 		}
 		return false; // 不成立
 	}
-	
+	// 四暗刻
+	bool isSuuankou() {
+		int cnt = 0;
+		MJID atama = 0;
+		for (size_t i=0; i<mMentsuList.size(); i++) {
+			if (mMentsuList[i].isAnko()) { cnt++; }
+			if (mMentsuList[i].isToitsu()) { atama==mMentsuList[i].id; }
+		}
+		if (cnt == 4 && mAmari!=0 && mAmari==mTsumo) {
+			// テンパイ時点で暗刻が4個かつ塔子が無い＝単騎待ち
+		 	onEnumYaku(MJ_HAN_YAKUMAN, "四暗刻単騎");
+			return true;
+		}
+		if (cnt == 3 && mTaatsuType==MJ_TAATSU_TOI) {
+			if (mTsumo==atama || mTsumo==mTaatsuId) {
+		 		onEnumYaku(MJ_HAN_YAKUMAN, "四暗刻"); // ツモり四暗刻
+				return true;
+			}
+		}
+		return false; // 不成立
+	}
 	// 清一色
-	bool isChinitsu(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (isFormOK()) {
-			if (allMan()) {
-				*han = 6;
-				return true;
-			}
-			if (allPin()) {
-				*han = 6;
-				return true;
-			}
-			if (allSou()) {
-				*han = 6;
-				return true;
-			}
+	bool isChinitsu() {
+		// 既に4面子1雀頭または七対子のアガリ系であることが分かっているものとする
+		if (allMan() || allPin() || allSou()) {
+	 		onEnumYaku(6, "清一色");
+			return true;
 		}
 		return false; // 不成立
 	}
-	
 	// 混一色
-	bool isHonitsu(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK()) {
-			tmp.removeAll(MJ_ZI_ANY); // 字牌除く
-			if (tmp.allMan() || tmp.allPin() || tmp.allSou()) {
-				*han = 3;
-				return true;
+	bool isHonitsu() {
+		// 既に4面子1雀頭または七対子のアガリ系であることが分かっているものとする
+		int zihai = 0;
+		int kazuGroup = 0;
+		for (int i=0; i<mHand.size(); i++) {
+			MJID id = mHand.get(i);
+			if (MJ_IS_NUM(id)) {
+				if (kazuGroup == 0) {
+					kazuGroup = MJ_GETGROUP(id);
+				} else {
+					if (kazuGroup != MJ_GETGROUP(id)) {
+						return false; // 数牌が２種類以上ある
+					}
+				}
+			} else {
+				zihai = 1;
 			}
 		}
-		return false;
+		if (zihai == 0) return false; // 字牌が無い
+	 	onEnumYaku(3, "混一色");
+		return true;
 	}
-	
 	// 二盃口
-	bool isRyanpeikou(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK()) {
-			int a = tmp.removeChunz();
-			int b = tmp.removeChunz();
-			int c = tmp.removeChunz();
-			int d = tmp.removeChunz();
-			if (tmp.empty() && a==b && c==d && a>0 && c>0) { // この時点で一つも牌が無く、順子が同じペアになっていればOK
-				*han = 3;
-				return true;
+	bool isRyanpeikou() {
+		MJID chuntsu[4] = {0, 0, 0, 0};
+		int numChuntsu = 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			const MJMentsu &men = mAgariMentsuList[i];
+			if (men.isChuntsu()) {
+				chuntsu[numChuntsu] = men.id;
+			}
+		}
+		if (numChuntsu == 4) { // 順子が4組ある
+			if (chuntsu[0] == chuntsu[1] && chuntsu[2]==chuntsu[3]) { // 順子がペアになっている
+				if (chuntsu[1] != chuntsu[2]) { // でも同一順子が4組あるわけではない
+			 		onEnumYaku(3, "二盃口");
+					return true;
+				}
 			}
 		}
 		return false;
 	}
-	
-	// 純全帯ヤオ九
-	bool isJumchan(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		if (tmp.isFormOK()) {
-			if (0) {
-				*han = 3;
-				return true;
-			}
+	// 純全帯么九
+	bool isJumchan() {
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			if (mAgariMentsuList[i].has1or9()) continue; // 1,9絡み
+			return false; // 不成立
 		}
-		return false;
+		onEnumYaku(3, "純全帯么九");
+		return true;
 	}
-
-	// チートイツ
-	bool isChitoi(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
+	// 七対子
+	bool isChitoi() {
+		MJHand tmp(mHand); // copy
+		tmp.add(mTsumo); // ツモ牌を加えておく
 		tmp.removePair();
 		tmp.removePair();
 		tmp.removePair();
@@ -333,29 +356,128 @@ public:
 		tmp.removePair();
 		tmp.removePair();
 		if (tmp.empty()) { // この時点で一つも牌が無ければOK
-			*han = 2;
-			retrun true;
+			onEnumYaku(2, "七対子");
+			return true;
 		}
 		return false; // 不成立
 	}
-
-	// サンアンコウ
-	bool isSanAnko(int tsumo, int *han) const {
-		MJHand tmp = *this; // copy
-		tmp.add(tsumo); // ツモ牌を加えておく
-		tmp.removePong();
-		tmp.removePong();
-		tmp.removePong();
-		tmp.removeChunz();
-		tmp.removePair();
-		if (tmp.empty()) { // この時点で一つも牌が無ければOK
-			*han = 2;
-			retrun true;
+	// 三暗刻
+	bool isSananko() {
+		int anko = 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			if (mAgariMentsuList[i].isAnko()) { anko++; }
+		}
+		if (anko == 3) {
+		 	onEnumYaku(2, "三暗刻");
+			return true;
 		}
 		return false; // 不成立
+	}
+	// 混老頭
+	bool isHonroto() {
+		int anko = 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			const MJMentsu &men = mAgariMentsuList[i];
+			if (men.is1or9()) continue; // 1または9のみ
+			if (men.isJihai()) continue; // 字牌
+			return false; // 不成立
+		}
+	 	onEnumYaku(2, "混老頭");
+		return true;
+	}
+	// 三色同刻
+	bool isSanshokudoko() {
+		MJID kotsu[4] = {0, 0, 0, 0};
+		int numKotsu = 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			const MJMentsu &men = mAgariMentsuList[i];
+			if (men.isKoutsu()) { // 暗刻かどうかは関係ない
+				kotsu[numKotsu] = men.id;
+				numKotsu++;
+			}
+		}
+		bool ok = false;
+		if (numKotsu == 3) { // 3刻子
+			if (kotsu[0]+1 == kotsu[1] && kotsu[1]+1 == kotsu[2]) { ok = true; }
+		}
+		if (numKotsu == 4) { // 4刻子。ソート済みなので、最初の3刻子または最後の3刻子のどちらかが階段状になっていればよい
+			if (kotsu[0]+1 == kotsu[1] && kotsu[1]+1 == kotsu[2]) { ok = true; }
+			if (kotsu[1]+1 == kotsu[2] && kotsu[2]+1 == kotsu[3]) { ok = true; }
+		}
+		if (ok) {
+			onEnumYaku(2, "三色同刻");
+			return true;
+		}
+		return false;
+	}
+	// 三色同順
+	bool isSanshokudojun() {
+		MJID chunz[4] = {0, 0, 0, 0};
+		int numChunz= 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			const MJMentsu &men = mAgariMentsuList[i];
+			if (men.isChuntsu()) {
+				chunz[numChunz] = men.id;
+				numChunz++;
+			}
+		}
+		bool ok = false;
+		if (numChunz == 3) { // 3順子
+			if (chunz[0] == chunz[1] && chunz[1] == chunz[2]) { ok = true; }
+		}
+		if (numChunz == 4) { // 4順子。ソート済みなので、最初の3順子または最後の3順子のどちらかが同じならよい
+			if (chunz[0] == chunz[1] && chunz[1] == chunz[2]) { ok = true; }
+			if (chunz[1] == chunz[2] && chunz[2] == chunz[3]) { ok = true; }
+		}
+		if (ok) {
+			onEnumYaku(2, "三色同順");
+			return true;
+		}
+		return false;
+	}
+	// 小三元
+	bool isShousangen() {
+		int numKoutsu = 0;
+		int numAtama = 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			const MJMentsu &men = mAgariMentsuList[i];
+			if (men.isSangen()) {
+				if (men.isKoutsu()) numKoutsu++;
+				if (men.isToitsu()) numAtama++; // 七対子に三元牌が使われている場合に誤判定しないように
+			}
+		}
+		if (numKoutsu==2 && numAtama==1) {
+			onEnumYaku(2, "小三元");
+			return true;
+		}
+		return false;
+	}
+	// 一気通貫
+	bool isIkkitsukan() {
+		bool ok = false;
+		MJID next = 0;
+		for (size_t i=0; i<mAgariMentsuList.size(); i++) {
+			const MJMentsu &men = mAgariMentsuList[i];
+			if (men.isChuntsu()) {
+				if (MJ_GETNUM(men.id) == 1) { // １が見つかった。次は同じ色の３個上を探す
+					next = men.id + 3;
+				}
+				if (MJ_GETNUM(men.id) == 4 && men.id == next) {
+					next = next + 3;
+				}
+				if (MJ_GETNUM(men.id) == 7 && men.id == next) {
+					ok = true; // 成立
+					break;
+				}
+			}
+		}
+		if (ok) {
+			onEnumYaku(2, "一気通貫");
+			return true;
+		}
+		return false;
 	}
 }; // Yaku
-#endif
 
 
 
@@ -382,15 +504,17 @@ void MJHand::addArray(const std::vector<MJID> &items) {
 	addArray(items.data(), items.size());
 }
 void MJHand::addArray(const MJID *id, int count) {
-	int i = 0;
-	while (mItems.size() < 14 && id[i] > 0) {
-		if (count > 0) {
-			if (i >= count) break; // count が指定されているなら、その個数を超えないようにする。-1だった場合は末尾まで調べる
+	if (id && count > 0) {
+		int i = 0;
+		while (mItems.size() < 14 && id[i] > 0) {
+			if (count > 0) {
+				if (i >= count) break; // count が指定されているなら、その個数を超えないようにする。-1だった場合は末尾まで調べる
+			}
+			mItems.push_back(id[i]);
+			i++;
 		}
-		mItems.push_back(id[i]);
-		i++;
+		std::sort(mItems.begin(), mItems.end());
 	}
-	std::sort(mItems.begin(), mItems.end());
 }
 MJID MJHand::removeAt(int index) {
 	// インデックス番目にある牌を削除して牌番号を返す
@@ -503,6 +627,46 @@ int MJHand::findRemove(MJID id) {
 	}
 	return false;
 }
+int MJHand::findRemoveAll(MJID id) {
+	// id に一致する牌を全て取り除く
+	int ret = 0;
+	for (int i=(int)mItems.size()-1; i>=0; i--) {
+		if (mItems[i] == id) {
+			mItems.erase(mItems.begin() + i);
+			ret = 1;
+		}
+	}
+	return ret;
+}
+int MJHand::findRemovePong(MJID id) {
+	// id が刻子を含んでいれば、その3牌を取り除いて 1 を返す
+	for (size_t i=0; i+2<mItems.size(); i++) {
+		if (mItems[i]==id && mItems[i+1]==id && mItems[i+2]==id) {
+			mItems.erase(mItems.begin() + i);
+			mItems.erase(mItems.begin() + i);
+			mItems.erase(mItems.begin() + i);
+			return 1;
+		}
+	}
+	return 0;
+}
+int MJHand::findRemoveChunz(MJID id) {
+	// id を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
+	for (size_t i=0; i+2<mItems.size(); i++) {
+		for (size_t j=i+1; j+1<mItems.size(); j++) {
+			for (size_t k=j+1; k<mItems.size(); k++) {
+				if (mItems[i]==id && mItems[j]==id+1 && mItems[k]==id+2) {
+					// 常に i<j<k なので k から順番に削除する
+					mItems.erase(mItems.begin() + k);
+					mItems.erase(mItems.begin() + j);
+					mItems.erase(mItems.begin() + i);
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
 #pragma endregion // MJHand
 
 
@@ -546,6 +710,7 @@ int MJEval::eval(const MJHand &hand, MJID tsumo) {
 	// その結果は getResult で取り出すことができる
 	// 見つかった面子の組み合わせパターンを返す。パターンが存在しない場合（＝牌が余る場合＝アガリ形になっていない）は 0 を返す
 	clear();
+	mHand = hand;
 
 	//if (hand.size() != 13) {
 	//	return -1; // 多牌または少牌
@@ -579,6 +744,7 @@ int MJEval::eval(const MJHand &hand, MJID tsumo) {
 			// 全てのヤオチュウ牌の削除に成功し、かつ残った１個がヤオチュウ牌であればOK
 			if (rm == 13 && MJ_IS_YAOCHU(tmp.get(0))) {
 				onEnumComplete(MJ_FLAG_KOKUSHI);
+				MJYaku yaku; yaku.checkKokushimusou(mHand, tsumo);
 				return 1; // 他の役とは複合しないのでここで終了
 			}
 		} else {
@@ -650,7 +816,8 @@ int MJEval::eval(const MJHand &hand, MJID tsumo) {
 				numPair++;
 			}
 			if (numPair == 7) { // 対子が7組ならOK
-				onEnumComplete(MJ_FLAG_KOKUSHI);
+				onEnumComplete(MJ_FLAG_CHIITOI);
+				MJYaku yaku; yaku.checkChitoitsu(mHand, tsumo);
 			}
 		} else {
 			// ツモ牌なし。13個の牌でのテンパイ形を調べる
@@ -669,35 +836,124 @@ int MJEval::eval(const MJHand &hand, MJID tsumo) {
 
 	// ４面子１雀頭の判別
 	if (hand.size() == 13) {
-		if (tsumo != 0) {
-			// ツモ牌あり。4面子1雀頭の完成形を調べる
-			MJHand tmp(hand);
-			tmp.add(tsumo);
-			enumMentsu(tmp, 0);
-		} else {
-			// ツモ牌なし。テンパイ形またはシャンテン数を調べる
-			enumMentsu(hand, 0);
-		}
+		enumMentsu(hand, tsumo, 0);
 	}
 	// この時点で mResultItems にはパターンが入っている
 	return (int)mResultItems.size();
 }
 // 面子（刻子、順子、雀頭）の組み合わせを調べる
-int MJEval::enumMentsu(const MJHand &hand, int pairHasBeenRemoved) {
+int MJEval::enumMentsu(const MJHand &hand, MJID tsumo, int pairHasBeenRemoved) {
 	if (hand.empty()) {
 		// すべての牌について処理が終わった。
 		// この時点で面子余り牌がなければ、形が完成している（４面子１雀頭）
-		if (mMentsuAmari.empty()) {
-			// 余りなし。完成形として報告する
-			onEnumComplete(0);
-			return 1;
-		} else {
-			// 余りあり。テンパイ判定またはシャンテン数を求める
-			MJHand amari;
-			amari.addArray(mMentsuAmari);
-			enumTaatsu(amari);
+	//	if (mMentsuAmari.empty()) {
+	//		// 余りなし。完成形として報告する
+	//		onEnumComplete(0);
+	//		
+	//		// 役判定
+	//		MJYaku yaku;
+	//		yaku.check(hand, tsumo, agariMentsu, mMentsuList, mLastTaatsuType, mLastTaatsuId, mTaatsuAmari);
+	//
+	//		return 1;
+	//	} else {
+			// すべての牌について処理が終わった。
+			// 余った牌とツモ牌を使って１面子完成するならアガっている。
+			if (mMentsuAmari.size() == 1) {
+				// 面子にできなかった牌が1個ある。単騎待ち。この余り牌とツモ牌が同じならアガリ形になっている
+				if (mMentsuAmari[0] == tsumo) {
+					// 雀頭ができた。完成した４面子１雀頭のリストを作る
+					std::vector<MJMentsu> agariMentsu = mMentsuList;
+					agariMentsu.push_back(MJMentsu(tsumo, MJ_MENTSU_TOITSU));
+					std::sort(agariMentsu.begin(), agariMentsu.end(), CMentsuSort());
+
+					// 塔子なし
+					mLastTaatsuType = MJ_TAATSU_UNKNOWN;
+					mLastTaatsuId = 0;
+
+					// 役判定
+					onEnumComplete(0);
+					MJYaku yaku;
+					yaku.check(mHand, tsumo, agariMentsu, mMentsuList, mLastTaatsuType, mLastTaatsuId, mTaatsuAmari);
+					return 1;
+				}
+			}
+			if (mMentsuAmari.size() == 2) {
+				// 面子にできなかった牌が2個ある。ツモ牌を加えて１面子できるならアガリ形になっている
+				if (mMentsuAmari[0] == mMentsuAmari[1] && mMentsuAmari[1] == tsumo) {
+					// 刻子ができた。完成した４面子１雀頭のリストを作る
+					std::vector<MJMentsu> agariMentsu = mMentsuList;
+					agariMentsu.push_back(MJMentsu(tsumo, MJ_MENTSU_KOUTSU));
+					std::sort(agariMentsu.begin(), agariMentsu.end(), CMentsuSort());
+
+					// 最後に残った塔子は対子
+					mLastTaatsuType = MJ_TAATSU_TOI;
+					mLastTaatsuId = mMentsuAmari[0];
+
+					// 役判定
+					onEnumComplete(0);
+					MJYaku yaku;
+					yaku.check(mHand, tsumo, agariMentsu, mMentsuList, mLastTaatsuType, mLastTaatsuId, mTaatsuAmari);
+					return 1;
+				}
+				MJID chunz = 0;
+				{
+					MJID a = mMentsuAmari[0];
+					MJID b = mMentsuAmari[1];
+					if (MJ_IS_NUM(a) && MJ_GETGROUP(a)==MJ_GETGROUP(b) && MJ_GETGROUP(b)==MJ_GETGROUP(tsumo)) {
+						// a, b, tsumo のすべてが数字牌かつ同色
+						#define is_chunz(x, y, z) ((x+1==y) && (y+1==z))
+						if (is_chunz(a, b, tsumo) && MJ_GETNUM(a) == 1) {
+							mLastTaatsuType = MJ_TAATSU_PEN; // 123の辺張
+							mLastTaatsuId = mMentsuAmari[0];
+							chunz = a;
+
+						} else if (is_chunz(tsumo, a, b) && MJ_GETNUM(b) == 9) {
+							mLastTaatsuType = MJ_TAATSU_PEN; // 789の辺張
+							mLastTaatsuId = mMentsuAmari[0];
+							chunz = tsumo;
+						
+						} else if (is_chunz(tsumo, a, b)) {
+							mLastTaatsuType = MJ_TAATSU_RYAN; // 両面
+							mLastTaatsuId = mMentsuAmari[0];
+							chunz = tsumo;
+						
+						} else if (is_chunz(a, b, tsumo)) {
+							mLastTaatsuType = MJ_TAATSU_RYAN; // 両面
+							mLastTaatsuId = mMentsuAmari[0];
+							chunz = a;
+
+						} else if (is_chunz(a, tsumo, b)) {
+							mLastTaatsuType = MJ_TAATSU_KAN; // 間張
+							mLastTaatsuId = mMentsuAmari[0];
+							chunz = a;
+						}
+						#undef is_chunz
+					}
+				}
+				if (chunz) {
+					// 順子ができた。完成した４面子１雀頭のリストを作る
+					std::vector<MJMentsu> agariMentsu = mMentsuList;
+					agariMentsu.push_back(MJMentsu(chunz, MJ_MENTSU_CHUNTSU));
+					std::sort(agariMentsu.begin(), agariMentsu.end(), CMentsuSort());
+
+					// 役判定
+					onEnumComplete(0);
+					MJYaku yaku;
+					yaku.check(mHand, tsumo, agariMentsu, mMentsuList, mLastTaatsuType, mLastTaatsuId, mTaatsuAmari);
+					return 1;
+				}
+			}
+
+			// 完成していなければテンパイ判定とシャンテン数を求める
+			if (mMentsuAmari.size() > 0) {
+				MJHand amari;
+				amari.addArray(mMentsuAmari);
+				enumTaatsu(amari);
+			} else {
+				// 七対子系の場合は mMentsuAmari.empty になることがある
+			}
 			return 0;
-		}
+	//	}
 	}
 	int complete = 0;
 	if (!pairHasBeenRemoved) {
@@ -706,7 +962,7 @@ int MJEval::enumMentsu(const MJHand &hand, int pairHasBeenRemoved) {
 		if (id) {
 			// 雀頭を取り除いた。残りの部分の形を再帰的に調べる
 			mMentsuList.push_back(MJMentsu(id, MJ_MENTSU_TOITSU));
-			complete |= enumMentsu(tmp, 1);
+			complete |= enumMentsu(tmp, tsumo, 1);
 			mMentsuList.pop_back();
 		}
 	}
@@ -716,7 +972,7 @@ int MJEval::enumMentsu(const MJHand &hand, int pairHasBeenRemoved) {
 		if (id) {
 			// 刻子を取り除いた。残りの部分の形を再帰的に調べる
 			mMentsuList.push_back(MJMentsu(id, MJ_MENTSU_KOUTSU));
-			complete |= enumMentsu(tmp, pairHasBeenRemoved);
+			complete |= enumMentsu(tmp, tsumo, pairHasBeenRemoved);
 			mMentsuList.pop_back();
 		}
 	}
@@ -726,7 +982,7 @@ int MJEval::enumMentsu(const MJHand &hand, int pairHasBeenRemoved) {
 		if (id) {
 			// 順子を取り除いた。残りの部分の形を再帰的に調べる
 			mMentsuList.push_back(MJMentsu(id, MJ_MENTSU_CHUNTSU));
-			complete |= enumMentsu(tmp, pairHasBeenRemoved);
+			complete |= enumMentsu(tmp, tsumo, pairHasBeenRemoved);
 			mMentsuList.pop_back();
 		}
 	}
@@ -736,7 +992,7 @@ int MJEval::enumMentsu(const MJHand &hand, int pairHasBeenRemoved) {
 		MJHand tmp(hand);
 		if (tmp.size() > 0) {
 			mMentsuAmari.push_back(tmp.removeAt(0));
-			enumMentsu(tmp, pairHasBeenRemoved);
+			enumMentsu(tmp, tsumo, pairHasBeenRemoved);
 			mMentsuAmari.pop_back();
 		}
 	}
@@ -780,7 +1036,7 @@ void MJEval::checkTemapai() {
 		switch (mLastTaatsuType) {
 		case MJ_TAATSU_RYAN:
 			// 両面塔子ならその両側が待ち
-			onEnumTempai(MJ_MACHI_RYANMEN, mLastTaatsuId-1, mLastTaatsuId+3);
+			onEnumTempai(MJ_MACHI_RYANMEN, mLastTaatsuId-1, mLastTaatsuId+2);
 			updateShanten(0); // テンパイ
 			break;
 
@@ -788,7 +1044,7 @@ void MJEval::checkTemapai() {
 			// 両面塔子ならその外側片方が待ち
 			if (MJ_GETNUM(mLastTaatsuId) == 1) {
 				// １２塔子がある。辺３待ち
-				onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId+3, 0);
+				onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId+2, 0);
 			} else {
 				// ８９塔子がある。辺７待ち
 				onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId-1, 0);
@@ -906,7 +1162,7 @@ void MJEval::onEnumComplete(int flag) {
 	// 面子をソートする
 	MJEvalResult result;
 	result.pattern = mMentsuList; // copy
-	std::sort(result.pattern.begin(), result.pattern.end(), CSort());
+	std::sort(result.pattern.begin(), result.pattern.end(), CMentsuSort());
 		
 	// 同一の組み合わせが登録済みなら無視する
 	for (size_t i=0; i<mResultItems.size(); i++) {
@@ -926,7 +1182,7 @@ void MJEval::onEnumTempai(MJMachiType machiType, MJID machi1, MJID machi2) {
 	result.machiType = machiType;
 	result.machi1 = machi1;
 	result.machi2 = machi2;
-	std::sort(result.pattern.begin(), result.pattern.end(), CSort());
+	std::sort(result.pattern.begin(), result.pattern.end(), CMentsuSort());
 		
 	// 同一の組み合わせが登録済みなら無視する
 	for (size_t i=0; i<mTempaiItems.size(); i++) {

@@ -95,7 +95,10 @@ public:
 	MJID removeChunz();// 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
 	MJID removeTaatsuRyanmen(); // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
 	MJID removeTaatsuKanchan();  // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
-	int findRemove(MJID id); // id に一致する牌があれば、ひとつだけ取り除く。取りのぞいたら 1 を返す。ダメだったら 0 を返す
+	int findRemove(MJID id); // id に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
+	int findRemoveAll(MJID id); // id に一致する牌があれば、全て取り除いて 1 を返す
+	int findRemovePong(MJID id); // id が刻子を含んでいれば、その3牌を取り除いて 1 を返す
+	int findRemoveChunz(MJID id); // id を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
 };
 
 
@@ -131,9 +134,11 @@ struct MJMentsu {
 	bool isChuntsu() const { return type==MJ_MENTSU_CHUNTSU; } // 順子か？
 	bool isKoutsu()  const { return type==MJ_MENTSU_KOUTSU; }  // 刻子か？
 	bool isJihai()   const { return attr & JIHAI; }  // 字牌か？
-	bool isNum1or9() const { return attr & NUM19; }  // １９がらみか？ (11,99,111,999,123,789のどれか）
+	bool is1or9()    const { return attr & NUM19; }  // １だけ、または９だけか？ (11,99,111,999,のどれか）
+	bool has1or9() const { return attr & NUM19; }  // １または９を含んでいるか？ (11,99,111,999,123,789のどれか）
 	bool isKaze()    const { return attr & KAZE; }   // 風牌か？（場風、自風などは無視。東南西北かどうかだけ見る）
 	bool isSangen()  const { return attr & SANGEN; } // 三元牌か？
+	bool isAnko()    const { return isKoutsu(); }
 
 	MJID id; // 面子を構成する牌番号。順子ならその最初の牌番号を示す
 	MJMentsuType type; // 面子の種類（MJ_MENTSU_***）
@@ -202,6 +207,7 @@ public:
 	int eval(const MJHand &hand, MJID tsumo);
 
 private:
+	MJHand mHand; // もとの形
 	std::vector<MJMentsu> mMentsuList; // 見つかった面子（雀頭含む）のリスト
 	std::vector<MJID> mMentsuAmari; // 面子として使えなかった余り牌
 	int mTaatsuAmari; // 塔子としても使えない牌の数
@@ -209,15 +215,8 @@ private:
 	MJID mLastTaatsuId; // 塔子構成牌の最初の１個
 	MJTaatsuType mLastTaatsuType; // 塔子の種類　0=なし 1=嵌張 2=両面or辺張
 	int mMinMentsuAmari; // 今まで調べた中で、もっとも余り牌が少なかった時の余り数
-
-	class CSort {
-	public:
-		bool operator()(const MJMentsu &a, const MJMentsu &b) const {
-			return a.id < b.id;
-		}
-	};
 	void updateShanten(int shanten);
-	int enumMentsu(const MJHand &hand, int pairHasBeenRemoved);
+	int enumMentsu(const MJHand &hand, MJID tsumo, int pairHasBeenRemoved);
 	void enumTaatsu(const MJHand &hand);
 	void checkTemapai();
 	void onEnumComplete(int flag=0);
