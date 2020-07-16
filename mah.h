@@ -84,6 +84,10 @@ class MJHand {
 public:
 	std::vector<MJID> mItems;
 
+	MJHand();
+	MJHand(const MJID *id, int size);
+	MJHand(const std::vector<MJID> &tiles);
+
 	int size() const;
 	bool empty() const;
 	const MJID * data() const;
@@ -190,7 +194,7 @@ class MJMentsuParser {
 public:
 	MJMentsuParser();
 	int parse(const MJHand &tiles);
-	const MJMentsuParserResult * getResult(int index) const;
+	const MJMentsuParserResult * get(int index) const;
 	int size() const;
 
 private:
@@ -216,7 +220,7 @@ class MJTaatsuParser {
 public:
 	MJTaatsuParser();
 	int parse(const MJHand &tiles);
-	const MJTaatsuParserResult * getResult(int index) const;
+	const MJTaatsuParserResult * get(int index) const;
 	int size() const;
 
 private:
@@ -228,19 +232,17 @@ private:
 
 
 // 国士無双形の判定
-// 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。上がりもせずテンパイもしていない場合は　0 を返す
-// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合は上がっているか調べる
-// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
-// out_wait: テンパイしている場合は待ち牌をセットする（単騎待ちのみ）
-int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait);
+// 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。テンパイしていない場合は　0 を返す
+// out_shanten: シャンテン数をセットする。テンパイだった場合は 0
+// out_wait: 待ち牌をセットする。13面待ちだった場合は 0
+int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait);
 
 
 // 七対子形の判定
-// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
-// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
-// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// テンパイなら 1 を返す。それ以外は 0 を返す
+// out_shanten: シャンテン数をセットする。テンパイだった場合は 0
 // out_wait: テンパイしている場合は待ち牌をセットする
-int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait);
+int MJ_EvalChitoitsuTempai(const MJHand &hand, int *out_shanten, MJID *out_wait);
 
 
 // ４面子１雀頭形の判定
@@ -249,7 +251,7 @@ int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out
 // out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
 // out_wait1: テンパイしている場合は待ち牌をセットする
 // out_wait2: テンパイしている場合は待ち牌をセットする
-int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, MJID tsumo, int *out_shanten, MJID *out_wait1, MJID *out_wait2);
+int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, MJID tsumo, int *out_shanten, MJMachiType *out_machitype, MJID *out_wait1, MJID *out_wait2);
 
 
 

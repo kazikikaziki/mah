@@ -275,7 +275,7 @@ private:
 		MJID atama = 0;
 		for (size_t i=0; i<mMentsuList.size(); i++) {
 			if (mMentsuList[i].isAnko()) { cnt++; }
-			if (mMentsuList[i].isToitsu()) { atama==mMentsuList[i].id; }
+			if (mMentsuList[i].isToitsu()) { atama=mMentsuList[i].id; }
 		}
 		if (cnt == 4 && mAmari!=0 && mAmari==mTsumo) {
 			// テンパイ時点で暗刻が4個かつ塔子が無い＝単騎待ち
@@ -489,6 +489,14 @@ private:
 
 
 #pragma region MJHand
+MJHand::MJHand() {
+}
+MJHand::MJHand(const MJID *id, int size) {
+	addArray(id, size);
+}
+MJHand::MJHand(const std::vector<MJID> &tiles) {
+	addArray(tiles);
+}
 int MJHand::size() const {
 	return mItems.size();
 }
@@ -527,7 +535,7 @@ MJID MJHand::removeAt(int index) {
 	// インデックス番目にある牌を削除して牌番号を返す
 	// 削除できない場合は 0 を返す
 	// ※ mItems はソート済みである
-	if (index < mItems.size()) {
+	if (index < (int)mItems.size()) {
 		MJID a = mItems[index];
 		mItems.erase(mItems.begin() + index);
 		return a;
@@ -691,7 +699,7 @@ int MJMentsuParser::parse(const MJHand &tiles) {
 	enumMentsu(tiles);
 	return (int)mResult.size();
 }
-const MJMentsuParserResult * MJMentsuParser::getResult(int index) const {
+const MJMentsuParserResult * MJMentsuParser::get(int index) const {
 	return &mResult[index];
 }
 int MJMentsuParser::size() const {
@@ -777,7 +785,7 @@ int MJTaatsuParser::parse(const MJHand &tiles) {
 	enumTaatsu(tiles);
 	return (int)mResult.size();
 }
-const MJTaatsuParserResult * MJTaatsuParser::getResult(int index) const {
+const MJTaatsuParserResult * MJTaatsuParser::get(int index) const {
 	return &mResult[index];
 }
 int MJTaatsuParser::size() const {
@@ -865,10 +873,12 @@ void MJTaatsuParser::enumTaatsu(const MJHand &tiles) {
 
 
 // 国士無双形の判定
-// 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。上がりもせずテンパイもしていない場合は　0 を返す
-// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合は上がっているか調べる
-// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
-int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait) {
+// 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。テンパイしていない場合は　0 を返す
+// out_shanten: シャンテン数をセットする。テンパイだった場合は 0
+// out_wait: 待ち牌をセットする。13面待ちだった場合は 0
+int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
+	if (hand.size() != 13) return 0;
+
 	MJHand tmp(hand);
 
 	// 全種類のヤオチュウ牌を１個ずつ除き、最後に余った牌を調べる
@@ -885,13 +895,6 @@ int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_w
 		// 全てのヤオチュウ牌の削除に成功した（＝全種類のヤオチュウ牌を１個ずつもっている）
 		// つまり13面待ちの状態。ツモ牌がヤオチュウ牌であれば上がっている
 		//
-		if (tsumo) { // ツモ牌が指定されている。アガリ判定する
-			if (MJ_IS_YAOCHU(tsumo)) {
-				return 2; // 純正国士が完成
-			}
-			return 0; // 上がらず
-		}
-		// テンパイ判定
 		if (out_shanten) *out_shanten = 0;
 		if (out_wait) *out_wait = 0;
 		return 2; // 13面待ちテンパイ
@@ -902,9 +905,6 @@ int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_w
 		// １個の牌が余った
 		// 余った牌がヤオチュウ牌ならその牌で単騎待ちテンパイ。ヤオチュウ牌でなければイーシャンテン
 		//
-		if (tsumo) { // ツモ牌が指定されている。アガリ判定する
-			return 0;
-		}
 		// テンパイ判定
 		if (MJ_IS_YAOCHU(tmp.get(0))) {
 			// ヤオチュウ牌が1個余った場合、それが頭になっている。
@@ -946,11 +946,11 @@ int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_w
 
 
 // 七対子形の判定
-// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
-// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
-// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// テンパイなら 1 を返す。それ以外は 0 を返す
+// out_shanten: シャンテン数をセットする。テンパイだった場合は 0
 // out_wait: テンパイしている場合は待ち牌をセットする
-int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait) {
+int MJ_EvalChitoitsuTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
+	if (hand.size() != 13) return 0;
 	// 牌の種類ごとの数を数える
 	std::map<MJID, int> nums;
 	for (int i=0; i<hand.size(); i++) {
@@ -966,16 +966,6 @@ int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out
 		if (it->second == 1) amari = it->first;
 	}
 
-	if (tsumo) {
-		// ツモ牌が指定されている。上り判定する
-		if (amari == tsumo) {
-			numPair++; // 余り牌とツモ牌で対子になった
-		}
-		if (numPair == 7) { // 対子が7組ならOK
-			return 1; // 上り
-		}
-		return 0; // 上がらず
-	}
 	// テンパイ判定する
 	if (numPair == 6) {
 		// 対子が6組ならテンパイ
@@ -998,29 +988,20 @@ int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out
 
 
 // ４面子１雀頭形の判定
-// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
-// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
-// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
-// out_wait1: テンパイしている場合は待ち牌をセットする
-// out_wait2: テンパイしている場合は待ち牌をセットする
-int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, MJID tsumo, int *out_shanten, MJID *out_wait1, MJID *out_wait2) {
+// テンパイなら 1 を返す。それ以外は 0 を返す
+// out_shanten: シャンテン数をセットする。テンパイだった場合は 0
+// out_wait1: テンパイしている場合は待ち牌1をセットする
+// out_wait2: テンパイしている場合は待ち牌2をセットする
+int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, int *out_shanten, MJMachiType *out_waittype, MJID *out_wait1, MJID *out_wait2) {
 	int numMentsu = mentsu.numKoutsu + mentsu.numChuntsu; // 雀頭を含まない面子数
 	if (numMentsu==4 && mentsu.numAtama==0) {
 		// ４面子０雀頭の形になっている。
-		// 単騎待ちしている状態
+		// 単騎待ちテンパイ確定
 		assert(mentsu.numAmari == 1); // 面子にできなかった牌が１つある
 		assert(taatsu.numAmari == 1); // 塔子にもできなかった牌が１つある
 		assert(taatsu.list.empty()); // 塔子はひとつもない
-		if (tsumo) {
-			// アガリ判定
-			if (tsumo == mentsu.amari[0]) {
-				return 1;
-			}
-			return 0;
-		}
-		// テンパイ判定
-		// ４面子０雀頭の形なら必ずテンパイしている
 		if (out_shanten) *out_shanten = 0;
+		if (out_waittype) *out_waittype = MJ_MACHI_TANKI;
 		if (out_wait1) *out_wait1 = mentsu.amari[0]; // 単騎
 		if (out_wait2) *out_wait2 = 0; 
 		return 1;
@@ -1029,80 +1010,47 @@ int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult
 	if (numMentsu==3 && mentsu.numAtama==1) {
 		// ３面子１雀頭の形になっている。
 		if (taatsu.list.size() == 1) {
-
-			// テンパイまたはアガリが確定
-			if (out_shanten) *out_shanten = 0;
-
-			// 塔子の形を見る
+			// テンパイ確定。待ち牌決める
 			MJID taa = taatsu.list[0].id;
 			switch (taatsu.list[0].type) {
 			case MJ_TAATSU_RYAN: // 両面塔子
-				if (tsumo) {
-					if (tsumo == taa-1 || tsumo == taa+2) {
-						return 1; // あがり
-					}
-					return 0; // あがらず
-				}
-				// 待ち牌
+				if (out_shanten) *out_shanten = 0;
+				if (out_waittype) *out_waittype = MJ_MACHI_RYANMEN;
 				if (out_wait1) *out_wait1 = taa-1;
 				if (out_wait2) *out_wait2 = taa+2;
-				return 1; // テンパイ
+				return 1;
 			
 			case MJ_TAATSU_PEN12: // 辺１２塔子
-				if (tsumo) {
-					if (tsumo == taa+2) {
-						return 1; // あがり
-					}
-					return 0; // あがらず
-				}
-				// 待ち牌
+				if (out_shanten) *out_shanten = 0;
+				if (out_waittype) *out_waittype = MJ_MACHI_PENCHAN;
 				if (out_wait1) *out_wait1 = taa+2; // 辺３待ち
 				if (out_wait2) *out_wait2 = 0;
-				return 1; // テンパイ
+				return 1;
 
 			case MJ_TAATSU_PEN89: // 辺８９塔子
-				if (tsumo) {
-					if (tsumo == taa-1) {
-						return 1; // あがり
-					}
-					return 0; // あがらず
-				}
-				// 待ち牌
+				if (out_shanten) *out_shanten = 0;
+				if (out_waittype) *out_waittype = MJ_MACHI_PENCHAN;
 				if (out_wait1) *out_wait1 = taa-1; // 辺７待ち
 				if (out_wait2) *out_wait2 = 0;
-				return 1; // テンパイ
+				return 1;
 
 			case MJ_TAATSU_KAN: // 嵌張塔子
-				if (tsumo) {
-					if (tsumo == taa+1) {
-						return 1; // あがり
-					}
-					return 0; // あがらず
-				}
-				// 待ち牌
+				if (out_shanten) *out_shanten = 0;
+				if (out_waittype) *out_waittype = MJ_MACHI_KANCHAN;
 				if (out_wait1) *out_wait1 = taa+1; // 嵌張待ち
 				if (out_wait2) *out_wait2 = 0;
-				return 1; // テンパイ
+				return 1;
 
 			case MJ_TAATSU_TOI: // 対子
-				if (tsumo) {
-					if (tsumo == taa || tsumo == mentsu.atama) {
-						return 1; // あがり
-					}
-					return 0; // あがらず
-				}
-				// 待ち牌
+				if (out_shanten) *out_shanten = 0;
+				if (out_waittype) *out_waittype = MJ_MACHI_SHABO;
 				if (out_wait1) *out_wait1 = taa; // シャボ待ち
 				if (out_wait2) *out_wait2 = mentsu.atama;
-				return 1; // テンパイ
+				return 1;
 			}
 			assert(0);
 			return 0;
 		}
-	}
-
-	if (tsumo) {
-		return 0; // あがらず
 	}
 
 	// テンパイ形になっていない。
@@ -1123,9 +1071,73 @@ int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult
 }
 
 
+struct MJPattern {
+	MJID machi1;
+	MJID machi2;
+	MJMachiType machiType;
+};
 
+class MJEnumPatterns {
+public:
+	std::vector<MJPattern> mResults;
+	int mShanten;
 
+	MJEnumPatterns() {
+		mShanten = -1;
+	}
 
+	// テンパイしているなら mResults に考えられるすべてのテンパイ形をセットして true を返す
+	// テンパイしていないなら mShanten にシャンテン数をセットして false を返す
+	bool eval(const MJHand &hand) {
+		mResults.clear();
+		mShanten = -1;
+		
+		MJMentsuParser mp;
+		mp.parse(hand);
+
+		for (int m=0; m<mp.size(); m++) {
+			const MJMentsuParserResult *mpr = mp.get(m);
+
+			MJHand tiles(mpr->amari, mpr->numAmari);
+			MJTaatsuParser tp;
+			tp.parse(tiles);
+
+			for (int t=0; t<tp.size(); t++) {
+				const MJTaatsuParserResult *tpr = tp.get(t);
+				int shanten = 0;
+				MJID wait1 = 0;
+				MJID wait2 = 0;
+				MJMachiType machiType = (MJMachiType)0;
+				if (MJ_EvalMentsu(*mpr, *tpr, &shanten, &machiType, &wait1, &wait2)) {
+					MJPattern pat;
+					pat.machi1 = wait1;
+					pat.machi2 = wait2;
+					pat.machiType = machiType;
+					mResults.push_back(pat);
+					mShanten = 0;
+
+				} else {
+					if (shanten < mShanten || mShanten < 0) {
+						mShanten = shanten;
+					}
+				}
+			}
+		}
+
+		return mShanten == 0;
+	}
+
+	// ツモ牌を指定し、あがっているか調べる。上がっている場合は待ち牌と一致したテンパイパターンを返す
+	const MJPattern * check(MJID tsumo) const {
+		for (size_t i=0; i<mResults.size(); i++) {
+			const MJPattern *pat = &mResults[i];
+			if (pat->machi1 == tsumo || pat->machi2 == tsumo) {
+				return pat;
+			}
+		}
+		return NULL;
+	}
+};
 
 
 
@@ -1463,6 +1475,7 @@ static MJID FindAtama(const std::vector<MJMentsu> &mentsu) {
 			return mentsu[i].id;
 		}
 	}
+	return 0;
 }
 
 // 既存面子のうち雀頭以外の面子の数を数える
