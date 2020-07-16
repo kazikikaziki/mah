@@ -820,9 +820,14 @@ void MJTaatsuParser::enumTaatsu(const MJHand &tiles) {
 		MJHand tmp(tiles);
 		MJID id = tmp.removeTaatsuRyanmen();
 		if (id) {
-			if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==8) {
-				// 辺張塔子を取り除いた
-				mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_PEN));
+			if (MJ_GETNUM(id)==1) {
+				// 辺１２塔子を取り除いた
+				mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_PEN12));
+				enumTaatsu(tmp); 
+				mTmp.list.pop_back();
+			} else if (MJ_GETNUM(id)==8) {
+				// 辺８９塔子を取り除いた
+				mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_PEN89));
 				enumTaatsu(tmp); 
 				mTmp.list.pop_back();
 			} else {
@@ -937,12 +942,15 @@ int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_w
 	return 0;
 }
 
+
+
+
 // 七対子形の判定
-// 上がちまたはテンパイなら 1 を返す。それ以外は 0 を返す
+// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
 // tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
 // out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
 // out_wait: テンパイしている場合は待ち牌をセットする
-int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, int *out_wait) {
+int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait) {
 	// 牌の種類ごとの数を数える
 	std::map<MJID, int> nums;
 	for (int i=0; i<hand.size(); i++) {
@@ -985,6 +993,136 @@ int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, int *out_
 	if (out_wait) *out_wait = 0;
 	return 0;
 }
+
+
+
+
+// ４面子１雀頭形の判定
+// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
+// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
+// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// out_wait1: テンパイしている場合は待ち牌をセットする
+// out_wait2: テンパイしている場合は待ち牌をセットする
+int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, MJID tsumo, int *out_shanten, MJID *out_wait1, MJID *out_wait2) {
+	int numMentsu = mentsu.numKoutsu + mentsu.numChuntsu; // 雀頭を含まない面子数
+	if (numMentsu==4 && mentsu.numAtama==0) {
+		// ４面子０雀頭の形になっている。
+		// 単騎待ちしている状態
+		assert(mentsu.numAmari == 1); // 面子にできなかった牌が１つある
+		assert(taatsu.numAmari == 1); // 塔子にもできなかった牌が１つある
+		assert(taatsu.list.empty()); // 塔子はひとつもない
+		if (tsumo) {
+			// アガリ判定
+			if (tsumo == mentsu.amari[0]) {
+				return 1;
+			}
+			return 0;
+		}
+		// テンパイ判定
+		// ４面子０雀頭の形なら必ずテンパイしている
+		if (out_shanten) *out_shanten = 0;
+		if (out_wait1) *out_wait1 = mentsu.amari[0]; // 単騎
+		if (out_wait2) *out_wait2 = 0; 
+		return 1;
+	}
+
+	if (numMentsu==3 && mentsu.numAtama==1) {
+		// ３面子１雀頭の形になっている。
+		if (taatsu.list.size() == 1) {
+
+			// テンパイまたはアガリが確定
+			if (out_shanten) *out_shanten = 0;
+
+			// 塔子の形を見る
+			MJID taa = taatsu.list[0].id;
+			switch (taatsu.list[0].type) {
+			case MJ_TAATSU_RYAN: // 両面塔子
+				if (tsumo) {
+					if (tsumo == taa-1 || tsumo == taa+2) {
+						return 1; // あがり
+					}
+					return 0; // あがらず
+				}
+				// 待ち牌
+				if (out_wait1) *out_wait1 = taa-1;
+				if (out_wait2) *out_wait2 = taa+2;
+				return 1; // テンパイ
+			
+			case MJ_TAATSU_PEN12: // 辺１２塔子
+				if (tsumo) {
+					if (tsumo == taa+2) {
+						return 1; // あがり
+					}
+					return 0; // あがらず
+				}
+				// 待ち牌
+				if (out_wait1) *out_wait1 = taa+2; // 辺３待ち
+				if (out_wait2) *out_wait2 = 0;
+				return 1; // テンパイ
+
+			case MJ_TAATSU_PEN89: // 辺８９塔子
+				if (tsumo) {
+					if (tsumo == taa-1) {
+						return 1; // あがり
+					}
+					return 0; // あがらず
+				}
+				// 待ち牌
+				if (out_wait1) *out_wait1 = taa-1; // 辺７待ち
+				if (out_wait2) *out_wait2 = 0;
+				return 1; // テンパイ
+
+			case MJ_TAATSU_KAN: // 嵌張塔子
+				if (tsumo) {
+					if (tsumo == taa+1) {
+						return 1; // あがり
+					}
+					return 0; // あがらず
+				}
+				// 待ち牌
+				if (out_wait1) *out_wait1 = taa+1; // 嵌張待ち
+				if (out_wait2) *out_wait2 = 0;
+				return 1; // テンパイ
+
+			case MJ_TAATSU_TOI: // 対子
+				if (tsumo) {
+					if (tsumo == taa || tsumo == mentsu.atama) {
+						return 1; // あがり
+					}
+					return 0; // あがらず
+				}
+				// 待ち牌
+				if (out_wait1) *out_wait1 = taa; // シャボ待ち
+				if (out_wait2) *out_wait2 = mentsu.atama;
+				return 1; // テンパイ
+			}
+			assert(0);
+			return 0;
+		}
+	}
+
+	if (tsumo) {
+		return 0; // あがらず
+	}
+
+	// テンパイ形になっていない。
+	// シャンテン数を調べる
+	if (out_shanten) {
+		// 塔子の数を得る。
+		// ただし、塔子ととして有効なのは 4-面子数のみ。
+		// 面子と塔子の合計が 4 以上あっても塔子オーバーで意味がない
+		assert(numMentsu < 4);
+		int numTaatsu = std::min(4 - numMentsu, (int)taatsu.list.size());
+		int shanten = 8; // ４面子１雀頭を目指す場合、完全に手がバラバラ時のシャンテン数は８（ちなみに七対子なら最大６）
+		shanten -= numMentsu * 2; // 面子が１組完成しているごとにシャンテン数は２減る
+		shanten -= numTaatsu; // 塔子が１組あるごとにシャンテン数は１減る
+		assert(shanten > 1);
+		*out_shanten = shanten;
+	}
+	return 0;
+}
+
+
 
 
 
@@ -1221,12 +1359,12 @@ int MJEval::enumMentsu(const MJHand &hand, MJID tsumo, int pairHasBeenRemoved) {
 						// a, b, tsumo のすべてが数字牌かつ同色
 						#define is_chunz(x, y, z) ((x+1==y) && (y+1==z))
 						if (is_chunz(a, b, tsumo) && MJ_GETNUM(a) == 1) {
-							mLastTaatsuType = MJ_TAATSU_PEN; // 123の辺張
+							mLastTaatsuType = MJ_TAATSU_PEN12; // 123の辺張
 							mLastTaatsuId = mMentsuAmari[0];
 							chunz = a;
 
 						} else if (is_chunz(tsumo, a, b) && MJ_GETNUM(b) == 9) {
-							mLastTaatsuType = MJ_TAATSU_PEN; // 789の辺張
+							mLastTaatsuType = MJ_TAATSU_PEN89; // 789の辺張
 							mLastTaatsuId = mMentsuAmari[0];
 							chunz = tsumo;
 						
@@ -1358,15 +1496,15 @@ void MJEval::checkTemapai() {
 			updateShanten(0); // テンパイ
 			break;
 
-		case MJ_TAATSU_PEN:
-			// 両面塔子ならその外側片方が待ち
-			if (MJ_GETNUM(mLastTaatsuId) == 1) {
-				// １２塔子がある。辺３待ち
-				onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId+2, 0);
-			} else {
-				// ８９塔子がある。辺７待ち
-				onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId-1, 0);
-			}
+		case MJ_TAATSU_PEN12:
+			// １２塔子
+			onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId+2, 0);
+			updateShanten(0); // テンパイ
+			break;
+
+		case MJ_TAATSU_PEN89:
+			// ８９塔子
+			onEnumTempai(MJ_MACHI_PENCHAN, mLastTaatsuId-1, 0);
 			updateShanten(0); // テンパイ
 			break;
 
@@ -1415,8 +1553,10 @@ void MJEval::enumTaatsu(const MJHand &hand) {
 		MJID id = tmp.removeTaatsuRyanmen();
 		if (id) {
 			mLastTaatsuId = id;
-			if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==8) {
-				mLastTaatsuType = MJ_TAATSU_PEN;
+			if (MJ_GETNUM(id)==1) {
+				mLastTaatsuType = MJ_TAATSU_PEN12;
+			} else if (MJ_GETNUM(id)==8) {
+				mLastTaatsuType = MJ_TAATSU_PEN89;
 			} else {
 				mLastTaatsuType = MJ_TAATSU_RYAN;
 			}

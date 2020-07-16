@@ -8,6 +8,7 @@
 
 #define MJ_GETGROUP(n) ((int)(n) / 100) // 牌の種類を得る (MJ_GROUP_MAN, MJ_GROUP_PIN, MJ_GROUP_SOU, MJ_GROUP_CHR)
 #define MJ_GETNUM(n)   (MJ_IS_NUM(n) ? (int)(n) % 100 : 0) // 牌の数字(1～9)を得る。数字牌でない場合は 0
+#define MJ_SAMEGROUP(a, b)  (MJ_GETGROUP(a) == MJ_GETGROUP(b))
 
 #define MJ_MAN(n) (MJ_GROUP_MAN +(n)) // 萬子の MJID を得る (1<=n<=9)
 #define MJ_PIN(n) (MJ_GROUP_PIN +(n)) // 筒子の MJID を得る (1<=n<=9)
@@ -72,7 +73,8 @@ enum MJMentsuType {
 enum MJTaatsuType {
 	MJ_TAATSU_UNKNOWN,
 	MJ_TAATSU_RYAN, // 両面塔子
-	MJ_TAATSU_PEN, // 辺張塔子
+	MJ_TAATSU_PEN12, // 辺１２塔子
+	MJ_TAATSU_PEN89, // 辺８９塔子
 	MJ_TAATSU_KAN, // 嵌張塔子
 	MJ_TAATSU_TOI, // 対子
 };
@@ -232,14 +234,22 @@ private:
 // out_wait: テンパイしている場合は待ち牌をセットする（単騎待ちのみ）
 int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait);
 
+
 // 七対子形の判定
-// 上がちまたはテンパイなら 1 を返す。それ以外は 0 を返す
+// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
 // tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
 // out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
 // out_wait: テンパイしている場合は待ち牌をセットする
 int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait);
 
 
+// ４面子１雀頭形の判定
+// アガリまたはテンパイなら 1 を返す。それ以外は 0 を返す
+// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
+// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// out_wait1: テンパイしている場合は待ち牌をセットする
+// out_wait2: テンパイしている場合は待ち牌をセットする
+int MJ_EvalMentsu(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, MJID tsumo, int *out_shanten, MJID *out_wait1, MJID *out_wait2);
 
 
 
