@@ -20,6 +20,13 @@ public:
 	}
 };
 
+class CTaatsuSort {
+public:
+	bool operator()(const MJTaatsu &a, const MJTaatsu &b) const {
+		return a.id < b.id;
+	}
+};
+
 class MJYaku {
 	MJHand mHand; // 手牌(13牌）
 	std::vector<MJMentsu> mAgariMentsuList; // アガリ時の面子構成
@@ -668,6 +675,317 @@ int MJHand::findRemoveChunz(MJID id) {
 	return 0;
 }
 #pragma endregion // MJHand
+
+
+
+
+#pragma region MJMentsuParser
+// 牌の並びからできるだけ多くの面子（３牌構成）と対子（雀頭）を取る
+MJMentsuParser::MJMentsuParser() {
+	mMaxNumMentsu = 0;
+}
+int MJMentsuParser::parse(const MJHand &tiles) {
+	mResult.clear();
+	mTmp = MJMentsuParserResult();
+	mMaxNumMentsu = 0;
+	enumMentsu(tiles);
+	return (int)mResult.size();
+}
+const MJMentsuParserResult * MJMentsuParser::getResult(int index) const {
+	return &mResult[index];
+}
+int MJMentsuParser::size() const {
+	return (int)mResult.size();
+}
+void MJMentsuParser::enumMentsu(const MJHand &tiles) {
+	// 面子（刻子、順子、雀頭）の組み合わせを調べる
+	if (tiles.empty()) {
+		// すべての牌について処理が終わった
+		int numMentsu = mTmp.numAtama + mTmp.numKoutsu + mTmp.numChuntsu;
+
+		if (numMentsu == mMaxNumMentsu) {
+			// これまでに見つかった面子の最大数と同じ数の面子が見つかった。
+			// 現在の組み合わせを候補リストに追加する
+			mResult.push_back(mTmp);
+			return;
+		}
+		if (numMentsu > mMaxNumMentsu) {
+			// 既知の組み合わせよりも多くの面子が見つかった。
+			// 現在の組み合わせで書き換える
+			mResult.clear();
+			mResult.push_back(mTmp);
+			return;
+		}
+		return; // 既知の組み合わせよりも少ない面子しかみつからなかった。この組み合わせを無視する
+	}
+	if (mTmp.numAtama == 0) { // まだ対子を取り除いていない
+		// 先頭の牌を対子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+		MJHand tmp(tiles);
+		MJID id = tmp.removePair();
+		if (id) {
+			mTmp.atama = id;
+			mTmp.numAtama = 1;
+			enumMentsu(tmp);
+			mTmp.numAtama = 0;
+		}
+	}
+	{
+		// 先頭の牌を含む刻子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+		MJHand tmp(tiles);
+		MJID id = tmp.removePong();
+		if (id) {
+			mTmp.koutsu[mTmp.numKoutsu] = id;
+			mTmp.numKoutsu++;
+			enumMentsu(tmp);
+			mTmp.numKoutsu--;
+		}
+	}
+	{
+		// 先頭の牌を含む順子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+		MJHand tmp(tiles);
+		MJID id = tmp.removeChunz();
+		if (id) {
+			mTmp.chuntsu[mTmp.numKoutsu] = id;
+			mTmp.numChuntsu++;
+			enumMentsu(tmp);
+			mTmp.numChuntsu--;
+		}
+	}
+	{
+		// 先頭牌を含む面子について調べ終わった。
+		// この牌をいったん余り牌として退避し、残りの部分について同様に調べていく
+		MJHand tmp(tiles);
+		mTmp.amari[mTmp.numAmari] = tmp.removeAt(0);
+		mTmp.numAmari++;
+		enumMentsu(tmp);
+		mTmp.numAmari--;
+	}
+}
+#pragma endregion // MJMentsuParser
+
+
+
+
+#pragma region MJTaatsuParser
+MJTaatsuParser::MJTaatsuParser() {
+	mMaxNumTaatsu = 0;
+}
+int MJTaatsuParser::parse(const MJHand &tiles) {
+	mResult.clear();
+	mTmp = MJTaatsuParserResult();
+	mMaxNumTaatsu = 0;
+	enumTaatsu(tiles);
+	return (int)mResult.size();
+}
+const MJTaatsuParserResult * MJTaatsuParser::getResult(int index) const {
+	return &mResult[index];
+}
+int MJTaatsuParser::size() const {
+	return (int)mResult.size();
+}
+void MJTaatsuParser::enumTaatsu(const MJHand &tiles) {
+	// 塔子（対子、両面、嵌張）の組み合わせを調べる
+	if (tiles.empty()) {
+		// すべての牌について処理が終わった
+		int numTaatsu = mTmp.list.size();
+
+		if (numTaatsu == mMaxNumTaatsu) {
+			// これまでに見つかった塔子の最大数と同じ数の面子が見つかった。
+			// 現在の組み合わせを候補リストに追加する
+			mResult.push_back(mTmp);
+			return;
+		}
+		if (numTaatsu > mMaxNumTaatsu) {
+			// これまでに見つかった組み合わせよりも多くの塔子が見つかった。
+			// 現在の組み合わせで書き換える
+			mResult.clear();
+			mResult.push_back(mTmp);
+			return;
+		}
+		return; // 既知の組み合わせよりも少ない面子しかみつからなかった。この組み合わせを無視する
+	}
+	{
+		// 先頭の牌を含む対子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+		MJHand tmp(tiles);
+		MJID id = tmp.removePair();
+		if (id) {
+			// 対子を取り除いた
+			mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_TOI));
+			enumTaatsu(tmp); 
+			mTmp.list.pop_back();
+		}
+	}
+	{
+		// 先頭の牌を含む両面塔子または辺張塔子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+		MJHand tmp(tiles);
+		MJID id = tmp.removeTaatsuRyanmen();
+		if (id) {
+			if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==8) {
+				// 辺張塔子を取り除いた
+				mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_PEN));
+				enumTaatsu(tmp); 
+				mTmp.list.pop_back();
+			} else {
+				// 両面塔子を取り除いた
+				mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_RYAN));
+				enumTaatsu(tmp); 
+				mTmp.list.pop_back();
+			}
+		}
+	}
+	{
+		// 先頭の牌を含む間張塔子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+		MJHand tmp(tiles);
+		MJID id = tmp.removeTaatsuKanchan();
+		if (id) {
+			// 間張塔子を取り除いた
+			mTmp.list.push_back(MJTaatsu(id, MJ_TAATSU_KAN));
+			enumTaatsu(tmp); 
+			mTmp.list.pop_back();
+		}
+	}
+	{
+		// 先頭牌を含む塔子について調べ終わった。
+		// この牌をいったん余り牌として退避し、残りの部分について同様に調べていく
+		MJHand tmp(tiles);
+		mTmp.amari[mTmp.numAmari] = tmp.removeAt(0);
+		mTmp.numAmari++;
+		enumTaatsu(tmp);
+		mTmp.numAmari--;
+	}
+}
+#pragma endregion // MJTaatsuParser
+
+
+
+
+// 国士無双形の判定
+// 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。上がりもせずテンパイもしていない場合は　0 を返す
+// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合は上がっているか調べる
+// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait) {
+	MJHand tmp(hand);
+
+	// 全種類のヤオチュウ牌を１個ずつ除き、最後に余った牌を調べる
+	tmp.findRemove(MJ_MAN(1)); tmp.findRemove(MJ_MAN(9));
+	tmp.findRemove(MJ_PIN(1)); tmp.findRemove(MJ_PIN(9));
+	tmp.findRemove(MJ_SOU(1)); tmp.findRemove(MJ_SOU(9));
+	tmp.findRemove(MJ_TON); tmp.findRemove(MJ_NAN);
+	tmp.findRemove(MJ_SHA); tmp.findRemove(MJ_PEI);
+	tmp.findRemove(MJ_HAK); tmp.findRemove(MJ_HAZ); tmp.findRemove(MJ_CHUN);
+
+	if (tmp.size() == 0) {
+		//
+		// 牌が余っていない。
+		// 全てのヤオチュウ牌の削除に成功した（＝全種類のヤオチュウ牌を１個ずつもっている）
+		// つまり13面待ちの状態。ツモ牌がヤオチュウ牌であれば上がっている
+		//
+		if (tsumo) { // ツモ牌が指定されている。アガリ判定する
+			if (MJ_IS_YAOCHU(tsumo)) {
+				return 2; // 純正国士が完成
+			}
+			return 0; // 上がらず
+		}
+		// テンパイ判定
+		if (out_shanten) *out_shanten = 0;
+		if (out_wait) *out_wait = 0;
+		return 2; // 13面待ちテンパイ
+	}
+
+	if (tmp.size() == 1) { 
+		//
+		// １個の牌が余った
+		// 余った牌がヤオチュウ牌ならその牌で単騎待ちテンパイ。ヤオチュウ牌でなければイーシャンテン
+		//
+		if (tsumo) { // ツモ牌が指定されている。アガリ判定する
+			return 0;
+		}
+		// テンパイ判定
+		if (MJ_IS_YAOCHU(tmp.get(0))) {
+			// ヤオチュウ牌が1個余った場合、それが頭になっている。
+			// ということは、１個だけ削除できなかった（もともと存在しなかった）牌があるはず。
+			// それが待ち牌になっている
+			if (out_shanten) *out_shanten = 0;
+			if (out_wait) *out_wait = tmp.get(0);
+			return 1; // 単騎待ちテンパイ
+				
+		}
+		// ヤオチュウ牌ではない牌が１個余っている。イーシャンテン
+		if (out_shanten) *out_shanten = 1;
+		if (out_wait) *out_wait = 0;
+		return 0;
+	}
+	//
+	// 2個以上の牌が余っている
+	//
+	if (out_shanten) {
+		// シャンテン数調べる。
+		// 余った牌のなかにヤオチュウ牌があるか調べる。少なくとも１個のヤオチュウ牌があれば
+		// それが頭になるので、シャンテン数は余り牌個数-1になる。
+		// ヤオチュウ牌が1つもなければすべての牌を有効牌と入れ替えないといけないので、
+		// シャンテン数は余り牌個数と同じになる
+		bool hasYaochu = false;
+		for (int i=0; i<tmp.size(); i++) {
+			if (MJ_IS_YAOCHU(tmp.get(i))) {
+				hasYaochu = true;
+				break;
+			}
+		}
+		*out_shanten = hasYaochu ? (tmp.size()-1) : tmp.size();
+	}
+	if (out_wait) *out_wait = 0;
+	return 0;
+}
+
+// 七対子形の判定
+// 上がちまたはテンパイなら 1 を返す。それ以外は 0 を返す
+// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
+// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// out_wait: テンパイしている場合は待ち牌をセットする
+int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, int *out_wait) {
+	// 牌の種類ごとの数を数える
+	std::map<MJID, int> nums;
+	for (int i=0; i<hand.size(); i++) {
+		MJID id = hand.get(i);
+		nums[id]++;
+	}
+
+	// 対子数を数える
+	int numPair = 0; // 対子の数
+	MJID amari = 0; // 余った牌
+	for (auto it=nums.begin(); it!=nums.end(); ++it) {
+		if (it->second == 2) numPair++;
+		if (it->second == 1) amari = it->first;
+	}
+
+	if (tsumo) {
+		// ツモ牌が指定されている。上り判定する
+		if (amari == tsumo) {
+			numPair++; // 余り牌とツモ牌で対子になった
+		}
+		if (numPair == 7) { // 対子が7組ならOK
+			return 1; // 上り
+		}
+		return 0; // 上がらず
+	}
+	// テンパイ判定する
+	if (numPair == 6) {
+		// 対子が6組ならテンパイ
+		if (out_shanten) *out_shanten = 0;
+		if (out_wait) *out_wait = amari;
+		return 1;
+	} 
+	// 5対子ならイーシャンテン
+	// 4対子なら2シャンテン
+	// 3対子なら3シャンテン
+	// 2対子なら4シャンテン
+	// 1対子なら5シャンテン
+	// 0対子なら6シャンテン（これがシャンテン数の最大になる。どんなにバラバラな状態でも6シャンテン以上にはならない）
+	if (out_shanten) *out_shanten = 6 - numPair;
+	if (out_wait) *out_wait = 0;
+	return 0;
+}
+
 
 
 

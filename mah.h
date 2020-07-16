@@ -146,6 +146,108 @@ struct MJMentsu {
 };
 
 
+// 塔子または対子
+struct MJTaatsu {
+	MJTaatsu() {
+		id = 0;
+		type = (MJTaatsuType)0;
+	}
+	MJTaatsu(MJID _id, MJTaatsuType _type) {
+		id = _id;
+		type = _type;
+	}
+	MJID id; // 塔子構成牌の最初の１個
+	MJTaatsuType type; // 塔子の種類　0=なし 1=嵌張 2=両面or辺張
+};
+
+
+struct MJMentsuParserResult {
+	MJID atama; // 雀頭・対子
+	MJID koutsu[4]; // 刻子
+	MJID chuntsu[4]; // 順子
+	int numAtama; // 雀頭の数。0 または 1 のみ
+	int numKoutsu; // 刻子の数
+	int numChuntsu; // 順子の数
+	MJID amari[14]; // 面子にできなかった余り牌
+	int numAmari;
+
+	MJMentsuParserResult() {
+		memset(koutsu, 0, sizeof(koutsu));
+		memset(chuntsu, 0, sizeof(chuntsu));
+		memset(amari, 0, sizeof(amari));
+		atama = 0;
+		numAtama = 0;
+		numKoutsu = 0;
+		numChuntsu = 0;
+		numAmari = 0;
+	}
+};
+
+// 牌の並びからできるだけ多くの刻子・順子（合わせて最大４組）と対子（最大１個）を取る
+class MJMentsuParser {
+public:
+	MJMentsuParser();
+	int parse(const MJHand &tiles);
+	const MJMentsuParserResult * getResult(int index) const;
+	int size() const;
+
+private:
+	void enumMentsu(const MJHand &tiles);
+	std::vector<MJMentsuParserResult> mResult;
+	MJMentsuParserResult mTmp; // 作業用
+	int mMaxNumMentsu;
+};
+
+
+struct MJTaatsuParserResult {
+	MJTaatsuParserResult() {
+		memset(amari, 0, sizeof(amari));
+		numAmari = 0;
+	}
+	std::vector<MJTaatsu> list; // 塔子リスト
+	MJID amari[14]; // 塔子にできなかった余り牌
+	int numAmari;
+};
+
+// 牌の並びからできるだけ多くの塔子・対子を取る
+class MJTaatsuParser {
+public:
+	MJTaatsuParser();
+	int parse(const MJHand &tiles);
+	const MJTaatsuParserResult * getResult(int index) const;
+	int size() const;
+
+private:
+	void enumTaatsu(const MJHand &tiles);
+	std::vector<MJTaatsuParserResult> mResult;
+	MJTaatsuParserResult mTmp; // 作業用
+	int mMaxNumTaatsu;
+};
+
+
+// 国士無双形の判定
+// 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。上がりもせずテンパイもしていない場合は　0 を返す
+// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合は上がっているか調べる
+// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// out_wait: テンパイしている場合は待ち牌をセットする（単騎待ちのみ）
+int MJ_EvalKokushi(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait);
+
+// 七対子形の判定
+// 上がちまたはテンパイなら 1 を返す。それ以外は 0 を返す
+// tsumo: ツモ牌。0 を指定した場合はテンパイしているか調べ、牌IDを指定した場合はアガっているか調べる
+// out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
+// out_wait: テンパイしている場合は待ち牌をセットする
+int MJ_EvalChitoitsu(const MJHand &hand, MJID tsumo, int *out_shanten, MJID *out_wait);
+
+
+
+
+
+
+
+
+
+
 // 手役解析結果
 struct MJEvalResult {
 	std::vector<MJMentsu> pattern; // 頭＋面子の分解パターン
