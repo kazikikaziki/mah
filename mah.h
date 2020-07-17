@@ -53,6 +53,7 @@ enum MJMachiType {
 	MJ_MACHI_SHABO,     // シャボ待ち
 	MJ_MACHI_KOKUSHI,   // 国士無双単騎
 	MJ_MACHI_KOKUSHI13, // 国士無双13面
+	MJ_MACHI_CHITOI,    // 七対子単騎
 };
 
 typedef int MJID;
@@ -78,6 +79,16 @@ enum MJTaatsuType {
 	MJ_TAATSU_KAN, // 嵌張塔子
 	MJ_TAATSU_TOI, // 対子
 };
+
+// 属性
+enum MJAttr {
+	MJ_ATTR_NUM19  = 1, // 19牌
+	MJ_ATTR_JIHAI  = 2, // 字牌
+	MJ_ATTR_KAZE   = 4, // 風牌
+	MJ_ATTR_SANGEN = 8, // 三元牌
+};
+typedef int MJAttrs;
+
 
 // 手牌
 class MJHand {
@@ -168,6 +179,7 @@ struct MJTaatsu {
 
 
 struct MJMentsuParserResult {
+	MJID tiles[14];
 	MJID atama; // 雀頭・対子
 	MJID koutsu[4]; // 刻子
 	MJID chuntsu[4]; // 順子
@@ -178,6 +190,7 @@ struct MJMentsuParserResult {
 	int numAmari;
 
 	MJMentsuParserResult() {
+		memset(tiles, 0, sizeof(tiles));
 		memset(koutsu, 0, sizeof(koutsu));
 		memset(chuntsu, 0, sizeof(chuntsu));
 		memset(amari, 0, sizeof(amari));
@@ -186,6 +199,38 @@ struct MJMentsuParserResult {
 		numKoutsu = 0;
 		numChuntsu = 0;
 		numAmari = 0;
+	}
+	void pushAtama(MJID id) {
+		atama = id;
+		numAtama = 1;
+	}
+	void popAtama() {
+		numAtama = 0;
+		atama = 0; // 未使用領域は必ず 0 にしておく。この挙動を前提に組んでいる場所がある
+	}
+	void pushKoutsu(MJID id) {
+		koutsu[numKoutsu] = id;
+		numKoutsu++;
+	}
+	void popKoutsu() {
+		numKoutsu--;
+		koutsu[numKoutsu] = 0; // 未使用領域は必ず 0 にしておく。この挙動を前提に組んでいる場所がある
+	}
+	void pushChuntsu(MJID id) {
+		chuntsu[numChuntsu] = id;
+		numChuntsu++;
+	}
+	void popChuntsu() {
+		numChuntsu--;
+		chuntsu[numChuntsu] = 0; // 未使用領域は必ず 0 にしておく。この挙動を前提に組んでいる場所がある
+	}
+	void pushAmari(MJID id) {
+		amari[numAmari] = id;
+		numAmari++;
+	}
+	void popAmari() {
+		numAmari--;
+		amari[numAmari] = 0; // 未使用領域は必ず 0 にしておく。この挙動を前提に組んでいる場所がある
 	}
 };
 
@@ -255,6 +300,8 @@ int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParser
 
 
 
+// ４面子1雀頭形の役の判定
+int MJ_EvalMentsuYaku(const MJMentsuParserResult &mentsu, const MJTaatsu &taatsu, MJID tsumo, MJID jikaze, MJID bakaze);
 
 
 
