@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <vector>
 
 #define MJ_GROUP_MAN 100
@@ -42,6 +43,7 @@
 #define MJ_WIND_SHA  2 // 西
 #define MJ_WIND_PEI  3 // 北
 
+typedef int MJID;
 
 // 待ちの形
 enum MJMachiType {
@@ -56,19 +58,6 @@ enum MJMachiType {
 	MJ_MACHI_CHITOI,    // 七対子単騎
 };
 
-typedef int MJID;
-
-
-#define MJ_FLAG_KOKUSHI 1
-#define MJ_FLAG_CHIITOI 2
-
-// 面子または頭の種類
-enum MJMentsuType {
-	MJ_MENTSU_UNKNOWN,
-	MJ_MENTSU_KOUTSU,  // 刻子
-	MJ_MENTSU_CHUNTSU, // 順子
-	MJ_MENTSU_TOITSU,  // 対子（雀頭）
-};
 
 // 塔子の種類
 enum MJTaatsuType {
@@ -119,50 +108,6 @@ public:
 };
 
 
-// 完成面子
-struct MJMentsu {
-	enum MJTileAttr {
-		NUM19  = 1, // 19牌
-		JIHAI  = 2, // 字牌
-		KAZE   = 4, // 風牌
-		SANGEN = 8, // 三元牌
-	};
-	MJMentsu() {
-		id = 0;
-		type = MJ_MENTSU_UNKNOWN;
-		attr = 0;
-	}
-	MJMentsu(MJID _id, MJMentsuType _tp) {
-		id = _id;
-		type = _tp;
-		attr = 0;
-		if (type == MJ_MENTSU_TOITSU || type == MJ_MENTSU_KOUTSU) {
-			if (MJ_IS_1or9(id))   { attr |= NUM19;  }
-			if (MJ_IS_ZI(id) )    { attr |= JIHAI;  }
-			if (MJ_IS_KAZE(id))   { attr |= KAZE;   }
-			if (MJ_IS_SANGEN(id)) { attr |= SANGEN; }
-		}
-		if (type == MJ_MENTSU_CHUNTSU) {
-			if (MJ_IS_1or9(id))   { attr |= NUM19; } // １２３の並び
-			if (MJ_IS_1or9(id+2)) { attr |= NUM19; } // ７８９の並び
-		}
-	}
-	bool isToitsu()  const { return type==MJ_MENTSU_TOITSU; }  // 対子か？
-	bool isChuntsu() const { return type==MJ_MENTSU_CHUNTSU; } // 順子か？
-	bool isKoutsu()  const { return type==MJ_MENTSU_KOUTSU; }  // 刻子か？
-	bool isJihai()   const { return attr & JIHAI; }  // 字牌か？
-	bool is1or9()    const { return attr & NUM19; }  // １だけ、または９だけか？ (11,99,111,999,のどれか）
-	bool has1or9() const { return attr & NUM19; }  // １または９を含んでいるか？ (11,99,111,999,123,789のどれか）
-	bool isKaze()    const { return attr & KAZE; }   // 風牌か？（場風、自風などは無視。東南西北かどうかだけ見る）
-	bool isSangen()  const { return attr & SANGEN; } // 三元牌か？
-	bool isAnko()    const { return isKoutsu(); }
-
-	MJID id; // 面子を構成する牌番号。順子ならその最初の牌番号を示す
-	MJMentsuType type; // 面子の種類（MJ_MENTSU_***）
-	int attr; // 面子の構成要素 (MJ_ATTR_***)
-};
-
-
 // 塔子または対子
 struct MJTaatsu {
 	MJTaatsu() {
@@ -179,7 +124,6 @@ struct MJTaatsu {
 
 
 struct MJMentsuParserResult {
-	MJID tiles[14];
 	MJID atama; // 雀頭・対子
 	MJID koutsu[4]; // 刻子
 	MJID chuntsu[4]; // 順子
@@ -190,7 +134,6 @@ struct MJMentsuParserResult {
 	int numAmari;
 
 	MJMentsuParserResult() {
-		memset(tiles, 0, sizeof(tiles));
 		memset(koutsu, 0, sizeof(koutsu));
 		memset(chuntsu, 0, sizeof(chuntsu));
 		memset(amari, 0, sizeof(amari));
@@ -231,6 +174,25 @@ struct MJMentsuParserResult {
 	void popAmari() {
 		numAmari--;
 		amari[numAmari] = 0; // 未使用領域は必ず 0 にしておく。この挙動を前提に組んでいる場所がある
+	}
+	int exportTiles(std::vector<MJID> &tiles) const {
+		tiles.clear();
+		for (int i=0; i<numChuntsu; i++) {
+			tiles.push_back(chuntsu[i]);
+			tiles.push_back(chuntsu[i]+1);
+			tiles.push_back(chuntsu[i]+2);
+		}
+		for (int i=0; i<numKoutsu; i++) {
+			tiles.push_back(koutsu[i]);
+			tiles.push_back(koutsu[i]);
+			tiles.push_back(koutsu[i]);
+		}
+		if (atama) {
+			tiles.push_back(atama);
+			tiles.push_back(atama);
+		}
+		std::sort(tiles.begin(), tiles.end());
+		return (int)tiles.size();
 	}
 };
 
@@ -296,7 +258,7 @@ int MJ_EvalChitoitsuTempai(const MJHand &hand, int *out_shanten, MJID *out_wait)
 // out_shanten: tsumo に 0 を指定した場合、シャンテン数をセットする。テンパイだった場合は 0
 // out_wait1: テンパイしている場合は待ち牌をセットする
 // out_wait2: テンパイしている場合は待ち牌をセットする
-int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, MJID tsumo, int *out_shanten, MJMachiType *out_machitype, MJID *out_wait1, MJID *out_wait2);
+int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, int *out_shanten, MJMachiType *out_waittype, MJID *out_wait1, MJID *out_wait2);
 
 
 
@@ -306,83 +268,31 @@ int MJ_EvalMentsuYaku(const MJMentsuParserResult &mentsu, const MJTaatsu &taatsu
 
 
 
-
-// 手役解析結果
-struct MJEvalResult {
-	std::vector<MJMentsu> pattern; // 頭＋面子の分解パターン
-	std::vector<MJID> amari;    // 面子にできなかった余り牌
-	MJMachiType machiType; // 待ちの形（テンパイ形の場合のみ。それ以外常に 0）
-	MJID machi1;   // ひとつめ待ち牌（テンパイ形の場合のみ。それ以外常に 0）
-	MJID machi2;   // ふたつめ待ち牌（テンパイ形の場合のみ。それ以外常に 0）
-	bool kokushi;  // 国士無双の形になっている（これが true の場合 pattern には何も入っていない）
-	bool sevenPairs; // 七対子の形になっている（これが true の場合 pattern には何も入っていない）
-
-	MJEvalResult() {
-		machiType = MJ_MACHI_UNKNOWN;
-		machi1 = 0;
-		machi2 = 0;
-		kokushi = false;
-		sevenPairs = false;
-	}
-
-	// pattern 同士を比較する
-	// 同一の牌組み合わせならば 0 を返す
-	int comparePattern(const MJEvalResult &other) const {
-		// サイズが異なる場合はその差を比較結果とする
-		int diffSize = (int)other.pattern.size() - (int)this->pattern.size();
-		if (diffSize) return diffSize;
-
-		for (size_t i=0; i<this->pattern.size(); i++) {
-			// 牌番号が異なる場合はその差を比較結果とする
-			int diffId = other.pattern[i].id - this->pattern[i].id;
-			if (diffId) return diffId;
-
-			// 牌属性が異なる場合はその差を比較結果とする
-		//	int diffFlag = b.sets[i].flag - a.sets[i].flag;
-		//	if (diffFlag) return diffFlag;
-		}
-		return 0; // 完全一致
-	}
+struct MJTempai {
+	MJMentsuParserResult mentsu;
+	MJTaatsu taatsu;
+	MJID machi1;
+	MJID machi2;
+	MJMachiType machiType;
 };
 
 
-// 手役判定
-class MJEval {
-public:
-	std::vector<MJEvalResult> mResultItems; // 評価結果
-	std::vector<MJEvalResult> mTempaiItems; // テンパイ結果
-	int mShanten; // シャンテン数 : -1=不明 0=テンパイ 1=イーシャンテン...
 
+class MJEnumPatterns {
 public:
-	MJEval();
-	MJEval(const MJHand &hand, MJID tsumo);
-	void clear();
+	MJEnumPatterns();
+	const MJTempai * getTempai(int index) const;
+	int getTempaiCount() const;
+	int getShanten( ) const;
 
-	// 過不足なく面子と頭に分割したときの、全ての組み合わせを列挙する
-	// その結果は mResultItems, mTempaiItems, mShanten に入る。
-	// アガれる形になっている場合、面子の全ての組み合わせを mResultItems にセットしてその組み合わせ数を返す
-	// テンパイ形になっているなら、テンパイになる全ての面子の組み合わせを mTempaiItems にセットして 0 を返す
-	// パターンが存在しない場合（＝牌が余る場合＝アガリ形になっていない）は 0 を返す
-	// tusmo にツモ牌を指定すると完成形を調べる。tsumo=0の場合は
-	// テンパイ形、シャンテン数を調べる
-	int eval(const MJHand &hand, MJID tsumo);
+	// テンパイしているなら mResults に考えられるすべてのテンパイ形をセットして true を返す
+	// テンパイしていないなら mShanten にシャンテン数をセットして false を返す
+	bool eval(const MJHand &hand);
+
+	// ツモ牌を指定し、あがっているか調べる。上がっている場合は待ち牌と一致したテンパイパターンを返す
+	const MJTempai * isAgari(MJID tsumo) const;
 
 private:
-	MJHand mHand; // もとの形
-	std::vector<MJMentsu> mMentsuList; // 見つかった面子（雀頭含む）のリスト
-	std::vector<MJID> mMentsuAmari; // 面子として使えなかった余り牌
-	int mTaatsuAmari; // 塔子としても使えない牌の数
-	int mTaatsuCount; // 塔子の個数
-	MJID mLastTaatsuId; // 塔子構成牌の最初の１個
-	MJTaatsuType mLastTaatsuType; // 塔子の種類　0=なし 1=嵌張 2=両面or辺張
-	int mMinMentsuAmari; // 今まで調べた中で、もっとも余り牌が少なかった時の余り数
-	void updateShanten(int shanten);
-	int enumMentsu(const MJHand &hand, MJID tsumo, int pairHasBeenRemoved);
-	void enumTaatsu(const MJHand &hand);
-	void checkTemapai();
-	void onEnumComplete(int flag=0);
-	void onEnumTempai(MJMachiType machiType, MJID machi1, MJID machi2);
+	std::vector<MJTempai> mResults;
+	int mShanten;
 };
-
-int MJ_IsValidTile(const MJHand &hand, MJID id, int shanten);
-int MJ_FindValidTiles(const MJHand &hand, std::vector<MJID> &out_tiles);
