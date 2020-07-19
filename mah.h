@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <algorithm>
 #include <vector>
 
@@ -7,79 +7,81 @@
 #define MJ_GROUP_SOU 300
 #define MJ_GROUP_CHR 400
 
-#define MJ_GETGROUP(n) ((int)(n) / 100) // ”v‚Ìí—Ş‚ğ“¾‚é (MJ_GROUP_MAN, MJ_GROUP_PIN, MJ_GROUP_SOU, MJ_GROUP_CHR)
-#define MJ_GETNUM(n)   (MJ_IS_NUM(n) ? (int)(n) % 100 : 0) // ”v‚Ì”š(1`9)‚ğ“¾‚éB”š”v‚Å‚È‚¢ê‡‚Í 0
+#define MJ_GETGROUP(n) ((int)(n) / 100) // ç‰Œã®ç¨®é¡ã‚’å¾—ã‚‹ (MJ_GROUP_MAN, MJ_GROUP_PIN, MJ_GROUP_SOU, MJ_GROUP_CHR)
+#define MJ_GETNUM(n)   (MJ_IS_NUM(n) ? (int)(n) % 100 : 0) // ç‰Œã®æ•°å­—(1ï½9)ã‚’å¾—ã‚‹ã€‚æ•°å­—ç‰Œã§ãªã„å ´åˆã¯ 0
 #define MJ_SAMEGROUP(a, b)  (MJ_GETGROUP(a) == MJ_GETGROUP(b))
 
-#define MJ_MAN(n) (MJ_GROUP_MAN +(n)) // äİq‚Ì MJID ‚ğ“¾‚é (1<=n<=9)
-#define MJ_PIN(n) (MJ_GROUP_PIN +(n)) // “›q‚Ì MJID ‚ğ“¾‚é (1<=n<=9)
-#define MJ_SOU(n) (MJ_GROUP_SOU +(n)) // õq‚Ì MJID ‚ğ“¾‚é (1<=n<=9)
-#define MJ_CHR(n) (MJ_GROUP_CHR +(n)) // š”v‚Ì MJID ‚ğ“¾‚é (1<=n<=9)
+#define MJ_MAN(n) (MJ_GROUP_MAN +(n)) // è¬å­ã® MJID ã‚’å¾—ã‚‹ (1<=n<=9)
+#define MJ_PIN(n) (MJ_GROUP_PIN +(n)) // ç­’å­ã® MJID ã‚’å¾—ã‚‹ (1<=n<=9)
+#define MJ_SOU(n) (MJ_GROUP_SOU +(n)) // ç´¢å­ã® MJID ã‚’å¾—ã‚‹ (1<=n<=9)
+#define MJ_CHR(n) (MJ_GROUP_CHR +(n)) // å­—ç‰Œã® MJID ã‚’å¾—ã‚‹ (1<=n<=9)
 
-#define MJ_TON     MJ_CHR(1) // MJID (“Œ)
-#define MJ_NAN     MJ_CHR(2) // MJID (“ì)
-#define MJ_SHA     MJ_CHR(3) // MJID (¼)
-#define MJ_PEI     MJ_CHR(4) // MJID (–k)
-#define MJ_HAK     MJ_CHR(5) // MJID (”’)
-#define MJ_HAZ     MJ_CHR(6) // MJID (á¢)
-#define MJ_CHUN    MJ_CHR(7) // MJID (’†)
+#define MJ_TON     MJ_CHR(1) // MJID (æ±)
+#define MJ_NAN     MJ_CHR(2) // MJID (å—)
+#define MJ_SHA     MJ_CHR(3) // MJID (è¥¿)
+#define MJ_PEI     MJ_CHR(4) // MJID (åŒ—)
+#define MJ_HAK     MJ_CHR(5) // MJID (ç™½)
+#define MJ_HAZ     MJ_CHR(6) // MJID (ç™¼)
+#define MJ_CHUN    MJ_CHR(7) // MJID (ä¸­)
 
-#define MJ_IS_MAN(id)    (MJ_MAN(1) <= (id) && (id) <= MJ_MAN(9)) // äİq‚©H
-#define MJ_IS_PIN(id)    (MJ_PIN(1) <= (id) && (id) <= MJ_PIN(9)) // “›q‚©H
-#define MJ_IS_SOU(id)    (MJ_SOU(1) <= (id) && (id) <= MJ_SOU(9)) // õq‚©H
-#define MJ_IS_ZI(id)     (MJ_CHR(1) <= (id) && (id) <= MJ_CHR(7)) // š”v‚©H
-#define MJ_IS_VALID(id)  (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id) || MJ_IS_ZI(id)) // —LŒø‚È”v”Ô†‚©H
-#define MJ_IS_NUM(id)    (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id)) // ”š”v‚©H
-#define MJ_IS_1or9(id)   ((id)==MJ_MAN(1) || (id)==MJ_MAN(9) || (id)==MJ_PIN(1) || (id)==MJ_PIN(9) || (id)==MJ_SOU(1) || (id)==MJ_SOU(9)) // 1,9‚Ì”š”v‚©H
-#define MJ_IS_2_8(id)    (MJ_IS_NUM(id)) && !MJ_IS_1or9(id)) // 2`8‚Ì”š”v‚©H
-#define MJ_IS_KAZE(id)   ((id)==MJ_TON || (id)==MJ_NAN || (id)==MJ_SHA || (id)==MJ_PEI) // “Œ¼“ì–k‚©H
-#define MJ_IS_SANGEN(id) ((id)==MJ_HAK || (id)==MJ_HAZ || (id)==MJ_CHUN) // ”’á¢’†‚©H
-#define MJ_IS_YAOCHU(id) (MJ_IS_1or9(id) || MJ_IS_KAZE(id) || MJ_IS_SANGEN(id)) // 1,9,š”v‚©H
-#define MJ_IS_NEXT(a, b) ((MJ_GETGROUP(a)==MJ_GETGROUP(b))  &&  MJ_IS_NUM(a)  &&  ((a)+1 == b)) // ”v a b ‚ª”š”v‚©‚Â—×“¯m(a+1 == b)‚©H
-#define MJ_IS_NEXTNEXT(a, b) ((MJ_GETGROUP(a)==MJ_GETGROUP(b))  &&  MJ_IS_NUM(a)  &&  ((a)+2 == b)) // ”v a b ‚ª”š”v‚©‚Â”ò‚ñ‚Å—×“¯m(a+2 == b)‚©H
+#define MJ_IS_MAN(id)    (MJ_MAN(1) <= (id) && (id) <= MJ_MAN(9)) // è¬å­ã‹ï¼Ÿ
+#define MJ_IS_PIN(id)    (MJ_PIN(1) <= (id) && (id) <= MJ_PIN(9)) // ç­’å­ã‹ï¼Ÿ
+#define MJ_IS_SOU(id)    (MJ_SOU(1) <= (id) && (id) <= MJ_SOU(9)) // ç´¢å­ã‹ï¼Ÿ
+#define MJ_IS_ZI(id)     (MJ_CHR(1) <= (id) && (id) <= MJ_CHR(7)) // å­—ç‰Œã‹ï¼Ÿ
+#define MJ_IS_VALID(id)  (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id) || MJ_IS_ZI(id)) // æœ‰åŠ¹ãªç‰Œç•ªå·ã‹ï¼Ÿ
+#define MJ_IS_NUM(id)    (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id)) // æ•°å­—ç‰Œã‹ï¼Ÿ
+#define MJ_IS_1or9(id)   ((id)==MJ_MAN(1) || (id)==MJ_MAN(9) || (id)==MJ_PIN(1) || (id)==MJ_PIN(9) || (id)==MJ_SOU(1) || (id)==MJ_SOU(9)) // 1,9ã®æ•°å­—ç‰Œã‹ï¼Ÿ
+#define MJ_IS_2_8(id)    (MJ_IS_NUM(id)) && !MJ_IS_1or9(id)) // 2ï½8ã®æ•°å­—ç‰Œã‹ï¼Ÿ
+#define MJ_IS_KAZE(id)   ((id)==MJ_TON || (id)==MJ_NAN || (id)==MJ_SHA || (id)==MJ_PEI) // æ±è¥¿å—åŒ—ã‹ï¼Ÿ
+#define MJ_IS_SANGEN(id) ((id)==MJ_HAK || (id)==MJ_HAZ || (id)==MJ_CHUN) // ç™½ç™¼ä¸­ã‹ï¼Ÿ
+#define MJ_IS_YAOCHU(id) (MJ_IS_1or9(id) || MJ_IS_KAZE(id) || MJ_IS_SANGEN(id)) // 1,9,å­—ç‰Œã‹ï¼Ÿ
+#define MJ_IS_NEXT(a, b) ((MJ_GETGROUP(a)==MJ_GETGROUP(b))  &&  MJ_IS_NUM(a)  &&  ((a)+1 == (b))) // ç‰Œ a b ãŒæ•°å­—ç‰Œã‹ã¤éš£åŒå£«(a+1 == b)ã‹ï¼Ÿ
+#define MJ_IS_NEXTNEXT(a, b) ((MJ_GETGROUP(a)==MJ_GETGROUP(b))  &&  MJ_IS_NUM(a)  &&  ((a)+2 == (b))) // ç‰Œ a b ãŒæ•°å­—ç‰Œã‹ã¤é£›ã‚“ã§éš£åŒå£«(a+2 == b)ã‹ï¼Ÿ
+#define MJ_IS_CHUNTSU(a, b, c) (MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c)) // ç‰Œ a b c ãŒé †å­ã«ãªã£ã¦ã„ã‚‹ã‹ï¼Ÿ
+#define MJ_IS_KOUTSU(a, b, c) ((a)==(b) && (b)==(c)) // ç‰Œ a b c ãŒåˆ»å­ã«ãªã£ã¦ã„ã‚‹ã‹ï¼Ÿ
 
-#define MJ_WIND_TON  0 // “Œ
-#define MJ_WIND_NAN  1 // “ì
-#define MJ_WIND_SHA  2 // ¼
-#define MJ_WIND_PEI  3 // –k
+#define MJ_WIND_TON  0 // æ±
+#define MJ_WIND_NAN  1 // å—
+#define MJ_WIND_SHA  2 // è¥¿
+#define MJ_WIND_PEI  3 // åŒ—
 
 typedef int MJID;
 
-// ‘Ò‚¿‚ÌŒ`
+// å¾…ã¡ã®å½¢
 enum MJMachiType {
 	MJ_MACHI_UNKNOWN,
-	MJ_MACHI_TANKI,     // ’P‹R‘Ò‚¿
-	MJ_MACHI_PENCHAN,   // •Ó’£‘Ò‚¿
-	MJ_MACHI_KANCHAN,   // ŠÔ’£‘Ò‚¿
-	MJ_MACHI_RYANMEN,   // —¼–Ê‘Ò‚¿
-	MJ_MACHI_SHABO,     // ƒVƒƒƒ{‘Ò‚¿
-	MJ_MACHI_KOKUSHI,   // ‘m–³‘o’P‹R
-	MJ_MACHI_KOKUSHI13, // ‘m–³‘o13–Ê
-	MJ_MACHI_CHITOI,    // µ‘Îq’P‹R
+	MJ_MACHI_TANKI,     // å˜é¨å¾…ã¡
+	MJ_MACHI_PENCHAN,   // è¾ºå¼µå¾…ã¡
+	MJ_MACHI_KANCHAN,   // é–“å¼µå¾…ã¡
+	MJ_MACHI_RYANMEN,   // ä¸¡é¢å¾…ã¡
+	MJ_MACHI_SHABO,     // ã‚·ãƒ£ãƒœå¾…ã¡
+	MJ_MACHI_KOKUSHI,   // å›½å£«ç„¡åŒå˜é¨
+	MJ_MACHI_KOKUSHI13, // å›½å£«ç„¡åŒ13é¢
+	MJ_MACHI_CHITOI,    // ä¸ƒå¯¾å­å˜é¨
 };
 
 
-// “ƒq‚Ìí—Ş
+// å¡”å­ã®ç¨®é¡
 enum MJTaatsuType {
 	MJ_TAATSU_UNKNOWN,
-	MJ_TAATSU_RYAN, // —¼–Ê“ƒq
-	MJ_TAATSU_PEN12, // •Ó‚P‚Q“ƒq
-	MJ_TAATSU_PEN89, // •Ó‚W‚X“ƒq
-	MJ_TAATSU_KAN, // ›Æ’£“ƒq
-	MJ_TAATSU_TOI, // ‘Îq
+	MJ_TAATSU_RYAN, // ä¸¡é¢å¡”å­
+	MJ_TAATSU_PEN12, // è¾ºï¼‘ï¼’å¡”å­
+	MJ_TAATSU_PEN89, // è¾ºï¼˜ï¼™å¡”å­
+	MJ_TAATSU_KAN, // åµŒå¼µå¡”å­
+	MJ_TAATSU_TOI, // å¯¾å­
 };
 
-// ‘®«
+// å±æ€§
 enum MJAttr {
-	MJ_ATTR_NUM19  = 1, // 19”v
-	MJ_ATTR_JIHAI  = 2, // š”v
-	MJ_ATTR_KAZE   = 4, // •—”v
-	MJ_ATTR_SANGEN = 8, // OŒ³”v
+	MJ_ATTR_NUM19  = 1, // 19ç‰Œ
+	MJ_ATTR_JIHAI  = 2, // å­—ç‰Œ
+	MJ_ATTR_KAZE   = 4, // é¢¨ç‰Œ
+	MJ_ATTR_SANGEN = 8, // ä¸‰å…ƒç‰Œ
 };
 typedef int MJAttrs;
 
 
-// è”v
+// æ‰‹ç‰Œ
 class MJHand {
 public:
 	std::vector<MJID> mItems;
@@ -95,20 +97,20 @@ public:
 	void add(MJID id);
 	void addArray(const MJID *id, int count=0);
 	void addArray(const std::vector<MJID> &items);
-	MJID removeAt(int index); // index ˆÊ’u‚É‚ ‚é”v‚ğæ‚èœ‚«A‚»‚Ì”v”Ô†‚ğ•Ô‚·
-	MJID removePair(); // æ“ª‚É‚ ‚é”vi”v‚Íí‚Éƒ\[ƒg‚³‚ê‚Ä‚¢‚éj‚ª‘Îq‚É‚È‚Á‚Ä‚¢‚ê‚Î‚»‚ê‚ğœ‚«A‚»‚Ì”v”Ô†‚ğ•Ô‚·
-	MJID removePong(); // æ“ª‚É‚ ‚é”vi”v‚Íí‚Éƒ\[ƒg‚³‚ê‚Ä‚¢‚éj‚ªq‚É‚È‚Á‚Ä‚¢‚ê‚Î‚»‚ê‚ğœ‚«A‚»‚Ì”v”Ô†‚ğ•Ô‚·
-	MJID removeChunz();// æ“ª‚É‚ ‚é”vi”v‚Íí‚Éƒ\[ƒg‚³‚ê‚Ä‚¢‚éj‚ğ‹N“_‚Æ‚·‚é‡q‚ª‘¶İ‚·‚ê‚Î‚»‚ê‚ğœ‚«A‚»‚Ì”v”Ô†‚ğ•Ô‚·
-	MJID removeTaatsuRyanmen(); // æ“ª‚É‚ ‚é”vi”v‚Íí‚Éƒ\[ƒg‚³‚ê‚Ä‚¢‚éj‚ğ‹N“_‚Æ‚·‚é—¼–Ê“ƒq‚ª‘¶İ‚·‚ê‚Î‚»‚ê‚ğœ‚«A‚»‚Ì”v”Ô†‚ğ•Ô‚·
-	MJID removeTaatsuKanchan();  // æ“ª‚É‚ ‚é”vi”v‚Íí‚Éƒ\[ƒg‚³‚ê‚Ä‚¢‚éj‚ğ‹N“_‚Æ‚·‚éŠÔ’£“ƒq‚ª‘¶İ‚·‚ê‚Î‚»‚ê‚ğœ‚«A‚»‚Ì”v”Ô†‚ğ•Ô‚·
-	int findRemove(MJID id); // id ‚Éˆê’v‚·‚é”v‚ª‚ ‚ê‚ÎAÅ‰‚ÉŒ©‚Â‚©‚Á‚½1”v‚¾‚¯‚ğæ‚èœ‚¢‚Ä 1 ‚ğ•Ô‚·
-	int findRemoveAll(MJID id); // id ‚Éˆê’v‚·‚é”v‚ª‚ ‚ê‚ÎA‘S‚Äæ‚èœ‚¢‚Ä 1 ‚ğ•Ô‚·
-	int findRemovePong(MJID id); // id ‚ªq‚ğŠÜ‚ñ‚Å‚¢‚ê‚ÎA‚»‚Ì3”v‚ğæ‚èœ‚¢‚Ä 1 ‚ğ•Ô‚·
-	int findRemoveChunz(MJID id); // id ‚ğ‹N“_‚Æ‚·‚é‡q‚ğŠÜ‚ñ‚Å‚¢‚ê‚ÎA‚»‚Ì3”v‚ğæ‚èœ‚¢‚Ä 1 ‚ğ•Ô‚·
+	MJID removeAt(int index); // index ä½ç½®ã«ã‚ã‚‹ç‰Œã‚’å–ã‚Šé™¤ãã€ãã®ç‰Œç•ªå·ã‚’è¿”ã™
+	MJID removePair(); // å…ˆé ­ã«ã‚ã‚‹ç‰Œï¼ˆç‰Œã¯å¸¸ã«ã‚½ãƒ¼ãƒˆã•ã‚Œã¦ã„ã‚‹ï¼‰ãŒå¯¾å­ã«ãªã£ã¦ã„ã‚Œã°ãã‚Œã‚’é™¤ãã€ãã®ç‰Œç•ªå·ã‚’è¿”ã™
+	MJID removePong(); // å…ˆé ­ã«ã‚ã‚‹ç‰Œï¼ˆç‰Œã¯å¸¸ã«ã‚½ãƒ¼ãƒˆã•ã‚Œã¦ã„ã‚‹ï¼‰ãŒåˆ»å­ã«ãªã£ã¦ã„ã‚Œã°ãã‚Œã‚’é™¤ãã€ãã®ç‰Œç•ªå·ã‚’è¿”ã™
+	MJID removeChunz();// å…ˆé ­ã«ã‚ã‚‹ç‰Œï¼ˆç‰Œã¯å¸¸ã«ã‚½ãƒ¼ãƒˆã•ã‚Œã¦ã„ã‚‹ï¼‰ã‚’èµ·ç‚¹ã¨ã™ã‚‹é †å­ãŒå­˜åœ¨ã™ã‚Œã°ãã‚Œã‚’é™¤ãã€ãã®ç‰Œç•ªå·ã‚’è¿”ã™
+	MJID removeTaatsuRyanmen(); // å…ˆé ­ã«ã‚ã‚‹ç‰Œï¼ˆç‰Œã¯å¸¸ã«ã‚½ãƒ¼ãƒˆã•ã‚Œã¦ã„ã‚‹ï¼‰ã‚’èµ·ç‚¹ã¨ã™ã‚‹ä¸¡é¢å¡”å­ãŒå­˜åœ¨ã™ã‚Œã°ãã‚Œã‚’é™¤ãã€ãã®ç‰Œç•ªå·ã‚’è¿”ã™
+	MJID removeTaatsuKanchan();  // å…ˆé ­ã«ã‚ã‚‹ç‰Œï¼ˆç‰Œã¯å¸¸ã«ã‚½ãƒ¼ãƒˆã•ã‚Œã¦ã„ã‚‹ï¼‰ã‚’èµ·ç‚¹ã¨ã™ã‚‹é–“å¼µå¡”å­ãŒå­˜åœ¨ã™ã‚Œã°ãã‚Œã‚’é™¤ãã€ãã®ç‰Œç•ªå·ã‚’è¿”ã™
+	int findRemove(MJID id); // id ã«ä¸€è‡´ã™ã‚‹ç‰ŒãŒã‚ã‚Œã°ã€æœ€åˆã«è¦‹ã¤ã‹ã£ãŸ1ç‰Œã ã‘ã‚’å–ã‚Šé™¤ã„ã¦ 1 ã‚’è¿”ã™
+	int findRemoveAll(MJID id); // id ã«ä¸€è‡´ã™ã‚‹ç‰ŒãŒã‚ã‚Œã°ã€å…¨ã¦å–ã‚Šé™¤ã„ã¦ 1 ã‚’è¿”ã™
+	int findRemovePong(MJID id); // id ãŒåˆ»å­ã‚’å«ã‚“ã§ã„ã‚Œã°ã€ãã®3ç‰Œã‚’å–ã‚Šé™¤ã„ã¦ 1 ã‚’è¿”ã™
+	int findRemoveChunz(MJID id); // id ã‚’èµ·ç‚¹ã¨ã™ã‚‹é †å­ã‚’å«ã‚“ã§ã„ã‚Œã°ã€ãã®3ç‰Œã‚’å–ã‚Šé™¤ã„ã¦ 1 ã‚’è¿”ã™
 };
 
 
-// “ƒq‚Ü‚½‚Í‘Îq
+// å¡”å­ã¾ãŸã¯å¯¾å­
 struct MJTaatsu {
 	MJTaatsu() {
 		id = 0;
@@ -118,159 +120,50 @@ struct MJTaatsu {
 		id = _id;
 		type = _type;
 	}
-	MJID id; // “ƒq\¬”v‚ÌÅ‰‚Ì‚PŒÂ
-	MJTaatsuType type; // “ƒq‚Ìí—Ş@0=‚È‚µ 1=›Æ’£ 2=—¼–Êor•Ó’£
+	MJID id; // å¡”å­æ§‹æˆç‰Œã®æœ€åˆã®ï¼‘å€‹
+	MJTaatsuType type; // å¡”å­ã®ç¨®é¡ã€€0=ãªã— 1=åµŒå¼µ 2=ä¸¡é¢orè¾ºå¼µ
 };
 
-
-struct MJMentsuParserResult {
-	MJID atama; // “ªE‘Îq
-	MJID koutsu[4]; // q
-	MJID chuntsu[4]; // ‡q
-	int numAtama; // “ª‚Ì”B0 ‚Ü‚½‚Í 1 ‚Ì‚İ
-	int numKoutsu; // q‚Ì”
-	int numChuntsu; // ‡q‚Ì”
-	MJID amari[14]; // –Êq‚É‚Å‚«‚È‚©‚Á‚½—]‚è”v
-	int numAmari;
-
-	MJMentsuParserResult() {
+// æ‰‹ç‰Œã‚’æ§‹æˆé¢å­ã«åˆ†è§£ã—ãŸã¨ãã®å½¢
+struct MJPattern {
+	MJPattern() {
+		memset(tiles, 0, sizeof(tiles));
 		memset(koutsu, 0, sizeof(koutsu));
 		memset(chuntsu, 0, sizeof(chuntsu));
 		memset(amari, 0, sizeof(amari));
-		atama = 0;
-		numAtama = 0;
+		numTiles = 0;
 		numKoutsu = 0;
 		numChuntsu = 0;
 		numAmari = 0;
+		toitsu = 0;
+		taatsuType = (MJTaatsuType)0;
+		machi1 = 0;
+		machi2 = 0;
+		machiType = (MJMachiType)0;
 	}
-	void pushAtama(MJID id) {
-		atama = id;
-		numAtama = 1;
-	}
-	void popAtama() {
-		numAtama = 0;
-		atama = 0; // –¢g—p—Ìˆæ‚Í•K‚¸ 0 ‚É‚µ‚Ä‚¨‚­B‚±‚Ì‹““®‚ğ‘O’ñ‚É‘g‚ñ‚Å‚¢‚éêŠ‚ª‚ ‚é
-	}
-	void pushKoutsu(MJID id) {
-		koutsu[numKoutsu] = id;
-		numKoutsu++;
-	}
-	void popKoutsu() {
-		numKoutsu--;
-		koutsu[numKoutsu] = 0; // –¢g—p—Ìˆæ‚Í•K‚¸ 0 ‚É‚µ‚Ä‚¨‚­B‚±‚Ì‹““®‚ğ‘O’ñ‚É‘g‚ñ‚Å‚¢‚éêŠ‚ª‚ ‚é
-	}
-	void pushChuntsu(MJID id) {
-		chuntsu[numChuntsu] = id;
-		numChuntsu++;
-	}
-	void popChuntsu() {
-		numChuntsu--;
-		chuntsu[numChuntsu] = 0; // –¢g—p—Ìˆæ‚Í•K‚¸ 0 ‚É‚µ‚Ä‚¨‚­B‚±‚Ì‹““®‚ğ‘O’ñ‚É‘g‚ñ‚Å‚¢‚éêŠ‚ª‚ ‚é
-	}
-	void pushAmari(MJID id) {
-		amari[numAmari] = id;
-		numAmari++;
-	}
-	void popAmari() {
-		numAmari--;
-		amari[numAmari] = 0; // –¢g—p—Ìˆæ‚Í•K‚¸ 0 ‚É‚µ‚Ä‚¨‚­B‚±‚Ì‹““®‚ğ‘O’ñ‚É‘g‚ñ‚Å‚¢‚éêŠ‚ª‚ ‚é
-	}
-	int exportTiles(std::vector<MJID> &tiles) const {
-		tiles.clear();
-		for (int i=0; i<numChuntsu; i++) {
-			tiles.push_back(chuntsu[i]);
-			tiles.push_back(chuntsu[i]+1);
-			tiles.push_back(chuntsu[i]+2);
-		}
-		for (int i=0; i<numKoutsu; i++) {
-			tiles.push_back(koutsu[i]);
-			tiles.push_back(koutsu[i]);
-			tiles.push_back(koutsu[i]);
-		}
-		if (atama) {
-			tiles.push_back(atama);
-			tiles.push_back(atama);
-		}
-		std::sort(tiles.begin(), tiles.end());
-		return (int)tiles.size();
-	}
-};
 
-// ”v‚Ì•À‚Ñ‚©‚ç‚Å‚«‚é‚¾‚¯‘½‚­‚ÌqE‡qi‡‚í‚¹‚ÄÅ‘å‚S‘gj‚Æ‘ÎqiÅ‘å‚PŒÂj‚ğæ‚é
-class MJMentsuParser {
-public:
-	MJMentsuParser();
-	int parse(const MJHand &tiles);
-	const MJMentsuParserResult * get(int index) const;
-	int size() const;
+	MJID tiles[14]; // ç‰Œã®ä¸¦ã³
+	int numTiles; // ç‰Œã®æ•°ã€‚ãƒ†ãƒ³ãƒ‘ã‚¤ã—ã¦ã„ã‚‹ãªã‚‰13ã€‚å®Œæˆå½¢ã«ã¤ã„ã¦èª¿ã¹ã¦ã„ã‚‹ãªã‚‰14
 
-private:
-	void enumMentsu(const MJHand &tiles);
-	std::vector<MJMentsuParserResult> mResult;
-	MJMentsuParserResult mTmp; // ì‹Æ—p
-	int mMaxNumMentsu;
-};
+	MJID koutsu[4]; // åˆ»å­ï¼ˆã“ã®å½¢ãŒåˆ»å­ã‚’å«ã‚“ã§ã„ã‚‹å ´åˆã€ãã‚Œãã‚Œã®åˆ»å­æ§‹æˆç‰Œã®ï¼‘ã¤ãŒå…¥ã‚‹ã€‚æœ€å¤§ã§ï¼”åˆ»å­ï¼‰
+	int numKoutsu;
 
+	MJID chuntsu[4]; // é †å­ï¼ˆãã‚Œãã‚Œã®é †å­ã®æ§‹æˆç‰Œã®æœ€åˆã®ï¼‘ã¤ãŒå…¥ã‚‹ã€‚æœ€å¤§ã§ï¼”é †å­ï¼‰
+	int numChuntsu;
 
-struct MJTaatsuParserResult {
-	MJTaatsuParserResult() {
-		memset(amari, 0, sizeof(amari));
-		numAmari = 0;
-	}
-	std::vector<MJTaatsu> list; // “ƒqƒŠƒXƒg
-	MJID amari[14]; // “ƒq‚É‚Å‚«‚È‚©‚Á‚½—]‚è”v
+	MJID toitsu; // å¯¾å­ãŒã‚ã‚‹å ´åˆã€ãã®æ§‹æˆç‰Œã€‚ãªã‘ã‚Œã° 0
+
+	// é¢å­ã¨ã—ã¦ä½¿ãˆãªã‹ã£ãŸä½™ã‚Šç‰Œã€‚
+	// ãƒ†ãƒ³ãƒ‘ã‚¤çŠ¶æ…‹ã®å ´åˆã®ã¿è¨­å®šã•ã‚Œã‚‹ã®ã§ã€æœ€å¤§ï¼’å€‹ã¾ã§ã€‚å˜é¨å¾…ã¡ãªã‚‰ï¼‘å€‹ã€‚
+	MJID amari[2];
 	int numAmari;
-};
 
-// ”v‚Ì•À‚Ñ‚©‚ç‚Å‚«‚é‚¾‚¯‘½‚­‚Ì“ƒqE‘Îq‚ğæ‚é
-class MJTaatsuParser {
-public:
-	MJTaatsuParser();
-	int parse(const MJHand &tiles);
-	const MJTaatsuParserResult * get(int index) const;
-	int size() const;
-
-private:
-	void enumTaatsu(const MJHand &tiles);
-	std::vector<MJTaatsuParserResult> mResult;
-	MJTaatsuParserResult mTmp; // ì‹Æ—p
-	int mMaxNumTaatsu;
-};
+	// å¡”å­ã®ç¨®é¡
+	// ä½™ã‚Šç‰Œã‚’ï¼’å€‹ä½¿ã£ã¦ã§ãã‚‹å¡”å­ã®ç¨®é¡ã€‚å˜é¨å¾…ã¡ã®å ´åˆã¯å¡”å­ãŒã§ããªã„ã®ã§ 0 ã«ãªã‚‹
+	MJTaatsuType taatsuType;
 
 
-// ‘m–³‘oŒ`‚Ì”»’è
-// ‘m–³‘o’P‹R‘Ò‚¿‚È‚ç 1, 13–Ê‘Ò‚¿‚È‚ç 2 ‚ğ•Ô‚·Bƒeƒ“ƒpƒC‚µ‚Ä‚¢‚È‚¢ê‡‚Í@0 ‚ğ•Ô‚·
-// out_shanten: ƒVƒƒƒ“ƒeƒ“”‚ğƒZƒbƒg‚·‚éBƒeƒ“ƒpƒC‚¾‚Á‚½ê‡‚Í 0
-// out_wait: ‘Ò‚¿”v‚ğƒZƒbƒg‚·‚éB13–Ê‘Ò‚¿‚¾‚Á‚½ê‡‚Í 0
-int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait);
-
-
-// µ‘ÎqŒ`‚Ì”»’è
-// ƒeƒ“ƒpƒC‚È‚ç 1 ‚ğ•Ô‚·B‚»‚êˆÈŠO‚Í 0 ‚ğ•Ô‚·
-// out_shanten: ƒVƒƒƒ“ƒeƒ“”‚ğƒZƒbƒg‚·‚éBƒeƒ“ƒpƒC‚¾‚Á‚½ê‡‚Í 0
-// out_wait: ƒeƒ“ƒpƒC‚µ‚Ä‚¢‚éê‡‚Í‘Ò‚¿”v‚ğƒZƒbƒg‚·‚é
-int MJ_EvalChitoitsuTempai(const MJHand &hand, int *out_shanten, MJID *out_wait);
-
-
-// ‚S–Êq‚P“ªŒ`‚Ì”»’è
-// ƒAƒKƒŠ‚Ü‚½‚Íƒeƒ“ƒpƒC‚È‚ç 1 ‚ğ•Ô‚·B‚»‚êˆÈŠO‚Í 0 ‚ğ•Ô‚·
-// tsumo: ƒcƒ‚”vB0 ‚ğw’è‚µ‚½ê‡‚Íƒeƒ“ƒpƒC‚µ‚Ä‚¢‚é‚©’²‚×A”vID‚ğw’è‚µ‚½ê‡‚ÍƒAƒK‚Á‚Ä‚¢‚é‚©’²‚×‚é
-// out_shanten: tsumo ‚É 0 ‚ğw’è‚µ‚½ê‡AƒVƒƒƒ“ƒeƒ“”‚ğƒZƒbƒg‚·‚éBƒeƒ“ƒpƒC‚¾‚Á‚½ê‡‚Í 0
-// out_wait1: ƒeƒ“ƒpƒC‚µ‚Ä‚¢‚éê‡‚Í‘Ò‚¿”v‚ğƒZƒbƒg‚·‚é
-// out_wait2: ƒeƒ“ƒpƒC‚µ‚Ä‚¢‚éê‡‚Í‘Ò‚¿”v‚ğƒZƒbƒg‚·‚é
-int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParserResult &taatsu, int *out_shanten, MJMachiType *out_waittype, MJID *out_wait1, MJID *out_wait2);
-
-
-
-// ‚S–Êq1“ªŒ`‚Ì–ğ‚Ì”»’è
-int MJ_EvalMentsuYaku(const MJMentsuParserResult &mentsu, const MJTaatsu &taatsu, MJID tsumo, MJID jikaze, MJID bakaze);
-
-
-
-
-struct MJTempai {
-	MJMentsuParserResult mentsu;
-	MJTaatsu taatsu;
+	// ãƒ†ãƒ³ãƒ‘ã‚¤çŠ¶æ…‹ã®å ´åˆã€ãã®å¾…ã¡ç‰Œ
 	MJID machi1;
 	MJID machi2;
 	MJMachiType machiType;
@@ -281,18 +174,18 @@ struct MJTempai {
 class MJEnumPatterns {
 public:
 	MJEnumPatterns();
-	const MJTempai * getTempai(int index) const;
+	const MJPattern * getTempai(int index) const;
 	int getTempaiCount() const;
 	int getShanten( ) const;
 
-	// ƒeƒ“ƒpƒC‚µ‚Ä‚¢‚é‚È‚ç mResults ‚Él‚¦‚ç‚ê‚é‚·‚×‚Ä‚Ìƒeƒ“ƒpƒCŒ`‚ğƒZƒbƒg‚µ‚Ä true ‚ğ•Ô‚·
-	// ƒeƒ“ƒpƒC‚µ‚Ä‚¢‚È‚¢‚È‚ç mShanten ‚ÉƒVƒƒƒ“ƒeƒ“”‚ğƒZƒbƒg‚µ‚Ä false ‚ğ•Ô‚·
+	// ãƒ†ãƒ³ãƒ‘ã‚¤ã—ã¦ã„ã‚‹ãªã‚‰ mResults ã«è€ƒãˆã‚‰ã‚Œã‚‹ã™ã¹ã¦ã®ãƒ†ãƒ³ãƒ‘ã‚¤å½¢ã‚’ã‚»ãƒƒãƒˆã—ã¦ true ã‚’è¿”ã™
+	// ãƒ†ãƒ³ãƒ‘ã‚¤ã—ã¦ã„ãªã„ãªã‚‰ mShanten ã«ã‚·ãƒ£ãƒ³ãƒ†ãƒ³æ•°ã‚’ã‚»ãƒƒãƒˆã—ã¦ false ã‚’è¿”ã™
 	bool eval(const MJHand &hand);
 
-	// ƒcƒ‚”v‚ğw’è‚µA‚ ‚ª‚Á‚Ä‚¢‚é‚©’²‚×‚éBã‚ª‚Á‚Ä‚¢‚éê‡‚Í‘Ò‚¿”v‚Æˆê’v‚µ‚½ƒeƒ“ƒpƒCƒpƒ^[ƒ“‚ğ•Ô‚·
-	const MJTempai * isAgari(MJID tsumo) const;
+	// ãƒ„ãƒ¢ç‰Œã‚’æŒ‡å®šã—ã€ã‚ãŒã£ã¦ã„ã‚‹ã‹èª¿ã¹ã‚‹ã€‚ä¸ŠãŒã£ã¦ã„ã‚‹å ´åˆã¯å¾…ã¡ç‰Œã¨ä¸€è‡´ã—ãŸãƒ†ãƒ³ãƒ‘ã‚¤ãƒ‘ã‚¿ãƒ¼ãƒ³ã‚’è¿”ã™
+	const MJPattern * isAgari(MJID tsumo) const;
 
 private:
-	std::vector<MJTempai> mResults;
+	std::vector<MJPattern> mResults;
 	int mShanten;
 };

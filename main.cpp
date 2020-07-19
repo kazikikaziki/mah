@@ -1,8 +1,8 @@
-#include "mah.h"
+ï»¿#include "mah.h"
 #include <algorithm>
 #include <time.h>
 
-// ‰æ–Êo—Í
+// ç”»é¢å‡ºåŠ›
 class MJOutput {
 public:
 	static void printSpace() {
@@ -13,19 +13,19 @@ public:
 	}
 	static void printTile(MJID tile) {
 		switch (tile) {
-		case MJ_TON: printf("“Œ"); return;
-		case MJ_NAN: printf("“ì"); return;
-		case MJ_SHA: printf("¼"); return;
-		case MJ_PEI: printf("–k"); return;
-		case MJ_HAK: printf("”’"); return;
-		case MJ_HAZ: printf("á¢"); return;
-		case MJ_CHUN:printf("’†"); return;
+		case MJ_TON: printf("æ±"); return;
+		case MJ_NAN: printf("å—"); return;
+		case MJ_SHA: printf("è¥¿"); return;
+		case MJ_PEI: printf("åŒ—"); return;
+		case MJ_HAK: printf("ç™½"); return;
+		case MJ_HAZ: printf("ç™¼"); return;
+		case MJ_CHUN:printf("ä¸­"); return;
 		}
 		if (MJ_IS_MAN(tile)) {
 			const char *tbl[] = {
-				"ˆê", "“ñ", "O",
-				"l", "ŒÜ", "˜Z",
-				"µ", "”ª", "‹ã",
+				"ä¸€", "äºŒ", "ä¸‰",
+				"å››", "äº”", "å…­",
+				"ä¸ƒ", "å…«", "ä¹",
 			};
 			int num = tile - MJ_MAN(1);
 			printf(tbl[num]);
@@ -33,9 +33,9 @@ public:
 		}
 		if (MJ_IS_PIN(tile)) {
 			const char *tbl[] = {
-				"‡@", "‡A", "‡B",
-				"‡C", "‡D", "‡E",
-				"‡F", "‡G", "‡H",
+				"â‘ ", "â‘¡", "â‘¢",
+				"â‘£", "â‘¤", "â‘¥",
+				"â‘¦", "â‘§", "â‘¨",
 			};
 			int num = tile - MJ_PIN(1);
 			printf(tbl[num]);
@@ -43,15 +43,15 @@ public:
 		}
 		if (MJ_IS_SOU(tile)) {
 			const char *tbl[] = {
-				"‚P", "‚Q", "‚R",
-				"‚S", "‚T", "‚U",
-				"‚V", "‚W", "‚X",
+				"ï¼‘", "ï¼’", "ï¼“",
+				"ï¼”", "ï¼•", "ï¼–",
+				"ï¼—", "ï¼˜", "ï¼™",
 			};
 			int num = tile - MJ_SOU(1);
 			printf(tbl[num]);
 			return;
 		}
-		printf("@");
+		printf("ã€€");
 	}
 	static void printTiles(const MJID *tile, int size) {
 		for (int i=0; i<size; i++) {
@@ -70,29 +70,27 @@ public:
 		}
 	}
 
-	// è”vî•ñ
+	// æ‰‹ç‰Œæƒ…å ±
 	static void printHandInfo(const MJEnumPatterns &pat) {
 		if (pat.getShanten() == 0) {
-			printf("™ƒeƒ“ƒpƒC™\n");
+			printf("â˜†ãƒ†ãƒ³ãƒ‘ã‚¤â˜†\n");
 			for (int i=0; i<pat.getTempaiCount(); i++) {
-				const MJTempai *tempai = pat.getTempai(i);
-				std::vector<MJID> m;
-				tempai->mentsu.exportTiles(m);
+				const MJPattern *tempai = pat.getTempai(i);
 
-				// Š®¬–Êq
-				printTiles(m);
+				// å®Œæˆé¢å­
+				printTiles(tempai->tiles, tempai->numTiles);
 				printSpace();
 
-				// –¢Š®¬”v
-				printTiles(tempai->mentsu.amari, tempai->mentsu.numAmari);
+				// æœªå®Œæˆç‰Œ
+				printTiles(tempai->amari, tempai->numAmari);
 
-				// ‘Ò‚¿”v
+				// å¾…ã¡ç‰Œ
 				switch(tempai->machiType) {
-				case MJ_MACHI_TANKI  : printf("y’P‹Rz"); printTile(tempai->machi1); break;
-				case MJ_MACHI_PENCHAN: printf("y•Ó’£z"); printTile(tempai->machi1); break;
-				case MJ_MACHI_KANCHAN: printf("yŠÔ’£z"); printTile(tempai->machi1); break;
-				case MJ_MACHI_RYANMEN: printf("y—¼–Êz"); printTile(tempai->machi1); printTile(tempai->machi2); break;
-				case MJ_MACHI_SHABO  : printf("yƒVƒƒz"); printTile(tempai->machi1); printTile(tempai->machi2); break;
+				case MJ_MACHI_TANKI  : printf("ã€å˜é¨ã€‘"); printTile(tempai->machi1); break;
+				case MJ_MACHI_PENCHAN: printf("ã€è¾ºå¼µã€‘"); printTile(tempai->machi1); break;
+				case MJ_MACHI_KANCHAN: printf("ã€é–“å¼µã€‘"); printTile(tempai->machi1); break;
+				case MJ_MACHI_RYANMEN: printf("ã€ä¸¡é¢ã€‘"); printTile(tempai->machi1); printTile(tempai->machi2); break;
+				case MJ_MACHI_SHABO  : printf("ã€ã‚·ãƒ£ã€‘"); printTile(tempai->machi1); printTile(tempai->machi2); break;
 				}
 				printEnd();
 			}
@@ -100,15 +98,15 @@ public:
 
 		}
 		if (pat.getShanten() == 1) {
-			printf("™ƒC[ƒVƒƒƒ“ƒeƒ“\n");
+			printf("â˜†ã‚¤ãƒ¼ã‚·ãƒ£ãƒ³ãƒ†ãƒ³\n");
 			return;
 
 		}
-		printf("%dƒVƒƒƒ“ƒeƒ“\n", pat.getShanten());
+		printf("%dã‚·ãƒ£ãƒ³ãƒ†ãƒ³\n", pat.getShanten());
 	}
 };
 
-// ‘ì
+// é›€å“
 class MJTable {
 	struct STile {
 		STile(int _id=0) {
@@ -117,18 +115,18 @@ class MJTable {
 			open = false;
 		}
 		int id;
-		int called; // –Â‚©‚ê‚½i0=‚¢‚¢‚¦ 1=“Œ‰Æ 2=“ì‰Æ 3=¼‰Æ 4=–k‰Æj
-		bool open; // •\Œü‚«iƒhƒ‰•\¦”vji‰¤”v‚Ìê‡‚Ì‚İj
+		int called; // é³´ã‹ã‚ŒãŸï¼ˆ0=ã„ã„ãˆ 1=æ±å®¶ 2=å—å®¶ 3=è¥¿å®¶ 4=åŒ—å®¶ï¼‰
+		bool open; // è¡¨å‘ãï¼ˆï¼ãƒ‰ãƒ©è¡¨ç¤ºç‰Œï¼‰ï¼ˆç‹ç‰Œã®å ´åˆã®ã¿ï¼‰
 	};
 	struct SPlayer {
-		MJHand handTiles; // è”v
-		std::vector<STile> discardedTiles; // Ì”vi‰Íj
+		MJHand handTiles; // æ‰‹ç‰Œ
+		std::vector<STile> discardedTiles; // æ¨ç‰Œï¼ˆæ²³ï¼‰
 		MJEnumPatterns patterns;
 	};
-	std::vector<STile> mWallTiles; // R”v
-	std::vector<STile> mDeadTiles; // ‰¤”v
+	std::vector<STile> mWallTiles; // å±±ç‰Œ
+	std::vector<STile> mDeadTiles; // ç‹ç‰Œ
 	SPlayer mPlayers[4];
-	int mWind; // •—
+	int mWind; // é¢¨
 	bool mFinished;
 public:
 	MJTable() {
@@ -141,7 +139,7 @@ public:
 		makeHands();
 	}
 
-	// R”v‚ğˆê–‡‚Æ‚é
+	// å±±ç‰Œã‚’ä¸€æšã¨ã‚‹
 	MJID getNextTile() {
 		if (mWallTiles.empty()) {
 			mFinished = true;
@@ -153,26 +151,26 @@ public:
 		}
 	}
 
-	// c‚è‚ÌR”v”
+	// æ®‹ã‚Šã®å±±ç‰Œæ•°
 	int getWallTileCount() const {
 		return (int)mWallTiles.size();
 	}
 
-	// è”v‚É“ü‚ê‚é
+	// æ‰‹ç‰Œã«å…¥ã‚Œã‚‹
 	void add(int playerWind, MJID id) {
 		if (0 <= playerWind && playerWind < 4 && MJ_IS_VALID(id)) {
 			mPlayers[playerWind].handTiles.add(id);
 		}
 	}
 
-	// ”v‚ğÌ‚Ä‚é
+	// ç‰Œã‚’æ¨ã¦ã‚‹
 	void discard(int playerWind, MJID id) {
 		if (0 <= playerWind && playerWind < 4 && MJ_IS_VALID(id)) {
 			mPlayers[playerWind].discardedTiles.push_back(id);
 		}
 	}
 
-	// è”v‚©‚ç”v‚ğÌ‚Ä‚é
+	// æ‰‹ç‰Œã‹ã‚‰ç‰Œã‚’æ¨ã¦ã‚‹
 	void discardByIndex(int playerWind, int index) {
 		SPlayer &info = mPlayers[playerWind];
 		if (0 <= index && index < info.handTiles.size()) {
@@ -191,64 +189,64 @@ public:
 		return mPlayers[playerWind].handTiles;
 	}
 
-	// ‘ì•\¦
+	// é›€å“è¡¨ç¤º
 	void print(int tsumo) {
 		const MJHand hand(mPlayers[MJ_WIND_TON].handTiles);
 
 		printf("--------------------\n");
 		printInfo();
-		printf("–k‰Íy"); printDiscardTiles(MJ_WIND_PEI); printf("z\n");
-		printf("¼‰Íy"); printDiscardTiles(MJ_WIND_SHA); printf("z\n");
-		printf("“ì‰Íy"); printDiscardTiles(MJ_WIND_NAN); printf("z\n");
-		printf("“Œ‰Íy"); printDiscardTiles(MJ_WIND_TON); printf("z\n");
+		printf("åŒ—æ²³ã€"); printDiscardTiles(MJ_WIND_PEI); printf("ã€‘\n");
+		printf("è¥¿æ²³ã€"); printDiscardTiles(MJ_WIND_SHA); printf("ã€‘\n");
+		printf("å—æ²³ã€"); printDiscardTiles(MJ_WIND_NAN); printf("ã€‘\n");
+		printf("æ±æ²³ã€"); printDiscardTiles(MJ_WIND_TON); printf("ã€‘\n");
 
-		// è”v
-		printf("y"); MJOutput::printTiles(hand); printf("z");
+		// æ‰‹ç‰Œ
+		printf("ã€"); MJOutput::printTiles(hand); printf("ã€‘");
 		
 		SPlayer *player = &mPlayers[MJ_WIND_TON];
 		player->patterns.eval(hand);
 
-		// ƒcƒ‚”v
+		// ãƒ„ãƒ¢ç‰Œ
 		if (tsumo) {
-			printf("@ƒcƒ‚y"); MJOutput::printTile(tsumo); printf("z\n");
+			printf("ã€€ãƒ„ãƒ¢ã€"); MJOutput::printTile(tsumo); printf("ã€‘\n");
 		}
 
 		if (tsumo) {
 
-			const MJTempai *agari = player->patterns.isAgari(tsumo);
+			const MJPattern *agari = player->patterns.isAgari(tsumo);
 			if (agari) {
-				printf("‚ ‚ª‚èI\n");
+				printf("ã‚ãŒã‚Šï¼\n");
 
 				mFinished = true;
 
 			} else {
 				printf("\n");
-				printf("„‚P‚Q‚R‚S‚T‚U‚V‚W‚X‚O|O@(ƒcƒ‚Ø‚èFƒGƒ“ƒ^[ƒL[)\n"); // ƒL[“ü—Í
+				printf("ï¼ï¼‘ï¼’ï¼“ï¼”ï¼•ï¼–ï¼—ï¼˜ï¼™ï¼ï¼ï¼¾ï¿¥ã€€(ãƒ„ãƒ¢åˆ‡ã‚Šï¼šã‚¨ãƒ³ã‚¿ãƒ¼ã‚­ãƒ¼)\n"); // ã‚­ãƒ¼å…¥åŠ›
 				MJOutput::printHandInfo(player->patterns);
 			}
 		}
 	}
 
-	// î•ñ•\¦
+	// æƒ…å ±è¡¨ç¤º
 	void printInfo() {
-		printf("c‚èy%dŒÂz", mWallTiles.size());
-		printf("ƒhƒ‰•\¦”vy");
+		printf("æ®‹ã‚Šã€%då€‹ã€‘", mWallTiles.size());
+		printf("ãƒ‰ãƒ©è¡¨ç¤ºç‰Œã€");
 		for (size_t i=0; i<mDeadTiles.size(); i++) {
 			if (mDeadTiles[i].open) {
 				MJOutput::printTile(mDeadTiles[0].id);
 			}
 		}
-		printf("z");
+		printf("ã€‘");
 		printf("\n");
 	}
 
-	// Ì‚Ä”v•\¦
+	// æ¨ã¦ç‰Œè¡¨ç¤º
 	void printDiscardTiles(int playerWind) {
 		const SPlayer &info = mPlayers[playerWind];
 		for (int i=0; i<info.discardedTiles.size(); i++) {
 			if (info.discardedTiles[i].called) {
-				// –Â‚©‚ê‚½
-				printf("–Â");
+				// é³´ã‹ã‚ŒãŸ
+				printf("é³´");
 			} else {
 				MJOutput::printTile(info.discardedTiles[i].id);
 			}
@@ -281,17 +279,17 @@ private:
 		std::random_shuffle(mWallTiles.begin(), mWallTiles.end());
 	}
 	void makeHands() {
-		// 4l‚ÌƒvƒŒƒCƒ„[‚ª13–‡‚¸‚Âæ‚é
+		// 4äººã®ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒ13æšãšã¤å–ã‚‹
 		for (int i=0; i<4; i++) {
 			for (int j=0; j<13; j++) {
 				mPlayers[i].handTiles.add(getNextTile());
 			}
 		}
-		// e‚ª‚Ğ‚Æ‚Â—]Œv‚É‚Æ‚é
+		// è¦ªãŒã²ã¨ã¤ä½™è¨ˆã«ã¨ã‚‹
 	//	mPlayers[MJ_WIND_TON].handTiles.add(getNextTile());
 	}
 	void makeDeads() {
-		// ‰¤”v‚ğì¬
+		// ç‹ç‰Œã‚’ä½œæˆ
 		for (int i=0; i<14; i++) {
 			mDeadTiles.push_back(getNextTile());
 		}
@@ -299,7 +297,7 @@ private:
 	}
 };
 
-// ƒQ[ƒ€is
+// ã‚²ãƒ¼ãƒ é€²è¡Œ
 class MJGame {
 	MJTable mTable;
 	int mTurn;
@@ -312,13 +310,13 @@ public:
 		mTurn = MJ_WIND_TON;
 	}
 	void step() {
-		// æ‚é
+		// å–ã‚‹
 		MJID tsumo = mTable.getNextTile();
 		
-		// ƒcƒ‚‚Á‚½”v‚ğ•\¦
+		// ãƒ„ãƒ¢ã£ãŸç‰Œã‚’è¡¨ç¤º
 		mTable.print(tsumo);
 
-		// “ü—Í
+		// å…¥åŠ›
 		char c = getchar();
 		switch (c) {
 		case '1': mTable.discardByIndex(MJ_WIND_TON,  0); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
@@ -334,7 +332,7 @@ public:
 		case '-': mTable.discardByIndex(MJ_WIND_TON, 10); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
 		case '^': mTable.discardByIndex(MJ_WIND_TON, 11); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
 		case '\\':mTable.discardByIndex(MJ_WIND_TON, 12); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '\n': mTable.discard(MJ_WIND_TON, tsumo); break; // ƒcƒ‚Ø‚è
+		case '\n': mTable.discard(MJ_WIND_TON, tsumo); break; // ãƒ„ãƒ¢åˆ‡ã‚Š
 		}
 		
 	}
