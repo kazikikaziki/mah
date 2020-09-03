@@ -2,6 +2,11 @@
 #include <algorithm>
 #include <time.h>
 
+#define MJ_WIND_TON  0 // 東
+#define MJ_WIND_NAN  1 // 南
+#define MJ_WIND_SHA  2 // 西
+#define MJ_WIND_PEI  3 // 北
+
 // 画面出力
 class MJOutput {
 public:

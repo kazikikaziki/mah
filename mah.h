@@ -40,11 +40,6 @@
 #define MJ_IS_CHUNTSU(a, b, c) (MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c)) // 牌 a b c が順子になっているか？
 #define MJ_IS_KOUTSU(a, b, c) ((a)==(b) && (b)==(c)) // 牌 a b c が刻子になっているか？
 
-#define MJ_WIND_TON  0 // 東
-#define MJ_WIND_NAN  1 // 南
-#define MJ_WIND_SHA  2 // 西
-#define MJ_WIND_PEI  3 // 北
-
 typedef int MJID;
 
 // 待ちの形
@@ -142,8 +137,8 @@ struct MJPattern {
 		machiType = (MJMachiType)0;
 	}
 
-	MJID tiles[14]; // 牌の並び
-	int numTiles; // 牌の数。テンパイしているなら13。完成形について調べているなら14
+	MJID tiles[14]; // 牌の並び（ソート済み）
+	int numTiles; // 牌の数。テンパイしているなら13。完成形について調べているなら14（槓子が無い場合）
 
 	MJID koutsu[4]; // 刻子（この形が刻子を含んでいる場合、それぞれの刻子構成牌の１つが入る。最大で４刻子）
 	int numKoutsu;
@@ -151,7 +146,7 @@ struct MJPattern {
 	MJID chuntsu[4]; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
 	int numChuntsu;
 
-	MJID toitsu; // 対子がある場合、その構成牌。なければ 0
+	MJID toitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
 
 	// 面子として使えなかった余り牌。
 	// テンパイ状態の場合のみ設定されるので、最大２個まで。単騎待ちなら１個。
@@ -162,8 +157,12 @@ struct MJPattern {
 	// 余り牌を２個使ってできる塔子の種類。単騎待ちの場合は塔子ができないので 0 になる
 	MJTaatsuType taatsuType;
 
-
-	// テンパイ状態の場合、その待ち牌
+	// テンパイ状態の場合、その待ち牌。単騎なら machi1 だけが設定され machi2 は 0 になる。
+	// 国士無双１３面待ちなど特殊な待ちの場合も 0 になる。待ちの形は machiType を見ること。
+	// なお、手牌が複数の分割方法で面子に分解できるとき、 MJPattern はそのうちの一つのパターンを表すだけであるため、
+	// 他面待ちという状態は存在しない。複数のパターンを重ねた結果３面以上の待ちになるだけである。
+	// 例えば九蓮宝燈９面待ちだった場合、たくさんのパターンが生成されるが、それらすべての待ち牌を合わせると９面待ちになるだけであり、
+	// ひとつのパターンで９面待ちという状態にはならない
 	MJID machi1;
 	MJID machi2;
 	MJMachiType machiType;
@@ -174,16 +173,23 @@ struct MJPattern {
 class MJEnumPatterns {
 public:
 	MJEnumPatterns();
-	const MJPattern * getTempai(int index) const;
-	int getTempaiCount() const;
-	int getShanten( ) const;
 
 	// テンパイしているなら mResults に考えられるすべてのテンパイ形をセットして true を返す
 	// テンパイしていないなら mShanten にシャンテン数をセットして false を返す
 	bool eval(const MJHand &hand);
 
 	// ツモ牌を指定し、あがっているか調べる。上がっている場合は待ち牌と一致したテンパイパターンを返す
+	// 既に eval が実行済みで、テンパイパターンを少なくとも１個保持している（getTempaiCount() > 0) 必要がある 
 	const MJPattern * isAgari(MJID tsumo) const;
+
+	// テンパイパターンを得る
+	const MJPattern * getTempai(int index) const;
+
+	// テンパイのパターン数を得る
+	int getTempaiCount() const;
+
+	// 現在のシャンテン数を得る
+	int getShanten() const;
 
 private:
 	std::vector<MJPattern> mResults;
