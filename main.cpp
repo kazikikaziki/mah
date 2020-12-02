@@ -137,6 +137,9 @@ public:
 			if (guiTileButton(mTsumo)) {
 				index = -2; // ツモ切り
 			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(u8"いまツモもった牌。\nツモ切りするならここをクリック");
+			}
 			ImGui::SameLine();
 			if (agari) {
 				ImGui::Text(u8"さらにツモる");
@@ -151,7 +154,7 @@ public:
 					u8"一", u8"二", u8"三", u8"四", u8"五", u8"六", u8"七", u8"八", u8"九",
 					u8"①", u8"②", u8"③", u8"④", u8"⑤", u8"⑥", u8"⑦", u8"⑧", u8"⑨",
 					u8"１", u8"２", u8"３", u8"４", u8"５", u8"６", u8"７", u8"８", u8"９",
-					u8"東", 	u8"南", u8"西", u8"北", u8"白", u8"發", u8"中",
+					u8"東", u8"南", u8"西", u8"北", u8"白", u8"發", u8"中",
 				};
 				const MJID ids[N] = {
 					MJ_MAN(1), MJ_MAN(2), MJ_MAN(3), MJ_MAN(4), MJ_MAN(5), MJ_MAN(6), MJ_MAN(7), MJ_MAN(8), MJ_MAN(9), 
@@ -177,7 +180,7 @@ public:
 						mNextTiles.push_back(next); // 次にツモってくる牌を書き換える
 					}
 					if (ImGui::IsItemHovered()) {
-						ImGui::SetTooltip(u8"次に積もってくる牌を確認、変更できます");
+						ImGui::SetTooltip(u8"次にツモってくる牌を確認、変更できる\n※簡易機能なので、ここを変更した場合は牌数の整合性がなくなる。同じ牌が５個来るかもしれない");
 					}
 				}
 			}
@@ -198,9 +201,15 @@ public:
 			if (ImGui::Button(u8"リセット")) {
 				resetTiles();
 			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(u8"牌を再シャッフルし、配り直す");
+			}
 			ImGui::SameLine();
 			if (ImGui::Button(u8"再評価")) {
 				mEval.eval(mHandTiles);
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(u8"もう一度評価関数を通す。\nプログラムの確認用");
 			}
 		}
 		ImGui::End();
