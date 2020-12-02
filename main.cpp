@@ -10,12 +10,52 @@
 // 画面出力
 class MJOutput {
 public:
-	static void printSpace() {
-		printf(" ");
+	static void printTiles(const std::vector<MJID> &tiles) {
+		for (auto it=tiles.begin(); it!=tiles.end(); ++it) {
+			printTile(*it);
+		}
 	}
-	static void printEnd() {
-		printf("\n");
+	static void printTiles(const MJHand &hand) {
+		for (int i=0; i<hand.size(); i++) {
+			printTile(hand.get(i));
+		}
 	}
+
+	// 手牌情報
+	static void printHandInfo(const MJEval &pat) {
+		if (pat.getShanten() == 0) {
+			printf("☆テンパイ☆\n");
+			for (int i=0; i<pat.getTempaiCount(); i++) {
+				const MJPattern *tempai = pat.getTempai(i);
+
+				// 完成面子
+				printTiles(tempai->tiles, tempai->numTiles);
+				printSpace();
+
+				// 未完成牌
+				printTiles(tempai->amari, tempai->numAmari);
+
+				// 待ち牌
+				switch(tempai->machiType) {
+				case MJ_MACHI_TANKI  : printf("【単騎】"); printTile(tempai->machi1); break;
+				case MJ_MACHI_PENCHAN: printf("【辺張】"); printTile(tempai->machi1); break;
+				case MJ_MACHI_KANCHAN: printf("【間張】"); printTile(tempai->machi1); break;
+				case MJ_MACHI_RYANMEN: printf("【両面】"); printTile(tempai->machi1); printTile(tempai->machi2); break;
+				case MJ_MACHI_SHABO  : printf("【シャ】"); printTile(tempai->machi1); printTile(tempai->machi2); break;
+				}
+				printEnd();
+			}
+			return;
+
+		}
+		if (pat.getShanten() == 1) {
+			printf("☆イーシャンテン\n");
+			return;
+
+		}
+		printf("%dシャンテン\n", pat.getShanten());
+	}
+
 	static void printTile(MJID tile) {
 		switch (tile) {
 		case MJ_TON: printf("東"); return;
@@ -58,62 +98,25 @@ public:
 		}
 		printf("　");
 	}
-	static void printTiles(const MJID *tile, int size) {
+
+	static void printSpace() {
+		printf(" ");
+	}
+	static void printEnd() {
+		printf("\n");
+	}
+	static void printTiles(const MJID *tiles, int size) {
 		for (int i=0; i<size; i++) {
-			printTile(tile[i]);
+			printTile(tiles[i]);
 		}
 		printEnd();
 	}
-	static void printTiles(const std::vector<MJID> &tiles) {
-		for (auto it=tiles.begin(); it!=tiles.end(); ++it) {
-			printTile(*it);
-		}
-	}
-	static void printTiles(const MJHand &hand) {
-		for (int i=0; i<hand.size(); i++) {
-			printTile(hand.get(i));
-		}
-	}
 
-	// 手牌情報
-	static void printHandInfo(const MJEnumPatterns &pat) {
-		if (pat.getShanten() == 0) {
-			printf("☆テンパイ☆\n");
-			for (int i=0; i<pat.getTempaiCount(); i++) {
-				const MJPattern *tempai = pat.getTempai(i);
-
-				// 完成面子
-				printTiles(tempai->tiles, tempai->numTiles);
-				printSpace();
-
-				// 未完成牌
-				printTiles(tempai->amari, tempai->numAmari);
-
-				// 待ち牌
-				switch(tempai->machiType) {
-				case MJ_MACHI_TANKI  : printf("【単騎】"); printTile(tempai->machi1); break;
-				case MJ_MACHI_PENCHAN: printf("【辺張】"); printTile(tempai->machi1); break;
-				case MJ_MACHI_KANCHAN: printf("【間張】"); printTile(tempai->machi1); break;
-				case MJ_MACHI_RYANMEN: printf("【両面】"); printTile(tempai->machi1); printTile(tempai->machi2); break;
-				case MJ_MACHI_SHABO  : printf("【シャ】"); printTile(tempai->machi1); printTile(tempai->machi2); break;
-				}
-				printEnd();
-			}
-			return;
-
-		}
-		if (pat.getShanten() == 1) {
-			printf("☆イーシャンテン\n");
-			return;
-
-		}
-		printf("%dシャンテン\n", pat.getShanten());
-	}
 };
 
 // 雀卓
 class MJTable {
-	struct STile {
+	struct STile { // 捨て牌情報
 		STile(int _id=0) {
 			id = _id;
 			called = 0;
@@ -126,7 +129,7 @@ class MJTable {
 	struct SPlayer {
 		MJHand handTiles; // 手牌
 		std::vector<STile> discardedTiles; // 捨牌（河）
-		MJEnumPatterns patterns;
+		MJEval patterns;
 	};
 	std::vector<STile> mWallTiles; // 山牌
 	std::vector<STile> mDeadTiles; // 王牌
@@ -188,10 +191,6 @@ public:
 
 	bool isFinished() const {
 		return mFinished;
-	}
-
-	const MJHand & getPlayerHand(int playerWind) const {
-		return mPlayers[playerWind].handTiles;
 	}
 
 	// 雀卓表示

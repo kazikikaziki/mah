@@ -1,8 +1,8 @@
 ﻿// mah.cpp : このファイルには 'main' 関数が含まれています。プログラム実行の開始と終了がそこで行われます。
 //
-#include <map>
-#include <set>
 #include <assert.h>
+#include <algorithm> // std::sort
+#include <unordered_map>
 #include "mah.h"
 
 // https://chouseisan.com/l/post-9420/
@@ -11,6 +11,46 @@
 
 #define MJ_HAN_YAKUMAN  (-1) // 役満
 #define MJ_HAN_YAKUMAN2 (-2) // ダブル役満
+
+enum MJColorBit {
+	BIT_MAN = 0x0001,
+	BIT_PIN = 0x0010,
+	BIT_SOU = 0x0100,
+	BIT_JI  = 0x1000,
+};
+typedef int MJColorBits;
+
+
+
+
+
+// 属性
+enum MJAttr {
+	MJ_ATTR_NUM19  = 1, // 19牌
+	MJ_ATTR_JIHAI  = 2, // 字牌
+	MJ_ATTR_KAZE   = 4, // 風牌
+	MJ_ATTR_SANGEN = 8, // 三元牌
+};
+typedef int MJAttrs;
+
+
+// 塔子または対子
+struct MJTaatsu {
+	MJTaatsu() {
+		id = 0;
+		type = (MJTaatsuType)0;
+	}
+	MJTaatsu(MJID _id, MJTaatsuType _type) {
+		id = _id;
+		type = _type;
+	}
+	MJID id; // 塔子構成牌の最初の１個
+	MJTaatsuType type; // 塔子の種類　0=なし 1=嵌張 2=両面or辺張
+};
+
+
+
+
 
 
 #pragma region MJHand
@@ -210,7 +250,6 @@ int MJHand::findRemoveChunz(MJID id) {
 #pragma endregion // MJHand
 
 
-
 struct MJMentsuParserResult {
 	MJID atama; // 雀頭・対子
 	MJID koutsu[4]; // 刻子
@@ -264,7 +303,6 @@ struct MJMentsuParserResult {
 		amari[numAmari] = 0; // 未使用領域は必ず 0 にしておく。この挙動を前提に組んでいる場所がある
 	}
 };
-
 
 
 // 牌の並びからできるだけ多くの面子（３牌構成）と対子（雀頭）を取る
@@ -354,7 +392,6 @@ private:
 };
 
 
-
 struct MJTaatsuParserResult {
 	MJTaatsuParserResult() {
 		memset(amari, 0, sizeof(amari));
@@ -364,7 +401,6 @@ struct MJTaatsuParserResult {
 	MJID amari[14]; // 塔子にできなかった余り牌
 	int numAmari;
 };
-
 
 
 // 牌の並びからできるだけ多くの塔子・対子を取る
@@ -470,7 +506,6 @@ private:
 };
 
 
-
 // 国士無双形の判定
 // 国士無双単騎待ちなら 1, 13面待ちなら 2 を返す。テンパイしていない場合は　0 を返す
 // out_shanten: シャンテン数をセットする。テンパイだった場合は 0
@@ -542,8 +577,6 @@ int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
 }
 
 
-
-
 // 七対子形の判定
 // テンパイなら 1 を返す。それ以外は 0 を返す
 // out_shanten: シャンテン数をセットする。テンパイだった場合は 0
@@ -551,7 +584,7 @@ int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
 int MJ_EvalChitoitsuTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
 	if (hand.size() != 13) return 0;
 	// 牌の種類ごとの数を数える
-	std::map<MJID, int> nums;
+	std::unordered_map<MJID, int> nums;
 	for (int i=0; i<hand.size(); i++) {
 		MJID id = hand.get(i);
 		nums[id]++;
@@ -582,8 +615,6 @@ int MJ_EvalChitoitsuTempai(const MJHand &hand, int *out_shanten, MJID *out_wait)
 	if (out_wait) *out_wait = 0;
 	return 0;
 }
-
-
 
 
 // ４面子１雀頭形の判定
@@ -670,8 +701,7 @@ int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParser
 }
 
 
-
-
+// id で構成される対子の牌種類を返す
 MJAttrs MJ_AtamaAttr(MJID id) {
 	MJAttrs ret = 0;
 	if (MJ_IS_ZI(id)) {
@@ -682,9 +712,15 @@ MJAttrs MJ_AtamaAttr(MJID id) {
 	}
 	return ret;
 }
+
+
+// id で構成される刻子の牌種類を返す
 MJAttrs MJ_KoutsuAttr(MJID id) {
 	return MJ_AtamaAttr(id);
 }
+
+
+// id から始まる順子の牌種類を返す
 MJAttrs MJ_ChuntsuAttr(MJID id) {
 	MJAttrs ret = 0;
 	if (MJ_GETNUM(id)==1/*123*/ || MJ_GETNUM(id)==7/*789*/) {
@@ -692,7 +728,10 @@ MJAttrs MJ_ChuntsuAttr(MJID id) {
 	}
 	return ret;
 }
-bool MJ_has1or9(const MJPattern &pattern) {
+
+
+// pattern が１９牌を含むかどうか
+bool MJ_Has19(const MJPattern &pattern) {
 	for (int i=0; i<pattern.numChuntsu; i++) {
 		if (MJ_ChuntsuAttr(pattern.chuntsu[i]) & MJ_ATTR_NUM19) {
 			return true;
@@ -708,7 +747,10 @@ bool MJ_has1or9(const MJPattern &pattern) {
 	}
 	return false;
 }
-bool MJ_hasJihai(const MJPattern &pattern) {
+
+
+// pattern が字牌を含むかどうか
+bool MJ_HasJihai(const MJPattern &pattern) {
 	for (int i=0; i<pattern.numChuntsu; i++) {
 		if (MJ_ChuntsuAttr(pattern.chuntsu[i]) & MJ_ATTR_JIHAI) {
 			return true;
@@ -724,7 +766,10 @@ bool MJ_hasJihai(const MJPattern &pattern) {
 	}
 	return false;
 }
-bool MJ_only_1_9_Jihai(const MJPattern &pattern) {
+
+
+// pattern が１９字牌のみで構成されているか
+bool MJ_Has19JihaiOnly(const MJPattern &pattern) {
 	if (pattern.numChuntsu > 0) {
 		return false;
 	}
@@ -740,12 +785,8 @@ bool MJ_only_1_9_Jihai(const MJPattern &pattern) {
 }
 
 
-#define BIT_MAN  0x0001
-#define BIT_PIN  0x0010
-#define BIT_SOU  0x0100
-#define BIT_JI   0x1000
-
-int MJ_ColorFlags(const MJPattern &pattern) {
+// pattern に含まれている牌の種類をビットフラグの組み合わせで返す
+MJColorBits MJ_GetColorBits(const MJPattern &pattern) {
 	int m = 0;
 	for (int i=0; i<pattern.numChuntsu; i++) {
 		if (MJ_IS_MAN(pattern.chuntsu[i])) m |= BIT_MAN;
@@ -768,7 +809,9 @@ int MJ_ColorFlags(const MJPattern &pattern) {
 	return m;
 }
 
-void MJPattern_UpdateTiles(MJPattern &pattern) {
+
+// pattern を理牌する
+void MJ_Sort(MJPattern &pattern) {
 	std::vector<MJID> t;
 	for (int i=0; i<pattern.numChuntsu; i++) {
 		t.push_back(pattern.chuntsu[i]);
@@ -790,6 +833,7 @@ void MJPattern_UpdateTiles(MJPattern &pattern) {
 	memcpy(pattern.tiles, t.data(), sizeof(MJID) * t.size());
 	pattern.numTiles = (int)t.size();
 }
+
 
 // 完成面子
 bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei) {
@@ -833,12 +877,13 @@ bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei)
 		out_kansei->taatsuType = (MJTaatsuType)0; // 塔子解消
 
 		// 牌並び更新
-		MJPattern_UpdateTiles(*out_kansei);
+		MJ_Sort(*out_kansei);
 		return true;
 	}
 
 	return false;
 }
+
 
 // 完成手牌
 void MJ_KanseiTehai(const MJPattern &pattern, MJHand *out_hand) {
@@ -892,14 +937,14 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 			}
 		}
 		// 字一色
-		if (MJ_ColorFlags(kansei) == BIT_JI) {
+		if (MJ_GetColorBits(kansei) == BIT_JI) {
 			printf("字一色\n");
 			yakuman++;
 		}
 		// 清老頭
 		{
-			int a = MJ_only_1_9_Jihai(kansei);
-			int b = MJ_ColorFlags(kansei) & BIT_JI;
+			int a = MJ_Has19JihaiOnly(kansei);
+			int b = MJ_GetColorBits(kansei) & BIT_JI;
 			if (a && b==0) {
 				printf("清老頭\n");
 				yakuman++;
@@ -924,7 +969,7 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 			}
 		}
 		// 九蓮宝燈
-		if (MJ_ColorFlags(kansei) == BIT_MAN) {
+		if (MJ_GetColorBits(kansei) == BIT_MAN) {
 			MJHand hand;
 			MJ_KanseiTehai(kansei, &hand);
 			hand.findRemove(tsumo); // テンパイ形で調べるのでツモ牌加えない
@@ -980,7 +1025,7 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 	// ６ハン役
 	{
 		// 清一色
-		int m = MJ_ColorFlags(kansei);
+		MJColorBits m = MJ_GetColorBits(kansei);
 		if (m==BIT_MAN || m==BIT_PIN || m==BIT_SOU) {
 			printf("清一色\n");
 			han += 6;
@@ -1024,7 +1069,7 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 		}
 		// 混一色
 		{
-			int m = MJ_ColorFlags(kansei);
+			MJColorBits m = MJ_GetColorBits(kansei);
 			if (m==(BIT_JI|BIT_MAN) || m==(BIT_JI|BIT_PIN) || m==(BIT_JI|BIT_SOU)) {
 				printf("混一色\n");
 				han += 3;
@@ -1035,7 +1080,7 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 	// ２ハン役
 	{
 		// 混老頭
-		if (MJ_only_1_9_Jihai(kansei)) {
+		if (MJ_Has19JihaiOnly(kansei)) {
 			// ※清老頭、字一色を優先
 			printf("混老頭\n");
 			han += 2;
@@ -1133,7 +1178,7 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 		}
 		// タンヤオ
 		{
-			bool yao = MJ_has1or9(kansei) || MJ_hasJihai(kansei);
+			bool yao = MJ_Has19(kansei) || MJ_HasJihai(kansei);
 			if (!yao) {
 				printf("タンヤオ\n");
 				han++;
@@ -1184,23 +1229,13 @@ int MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bak
 }
 
 
-#pragma region MJEnumPatterns
-MJEnumPatterns::MJEnumPatterns() {
+#pragma region MJEval
+MJEval::MJEval() {
 	mShanten = -1;
 }
-const MJPattern * MJEnumPatterns::getTempai(int index) const {
-	return &mResults[index];
-}
-int MJEnumPatterns::getTempaiCount() const {
-	return (int)mResults.size();
-}
-int MJEnumPatterns::getShanten() const {
-	return mShanten;
-}
-
-// テンパイしているなら mResults に考えられるすべてのテンパイ形をセットして true を返す
-// テンパイしていないなら mShanten にシャンテン数をセットして false を返す
-bool MJEnumPatterns::eval(const MJHand &hand) {
+bool MJEval::eval(const MJHand &tiles) {
+	// テンパイしているなら mResults に考えられるすべてのテンパイ形をセットして true を返す
+	// テンパイしていないなら mShanten にシャンテン数をセットして false を返す
 	mResults.clear();
 	mShanten = -1;
 
@@ -1208,7 +1243,7 @@ bool MJEnumPatterns::eval(const MJHand &hand) {
 	{
 		int shanten = 0;
 		MJID wait = 0;
-		int kokushi = MJ_EvalKokushiTempai(hand, &shanten, &wait);
+		int kokushi = MJ_EvalKokushiTempai(tiles, &shanten, &wait);
 		if (kokushi == 1) {
 			// 国士無双単騎
 			MJPattern tempai;
@@ -1232,7 +1267,7 @@ bool MJEnumPatterns::eval(const MJHand &hand) {
 	{
 		int shanten = 0;
 		MJID wait = 0;
-		if (MJ_EvalChitoitsuTempai(hand, &shanten, &wait)) {
+		if (MJ_EvalChitoitsuTempai(tiles, &shanten, &wait)) {
 			MJPattern tempai;
 			tempai.machiType = MJ_MACHI_CHITOI;
 			tempai.machi1 = wait;
@@ -1242,7 +1277,7 @@ bool MJEnumPatterns::eval(const MJHand &hand) {
 	}
 		
 	MJMentsuParser mp;
-	mp.parse(hand);
+	mp.parse(tiles);
 
 	for (int m=0; m<mp.size(); m++) {
 		const MJMentsuParserResult *mpr = mp.get(m);
@@ -1274,7 +1309,7 @@ bool MJEnumPatterns::eval(const MJHand &hand) {
 				tempai.machi1 = wait1;
 				tempai.machi2 = wait2;
 				tempai.machiType = machiType;
-				MJPattern_UpdateTiles(tempai);
+				MJ_Sort(tempai);
 				mResults.push_back(tempai);
 				mShanten = 0;
 
@@ -1288,9 +1323,7 @@ bool MJEnumPatterns::eval(const MJHand &hand) {
 
 	return mShanten == 0;
 }
-
-// ツモ牌を指定し、あがっているか調べる。上がっている場合は待ち牌と一致したテンパイパターンを返す
-const MJPattern * MJEnumPatterns::isAgari(MJID tsumo) const {
+const MJPattern * MJEval::isAgari(MJID tsumo) const {
 	for (size_t i=0; i<mResults.size(); i++) {
 		const MJPattern *tempai = &mResults[i];
 		if (tempai->machiType == MJ_MACHI_KOKUSHI13) {
@@ -1316,4 +1349,14 @@ const MJPattern * MJEnumPatterns::isAgari(MJID tsumo) const {
 	}
 	return NULL;
 }
-#pragma endregion // MJEnumPatterns
+const MJPattern * MJEval::getTempai(int index) const {
+	return &mResults[index];
+}
+int MJEval::getTempaiCount() const {
+	return (int)mResults.size();
+}
+int MJEval::getShanten() const {
+	return mShanten;
+}
+#pragma endregion // MJEval
+
