@@ -1,390 +1,295 @@
 ﻿#include "mah.h"
-#include <algorithm>
+#include <locale.h>
+#include <windows.h>
 #include <time.h>
+#include <algorithm>
+#include <unordered_set>
+#include <string>
+#include "app.h"
+#include "imgui/imgui.h"
 
-#define MJ_WIND_TON  0 // 東
-#define MJ_WIND_NAN  1 // 南
-#define MJ_WIND_SHA  2 // 西
-#define MJ_WIND_PEI  3 // 北
+#pragma comment(lib, "d3d9.lib")
 
-// 画面出力
-class MJOutput {
-public:
-	static void printTiles(const std::vector<MJID> &tiles) {
-		for (auto it=tiles.begin(); it!=tiles.end(); ++it) {
-			printTile(*it);
-		}
-	}
-	static void printTiles(const MJHand &hand) {
-		for (int i=0; i<hand.size(); i++) {
-			printTile(hand.get(i));
-		}
-	}
 
-	// 手牌情報
-	static void printHandInfo(const MJEval &pat) {
-		if (pat.getShanten() == 0) {
-			printf("☆テンパイ☆\n");
-			for (int i=0; i<pat.getTempaiCount(); i++) {
-				const MJPattern *tempai = pat.getTempai(i);
-
-				// 完成面子
-				printTiles(tempai->tiles, tempai->numTiles);
-				printSpace();
-
-				// 未完成牌
-				printTiles(tempai->amari, tempai->numAmari);
-
-				// 待ち牌
-				switch(tempai->machiType) {
-				case MJ_MACHI_TANKI  : printf("【単騎】"); printTile(tempai->machi1); break;
-				case MJ_MACHI_PENCHAN: printf("【辺張】"); printTile(tempai->machi1); break;
-				case MJ_MACHI_KANCHAN: printf("【間張】"); printTile(tempai->machi1); break;
-				case MJ_MACHI_RYANMEN: printf("【両面】"); printTile(tempai->machi1); printTile(tempai->machi2); break;
-				case MJ_MACHI_SHABO  : printf("【シャ】"); printTile(tempai->machi1); printTile(tempai->machi2); break;
-				}
-				printEnd();
-			}
-			return;
-
-		}
-		if (pat.getShanten() == 1) {
-			printf("☆イーシャンテン\n");
-			return;
-
-		}
-		printf("%dシャンテン\n", pat.getShanten());
-	}
-
-	static void printTile(MJID tile) {
-		switch (tile) {
-		case MJ_TON: printf("東"); return;
-		case MJ_NAN: printf("南"); return;
-		case MJ_SHA: printf("西"); return;
-		case MJ_PEI: printf("北"); return;
-		case MJ_HAK: printf("白"); return;
-		case MJ_HAZ: printf("發"); return;
-		case MJ_CHUN:printf("中"); return;
-		}
-		if (MJ_IS_MAN(tile)) {
-			const char *tbl[] = {
-				"一", "二", "三",
-				"四", "五", "六",
-				"七", "八", "九",
-			};
-			int num = tile - MJ_MAN(1);
-			printf(tbl[num]);
-			return;
-		}
-		if (MJ_IS_PIN(tile)) {
-			const char *tbl[] = {
-				"①", "②", "③",
-				"④", "⑤", "⑥",
-				"⑦", "⑧", "⑨",
-			};
-			int num = tile - MJ_PIN(1);
-			printf(tbl[num]);
-			return;
-		}
-		if (MJ_IS_SOU(tile)) {
-			const char *tbl[] = {
-				"１", "２", "３",
-				"４", "５", "６",
-				"７", "８", "９",
-			};
-			int num = tile - MJ_SOU(1);
-			printf(tbl[num]);
-			return;
-		}
-		printf("　");
-	}
-
-	static void printSpace() {
-		printf(" ");
-	}
-	static void printEnd() {
-		printf("\n");
-	}
-	static void printTiles(const MJID *tiles, int size) {
-		for (int i=0; i<size; i++) {
-			printTile(tiles[i]);
-		}
-		printEnd();
-	}
-
-};
-
-// 雀卓
-class MJTable {
-	struct STile { // 捨て牌情報
-		STile(int _id=0) {
-			id = _id;
-			called = 0;
-			open = false;
-		}
-		int id;
-		int called; // 鳴かれた（0=いいえ 1=東家 2=南家 3=西家 4=北家）
-		bool open; // 表向き（＝ドラ表示牌）（王牌の場合のみ）
-	};
-	struct SPlayer {
-		MJHand handTiles; // 手牌
-		std::vector<STile> discardedTiles; // 捨牌（河）
-		MJEval patterns;
-	};
-	std::vector<STile> mWallTiles; // 山牌
-	std::vector<STile> mDeadTiles; // 王牌
-	SPlayer mPlayers[4];
-	int mWind; // 風
-	bool mFinished;
-public:
-	MJTable() {
-		init();
-	}
-	void reset() {
-		init();
-		shuffle();
-		makeDeads();
-		makeHands();
-	}
+class CTest: public CSimpleApp {
+	std::vector<MJID> mNextTiles;
+	std::vector<MJYaku> mYaku;
+	MJHand mHandTiles;
+	MJID mTsumo;
+	MJEval mEval;
+	MJID mJikaze;
+	MJID mBakaze;
 
 	// 山牌を一枚とる
 	MJID getNextTile() {
-		if (mWallTiles.empty()) {
-			mFinished = true;
+		if (mNextTiles.empty()) {
 			return 0;
 		} else {
-			int id = mWallTiles.back().id;
-			mWallTiles.pop_back();
+			MJID id = mNextTiles.back();
+			mNextTiles.pop_back();
 			return id;
 		}
 	}
 
-	// 残りの山牌数
-	int getWallTileCount() const {
-		return (int)mWallTiles.size();
+public:
+	virtual void onStart() {
+		setlocale(LC_CTYPE, "");
+		srand(time(NULL));
+		ImGui::StyleColorsDark();
+		ImGui::GetStyle().ItemSpacing = ImVec2(2, 1);
+		resetTiles();
 	}
-
-	// 手牌に入れる
-	void add(int playerWind, MJID id) {
-		if (0 <= playerWind && playerWind < 4 && MJ_IS_VALID(id)) {
-			mPlayers[playerWind].handTiles.add(id);
-		}
+	virtual void onDraw(IDirect3DDevice9 *dev) {
 	}
+	virtual void onGUI() {
+		ImGui::SetNextWindowSize(ImVec2(500, 300));
+		if (ImGui::Begin("Test", NULL, ImGuiWindowFlags_NoResize)) {
 
-	// 牌を捨てる
-	void discard(int playerWind, MJID id) {
-		if (0 <= playerWind && playerWind < 4 && MJ_IS_VALID(id)) {
-			mPlayers[playerWind].discardedTiles.push_back(id);
-		}
-	}
+			// 情報
+			ImGui::Text(u8"場風: %s", getTileStringU8(mBakaze).c_str());
+			ImGui::Text(u8"自風: %s", getTileStringU8(mJikaze).c_str());
+			ImGui::Text(u8"残りの牌数: %d", mNextTiles.size());
 
-	// 手牌から牌を捨てる
-	void discardByIndex(int playerWind, int index) {
-		SPlayer &info = mPlayers[playerWind];
-		if (0 <= index && index < info.handTiles.size()) {
-			MJID id = info.handTiles.removeAt(index);
-			if (id) {
-				discard(playerWind, id);
+			int shanten = mEval.getShanten();
+			int agari = 0;
+			if (shanten > 0) {
+				ImGui::Text(u8"シャンテン数: %d", shanten);
+			} else {
+				mYaku.clear();
+				const MJPattern *pat = mEval.checkAgari(mTsumo, mJikaze, mBakaze, mYaku);
+				if (pat) {
+					ImGui::Text(u8"アガリ！");
+					if (mYaku.size() > 0) {
+						for (int i=0; i<mYaku.size(); i++) {
+							ImGui::Text(u8"【%s】", mYaku[i].name.c_str());
+						}
+					} else {
+						ImGui::Text(u8"【役無し】");
+					}
+					agari = 1;
+				} else {
+					ImGui::Text(u8"テンパイ");
+					ImGui::BeginGroup();
+					{
+						std::unordered_set<MJID> tmp;
+						for (int i=0; i<mEval.getTempaiCount(); i++) {
+							const MJPattern *pat = mEval.getTempai(i);
+							if (pat->machiType == MJ_MACHI_KOKUSHI13) {
+								tmp.insert(MJ_MAN(1)); tmp.insert(MJ_MAN(9));
+								tmp.insert(MJ_PIN(1)); tmp.insert(MJ_PIN(9));
+								tmp.insert(MJ_SOU(1)); tmp.insert(MJ_SOU(9));
+								tmp.insert(MJ_TON); tmp.insert(MJ_NAN); tmp.insert(MJ_SHA); tmp.insert(MJ_PEI);
+								tmp.insert(MJ_HAK); tmp.insert(MJ_HAZ); tmp.insert(MJ_CHUN);
+							} else {
+								if (pat->machi1) tmp.insert(pat->machi1);
+								if (pat->machi2) tmp.insert(pat->machi2);
+							}
+						}
+						std::vector<MJID> sorted;
+						for (auto it=tmp.begin(); it!=tmp.end(); it++) {
+							sorted.push_back(*it);
+						}
+						std::sort(sorted.begin(), sorted.end());
+						ImGui::Text(u8"待ち：");
+						for (auto it=sorted.begin(); it!=sorted.end(); it++) {
+							ImGui::SameLine();
+							ImGui::Text(u8"%s", getTileStringU8(*it).c_str()); 
+						}
+					}
+					ImGui::EndGroup();
+					if (ImGui::IsItemHovered()) {
+						ImGui::BeginTooltip();
+						for (int i=0; i<mEval.getTempaiCount(); i++) {
+							const MJPattern *pat = mEval.getTempai(i);
+							switch (pat->machiType) {
+							case MJ_MACHI_TANKI:   ImGui::Text(u8"【単騎】%s", getTileStringU8(pat->machi1).c_str()); break;
+							case MJ_MACHI_PENCHAN: ImGui::Text(u8"【辺張】%s", getTileStringU8(pat->machi1).c_str()); break;
+							case MJ_MACHI_KANCHAN: ImGui::Text(u8"【間張】%s", getTileStringU8(pat->machi1).c_str()); break;
+							case MJ_MACHI_CHITOI:  ImGui::Text(u8"【単騎】%s", getTileStringU8(pat->machi1).c_str()); break; // 七対子単騎
+							case MJ_MACHI_KOKUSHI: ImGui::Text(u8"【単騎】%s", getTileStringU8(pat->machi1).c_str()); break; // 国士単騎
+							case MJ_MACHI_RYANMEN: ImGui::Text(u8"【両面】%s-%s", getTileStringU8(pat->machi1).c_str(), getTileStringU8(pat->machi2).c_str()); break;
+							case MJ_MACHI_SHABO:   ImGui::Text(u8"【シャボ】%s%s", getTileStringU8(pat->machi1).c_str(), getTileStringU8(pat->machi2).c_str()); break;
+							case MJ_MACHI_KOKUSHI13: ImGui::Text(u8"国士無双１３面待ち"); break;
+							}
+						}
+						ImGui::EndTooltip();
+					}
+				}
 			}
-		}
-	}
 
-	bool isFinished() const {
-		return mFinished;
-	}
-
-	// 雀卓表示
-	void print(int tsumo) {
-		const MJHand hand(mPlayers[MJ_WIND_TON].handTiles);
-
-		printf("--------------------\n");
-		printInfo();
-		printf("北河【"); printDiscardTiles(MJ_WIND_PEI); printf("】\n");
-		printf("西河【"); printDiscardTiles(MJ_WIND_SHA); printf("】\n");
-		printf("南河【"); printDiscardTiles(MJ_WIND_NAN); printf("】\n");
-		printf("東河【"); printDiscardTiles(MJ_WIND_TON); printf("】\n");
-
-		// 手牌
-		printf("【"); MJOutput::printTiles(hand); printf("】");
-		
-		SPlayer *player = &mPlayers[MJ_WIND_TON];
-		player->patterns.eval(hand);
-
-		// ツモ牌
-		if (tsumo) {
-			printf("　ツモ【"); MJOutput::printTile(tsumo); printf("】\n");
-		}
-
-		if (tsumo) {
-
-			const MJPattern *agari = player->patterns.isAgari(tsumo);
+			// 牌ボタン
+			ImGui::Separator();
+			int index = -1;
+			for (int i=0; i<mHandTiles.size(); i++) {
+				MJID id = mHandTiles.get(i);
+				ImGui::PushID(i);
+				if (guiTileButton(id)) {
+					index = i; // 牌ボタンが押された
+				}
+				ImGui::SameLine();
+				ImGui::PopID();
+			}
+			
+			// ツモボタン
+			ImGui::Dummy(ImVec2(16, 0));
+			ImGui::SameLine();
+			int tusmoX = ImGui::GetCursorPosX(); // ツモボタンの表示位置を覚えておく
+			if (guiTileButton(mTsumo)) {
+				index = -2; // ツモ切り
+			}
+			ImGui::SameLine();
 			if (agari) {
-				printf("あがり！\n");
-
-				mFinished = true;
-
+				ImGui::Text(u8"さらにツモる");
 			} else {
-				printf("\n");
-				printf("＞１２３４５６７８９０－＾￥　(ツモ切り：エンターキー)\n"); // キー入力
-				MJOutput::printHandInfo(player->patterns);
+				ImGui::Text(u8"ツモ");
+			}
+
+			// 次ツモ
+			{
+				const int N = 9*3+7;
+				const char *str[N] = {
+					u8"一", u8"二", u8"三", u8"四", u8"五", u8"六", u8"七", u8"八", u8"九",
+					u8"①", u8"②", u8"③", u8"④", u8"⑤", u8"⑥", u8"⑦", u8"⑧", u8"⑨",
+					u8"１", u8"２", u8"３", u8"４", u8"５", u8"６", u8"７", u8"８", u8"９",
+					u8"東", 	u8"南", u8"西", u8"北", u8"白", u8"發", u8"中",
+				};
+				const MJID ids[N] = {
+					MJ_MAN(1), MJ_MAN(2), MJ_MAN(3), MJ_MAN(4), MJ_MAN(5), MJ_MAN(6), MJ_MAN(7), MJ_MAN(8), MJ_MAN(9), 
+					MJ_PIN(1), MJ_PIN(2), MJ_PIN(3), MJ_PIN(4), MJ_PIN(5), MJ_PIN(6), MJ_PIN(7), MJ_PIN(8), MJ_PIN(9), 
+					MJ_SOU(1), MJ_SOU(2), MJ_SOU(3), MJ_SOU(4), MJ_SOU(5), MJ_SOU(6), MJ_SOU(7), MJ_SOU(8), MJ_SOU(9), 
+					MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
+				};
+				if (mNextTiles.size() > 0) {
+					int sel = -1;
+					MJID next = mNextTiles.back();
+					for (int i=0; i<N; i++) {
+						if (next == ids[i]) {
+							sel = i;
+							break;
+						}
+					}
+					ImGui::Dummy(ImVec2(8, 8));
+					ImGui::SetCursorPosX(tusmoX); // ツモボタンと位置を揃える
+					ImGui::SetNextItemWidth(64);
+					if (ImGui::Combo(u8"次のツモ牌", &sel, str, N)) {
+						next = ids[sel];
+						mNextTiles.pop_back(); 
+						mNextTiles.push_back(next); // 次にツモってくる牌を書き換える
+					}
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip(u8"次に積もってくる牌を確認、変更できます");
+					}
+				}
+			}
+
+			if (index != -1) {
+				if (index >= 0) {
+					mHandTiles.removeAt(index); // 手牌から捨てる
+					mHandTiles.add(mTsumo); // 手牌にツモ牌を入れる
+					mEval.eval(mHandTiles); // 再評価する
+				} else {
+					// ツモ切りなので手牌は変化しない
+				}
+				mTsumo = getNextTile(); // 次のツモ牌を得る
+			}
+
+			ImGui::Separator();
+			// リセット
+			if (ImGui::Button(u8"リセット")) {
+				resetTiles();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"再評価")) {
+				mEval.eval(mHandTiles);
 			}
 		}
+		ImGui::End();
+		//ImGui::ShowDemoWindow();
 	}
+	void resetTiles() {
+		mJikaze = MJ_TON;
+		mBakaze = MJ_TON;
 
-	// 情報表示
-	void printInfo() {
-		printf("残り【%d個】", mWallTiles.size());
-		printf("ドラ表示牌【");
-		for (size_t i=0; i<mDeadTiles.size(); i++) {
-			if (mDeadTiles[i].open) {
-				MJOutput::printTile(mDeadTiles[0].id);
-			}
-		}
-		printf("】");
-		printf("\n");
-	}
-
-	// 捨て牌表示
-	void printDiscardTiles(int playerWind) {
-		const SPlayer &info = mPlayers[playerWind];
-		for (int i=0; i<info.discardedTiles.size(); i++) {
-			if (info.discardedTiles[i].called) {
-				// 鳴かれた
-				printf("鳴");
-			} else {
-				MJOutput::printTile(info.discardedTiles[i].id);
-			}
-		}
-	}
-
-
-private:
-	void init() {
-		mFinished = false;
-		mWallTiles.clear();
-		mDeadTiles.clear();
-		mDeadTiles.clear();
-		mWind = MJ_WIND_TON;
-		for (int i=0; i<4; i++) {
-			mPlayers[i] = SPlayer();
-		}
+		// 全ての牌を4個ずつ用意する
+		mNextTiles.clear();
 		for (int j=0; j<4; j++) {
 			for (int i=0; i<9; i++) {
-				mWallTiles.push_back(STile(MJ_MAN(1+i)));
-				mWallTiles.push_back(STile(MJ_PIN(1+i)));
-				mWallTiles.push_back(STile(MJ_SOU(1+i)));
+				mNextTiles.push_back(MJ_MAN(1+i));
+				mNextTiles.push_back(MJ_PIN(1+i));
+				mNextTiles.push_back(MJ_SOU(1+i));
 			}
 			for (int i=0; i<7; i++) {
-				mWallTiles.push_back(STile(MJ_CHR(1+i)));
+				mNextTiles.push_back(MJ_CHR(1+i));
 			}
 		}
-	}
-	void shuffle() {
-		std::random_shuffle(mWallTiles.begin(), mWallTiles.end());
-	}
-	void makeHands() {
-		// 4人のプレイヤーが13枚ずつ取る
-		for (int i=0; i<4; i++) {
-			for (int j=0; j<13; j++) {
-				mPlayers[i].handTiles.add(getNextTile());
-			}
+
+		// シャッフル
+		std::random_shuffle(mNextTiles.begin(), mNextTiles.end());
+
+		// 山牌から13枚取る
+		mHandTiles.clear();
+		for (int i=0; i<13; i++) {
+			mHandTiles.add(getNextTile());
 		}
-		// 親がひとつ余計にとる
-	//	mPlayers[MJ_WIND_TON].handTiles.add(getNextTile());
+
+		// 1枚ツモっておく
+		mTsumo = getNextTile();
+
+		// 評価する
+		mEval.eval(mHandTiles);
 	}
-	void makeDeads() {
-		// 王牌を作成
-		for (int i=0; i<14; i++) {
-			mDeadTiles.push_back(getNextTile());
+	bool guiTileButton(MJID tile) {
+		std::string u8 = getTileStringU8(tile);
+		ImGui::SetNextItemWidth(16);
+		return ImGui::Button(u8.c_str());
+	}
+	std::string getTileStringU8(MJID tile) {
+		switch (tile) {
+		case MJ_TON: return u8"東";
+		case MJ_NAN: return u8"南";
+		case MJ_SHA: return u8"西";
+		case MJ_PEI: return u8"北";
+		case MJ_HAK: return u8"白";
+		case MJ_HAZ: return u8"發";
+		case MJ_CHUN:return u8"中";
 		}
-		mDeadTiles[0].open = true;
+		if (MJ_IS_MAN(tile)) {
+			const char *tbl[] = {
+				u8"一", u8"二", u8"三",
+				u8"四", u8"五", u8"六",
+				u8"七", u8"八", u8"九",
+			};
+			int num = tile - MJ_MAN(1);
+			return tbl[num];
+		}
+		if (MJ_IS_PIN(tile)) {
+			const char *tbl[] = {
+				u8"①", u8"②", u8"③",
+				u8"④", u8"⑤", u8"⑥",
+				u8"⑦", u8"⑧", u8"⑨",
+			};
+			int num = tile - MJ_PIN(1);
+			return tbl[num];
+		}
+		if (MJ_IS_SOU(tile)) {
+			const char *tbl[] = {
+				u8"１", u8"２", u8"３",
+				u8"４", u8"５", u8"６",
+				u8"７", u8"８", u8"９",
+			};
+			int num = tile - MJ_SOU(1);
+			return tbl[num];
+		}
+		return "";
 	}
 };
 
-// ゲーム進行
-class MJGame {
-	MJTable mTable;
-	int mTurn;
-public:
-	MJGame() {
-		mTurn = 0;
-	}
-	void start() {
-		mTable.reset();
-		mTurn = MJ_WIND_TON;
-	}
-	void step() {
-		// 取る
-		MJID tsumo = mTable.getNextTile();
-		
-		// ツモった牌を表示
-		mTable.print(tsumo);
 
-		// 入力
-		char c = getchar();
-		switch (c) {
-		case '1': mTable.discardByIndex(MJ_WIND_TON,  0); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '2': mTable.discardByIndex(MJ_WIND_TON,  1); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '3': mTable.discardByIndex(MJ_WIND_TON,  2); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '4': mTable.discardByIndex(MJ_WIND_TON,  3); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '5': mTable.discardByIndex(MJ_WIND_TON,  4); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '6': mTable.discardByIndex(MJ_WIND_TON,  5); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '7': mTable.discardByIndex(MJ_WIND_TON,  6); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '8': mTable.discardByIndex(MJ_WIND_TON,  7); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '9': mTable.discardByIndex(MJ_WIND_TON,  8); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '0': mTable.discardByIndex(MJ_WIND_TON,  9); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '-': mTable.discardByIndex(MJ_WIND_TON, 10); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '^': mTable.discardByIndex(MJ_WIND_TON, 11); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '\\':mTable.discardByIndex(MJ_WIND_TON, 12); mTable.add(MJ_WIND_TON, tsumo); getchar(); break;
-		case '\n': mTable.discard(MJ_WIND_TON, tsumo); break; // ツモ切り
-		}
-		
-	}
 
-	bool isFinished() {
-		return mTable.isFinished();
-	}
-};
 
 
 int main() {
-#if 0
-	if (0) {
-		int pat0[] = {MJ_MAN(1), MJ_MAN(1), MJ_MAN(2), MJ_MAN(2), MJ_MAN(3), MJ_MAN(3), MJ_SOU(7), MJ_SOU(8), MJ_SOU(9), MJ_PIN(7), MJ_PIN(7), MJ_PIN(7), MJ_CHUN, MJ_CHUN, 0};
-		int pat1[] = {MJ_MAN(1), MJ_MAN(2), MJ_MAN(2), MJ_MAN(3), MJ_MAN(3), MJ_MAN(4), MJ_MAN(4), MJ_MAN(4), MJ_MAN(4), MJ_MAN(5), MJ_MAN(6), MJ_MAN(7), MJ_MAN(7), MJ_MAN(7), 0};
-		int pat2[] = {MJ_SOU(1), MJ_SOU(1), MJ_SOU(1), MJ_SOU(1), MJ_SOU(2), MJ_SOU(2), MJ_SOU(2), MJ_SOU(2), MJ_SOU(3), MJ_SOU(3), MJ_SOU(3), MJ_SOU(3), MJ_SOU(4), MJ_SOU(4), 0};
-		MJHand hand;
-		switch (1) {
-		case 0: hand.addArray(pat0); break;
-		case 1: hand.addArray(pat1); break;
-		case 2: hand.addArray(pat2); break;
-		}
-		MJOutput::printTileArray(hand.data()+1, hand.size());
-
-		printf("\n");
-		MJEval eval(hand, *hand.data());
-		for (int i=0; i<eval.mResultItems.size(); i++) {
-			const MJEvalResult &result = eval.mResultItems[i];
-			MJOutput::printSetArray(result.pattern);
-			MJOutput::printEnd();
-		}
-	}
-
-	if (0) {
-		int pat2[] = {MJ_SOU(1), MJ_SOU(1), MJ_SOU(1), MJ_SOU(1), MJ_SOU(2), MJ_SOU(2), /*MJ_SOU(2), */MJ_SOU(2), MJ_SOU(3), MJ_SOU(3), MJ_SOU(3), MJ_SOU(3), MJ_SOU(4), MJ_SOU(4), 0};
-		MJHand hand;
-		hand.addArray(pat2);
-		MJOutput::printTileArray(hand.data(), hand.size()); printf("\n");
-		MJOutput::printHandInfo(hand);
-	}
-#endif
-	if (1) {
-		std::srand(::time(NULL));
-		MJGame game;
-		game.start();
-		while (!game.isFinished()) {
-			game.step();
-		}
-	}
+	CTest app;
+	app.run(640, 480);
 	return 0;
 }

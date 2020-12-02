@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <string>
 
 #define MJ_GROUP_MAN            100
 #define MJ_GROUP_PIN            200
@@ -76,6 +77,7 @@ public:
 
 	int size() const;
 	bool empty() const;
+	void clear();
 	const MJID * data() const;
 	MJID get(int index) const;
 	void add(MJID id);
@@ -142,6 +144,21 @@ struct MJPattern {
 };
 
 
+struct MJYaku {
+	std::string name; // 役名（utf8)
+	int han; // 飜数（役満でない場合）
+	int yakuman; // 0=役満ではない 1=役満 2=ダブル役満
+
+	MJYaku() {
+		han = 0;
+		yakuman = 0;
+	}
+	MJYaku(const char *_name, int _han, int _yakuman=0) {
+		name = _name;
+		han = _han;
+		yakuman = _yakuman;
+	}
+};
 
 // 状況確認
 class MJEval {
@@ -154,8 +171,8 @@ public:
 	bool eval(const MJHand &tiles);
 
 	// ツモ牌を指定し、あがっているか調べる。
-	// 上がっている場合、その牌を必要としていたたテンパイ形を返す
-	const MJPattern * isAgari(MJID tsumo) const;
+	// 上がっている場合、その牌を必要としていたたテンパイ形を返し、役を result にセットする
+	const MJPattern * checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, std::vector<MJYaku> &result) const;
 
 	// テンパイパターンを得る
 	const MJPattern * getTempai(int index) const;
