@@ -42,6 +42,28 @@ public:
 	}
 	virtual void onDraw(IDirect3DDevice9 *dev) {
 	}
+
+	struct SPair {
+		enum Type {
+			TOI,
+			KOU,
+			JUN,
+		};
+		MJID id;
+		Type type;
+		SPair(Type ty, MJID _id) {
+			type = ty;
+			id = _id;
+		}
+		bool operator < (const SPair &a) const {
+			if (id != a.id) {
+				return id < a.id;
+			} else {
+				return type < a.type;
+			}
+		}
+	};
+
 	virtual void onGUI() {
 		ImGui::SetNextWindowPos(ImVec2(40, 10));
 		ImGui::SetNextWindowSize(ImVec2(500, 400));
@@ -121,6 +143,47 @@ public:
 					} else {
 						ImGui::Text(u8"【役無し】");
 					}
+
+					ImGui::Separator();
+					MJPattern kansei;
+					MJ_KanseiMentsu(*pat, mTsumo, &kansei);
+
+					std::vector<SPair> pairs;
+					for (int i=0; i<kansei.numKoutsu; i++) {
+						pairs.push_back(SPair(SPair::KOU, kansei.koutsu[i]));
+					}
+					for (int i=0; i<kansei.numJuntsu; i++) {
+						pairs.push_back(SPair(SPair::JUN, kansei.juntsu[i]));
+					}
+					if (kansei.toitsu) {
+						pairs.push_back(SPair(SPair::TOI, kansei.toitsu));
+					}
+					std::sort(pairs.begin(), pairs.end());
+
+
+					std::string s;
+					for (int i=0; i<pairs.size(); i++) {
+						const SPair &p = pairs[i];
+						if (p.type == SPair::KOU) {
+							s += MJ_ToStringU8(p.id);
+							s += MJ_ToStringU8(p.id);
+							s += MJ_ToStringU8(p.id);
+							s += " | ";
+						}
+						if (p.type == SPair::JUN) {
+							s += MJ_ToStringU8(p.id);
+							s += MJ_ToStringU8(p.id+1);
+							s += MJ_ToStringU8(p.id+2);
+							s += " | ";
+						}
+						if (p.type == SPair::TOI) {
+							s += MJ_ToStringU8(p.id);
+							s += MJ_ToStringU8(p.id);
+							s += " | ";
+						}
+					}
+					ImGui::Text(s.c_str());
+
 					agari = 1;
 				} else {
 					ImGui::Text(u8"テンパイ");

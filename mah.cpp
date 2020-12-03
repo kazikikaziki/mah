@@ -924,6 +924,29 @@ bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei)
 		for (int i=0; i<tempai.numTiles; i++) {
 			out_kansei->tiles[i] = tempai.tiles[i];
 		}
+
+		// ソート
+		{
+			std::vector<MJID> tmp;
+			for (int i=0; i<out_kansei->numKoutsu; i++) {
+				tmp.push_back(out_kansei->koutsu[i]);
+			}
+			std::sort(tmp.begin(), tmp.end());
+			for (int i=0; i<out_kansei->numKoutsu; i++) {
+				out_kansei->koutsu[i] = tmp[i];
+			}
+		}
+		{
+			std::vector<MJID> tmp;
+			for (int i=0; i<out_kansei->numJuntsu; i++) {
+				tmp.push_back(out_kansei->juntsu[i]);
+			}
+			std::sort(tmp.begin(), tmp.end());
+			for (int i=0; i<out_kansei->numJuntsu; i++) {
+				out_kansei->juntsu[i] = tmp[i];
+			}
+		}
+
 		out_kansei->tiles[tempai.numTiles] = tsumo;
 		out_kansei->numTiles = tempai.numTiles + 1;
 		out_kansei->numAmari = 0; // 余り牌解消

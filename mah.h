@@ -23,6 +23,7 @@
 
 typedef int MJID;
 
+// 牌の種類ビット（デバッガで16進数を見たときに分かりやすくしておきたいので 2 とか 4 とか使わない）
 enum MJBIT {
 	MJ_BIT_MAN       = 0x00000001, // 萬子
 	MJ_BIT_PIN       = 0x00000010, // 筒子
@@ -243,3 +244,4 @@ private:
 };
 
 int MJ_Score(const MJYaku *yaku, int count, int *out_han, int *out_yakuman);
+bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei);
