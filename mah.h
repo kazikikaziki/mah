@@ -24,10 +24,13 @@
 typedef int MJID;
 
 enum MJBIT {
-	MJ_BIT_MAN       = 0x0001, // 萬子
-	MJ_BIT_PIN       = 0x0010, // 筒子
-	MJ_BIT_SOU       = 0x0100, // 索子
-	MJ_BIT_CHR       = 0x1000, // 字牌
+	MJ_BIT_MAN       = 0x00000001, // 萬子
+	MJ_BIT_PIN       = 0x00000010, // 筒子
+	MJ_BIT_SOU       = 0x00000100, // 索子
+	MJ_BIT_CHR       = 0x00001000, // 字牌
+	MJ_BIT_NUM19     = 0x00010000, // 19牌
+	MJ_BIT_KAZE      = 0x00100000, // 風牌
+	MJ_BIT_SANGEN    = 0x01000000, // 三元牌
 	MJ_BIT_MANPINSOU = MJ_BIT_MAN|MJ_BIT_PIN|MJ_BIT_SOU,
 };
 typedef int MJBITS; 
@@ -47,6 +50,29 @@ inline bool MJ_ISYAOCHU(MJID id) { return MJ_IS19(id) || MJ_ISCHR(id); } // 1,9,
 inline int  MJ_GETNUM(MJID id)   { return MJ_ISNUM(id) ? (id % 100) : 0; } // 牌の数字(1～9)を得る。数字牌でない場合は 0
 inline MJBITS MJ_GETBIT(MJID id) { return MJ_ISMAN(id) ? MJ_BIT_MAN : MJ_ISPIN(id) ? MJ_BIT_PIN : MJ_ISSOU(id) ? MJ_BIT_SOU : MJ_ISCHR(id) ? MJ_BIT_CHR : 0; } // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
 
+inline MJBITS MJ_GETBITS(MJID id) { // 牌 id の属性ビットフラグを得る
+	MJBITS ret = 0;
+	if (MJ_ISMAN(id))    ret |= MJ_BIT_MAN;
+	if (MJ_ISPIN(id))    ret |= MJ_BIT_PIN;
+	if (MJ_ISSOU(id))    ret |= MJ_BIT_SOU;
+	if (MJ_ISCHR(id))    ret |= MJ_BIT_CHR;
+	if (MJ_IS19(id))     ret |= MJ_BIT_NUM19;
+	if (MJ_ISKAZE(id))   ret |= MJ_BIT_KAZE;
+	if (MJ_ISSANGEN(id)) ret |= MJ_BIT_SANGEN;
+	return ret;
+}
+
+inline MJBITS MJ_GETJUNZBITS(MJID id) { // 牌 id から始まる順子のビットフラグを得る（順子が 123 または 789 ならば MJ_BIT_NUM19 を含む）
+	MJBITS ret = 0;
+	if (MJ_ISNUM(id)) {
+		if (MJ_ISMAN(id)) ret |= MJ_BIT_MAN;
+		if (MJ_ISPIN(id)) ret |= MJ_BIT_PIN;
+		if (MJ_ISSOU(id)) ret |= MJ_BIT_SOU;
+		if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==7) ret |= MJ_BIT_NUM19; // 19牌を含んでいる = 123 または 789
+	}
+	return ret;
+}
+
 // 牌の組み合わせを判定
 inline bool MJ_SAMEGROUP(MJID a, MJID b)          { return MJ_GETBIT(a) == MJ_GETBIT(b); } // 牌 a b が同じ種類（萬子、筒子、索子、字牌）か？
 inline bool MJ_SAMENUM(MJID a, MJID b)            { return MJ_ISNUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b); } // 牌 a b が同じ種類かつ同じ数字か？
@@ -54,9 +80,18 @@ inline bool MJ_SAMENUM3(MJID a, MJID b, MJID c)   { return MJ_SAMENUM(a, b) && M
 inline bool MJ_TRICOLOR(MJID a, MJID b, MJID c)   { return ((MJ_GETBIT(a)|MJ_GETBIT(b)|MJ_GETBIT(c)) & MJ_BIT_MANPINSOU) == MJ_BIT_MANPINSOU; } // 牌 a b c が同じ数字かつ３色あるか？
 inline bool MJ_IS_NEXT(MJID a, MJID b)            { return MJ_SAMEGROUP(a, b) && MJ_ISNUM(a) && a+1==b; } // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
 inline bool MJ_IS_NEXTNEXT(MJID a, MJID b)        { return MJ_SAMEGROUP(a, b) && MJ_ISNUM(a) && a+2==b; } // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
-inline bool MJ_IS_CHUNTSU(MJID a, MJID b, MJID c) { return MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c); } // 牌 a b c が順子になっているか？
+inline bool MJ_IS_JUNTSU(MJID a, MJID b, MJID c)  { return MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c); } // 牌 a b c が順子になっているか？
 inline bool MJ_IS_KOUTSU(MJID a, MJID b, MJID c)  { return a==b && b==c; } // 牌 a b c が刻子になっているか？
 
+// ドラ表示牌を指定して、実際のドラを返す
+inline MJID MJ_GETDORA(MJID id) {
+	if (MJ_ISMAN(id))    { return id==MJ_MAN(9) ? MJ_MAN(1) : id+1; }
+	if (MJ_ISPIN(id))    { return id==MJ_PIN(9) ? MJ_PIN(1) : id+1; }
+	if (MJ_ISSOU(id))    { return id==MJ_SOU(9) ? MJ_SOU(1) : id+1; }
+	if (MJ_ISKAZE(id))   { return id==MJ_PEI    ? MJ_TON    : id+1; } // 東→南→西→北
+	if (MJ_ISSANGEN(id)) { return id==MJ_CHUN   ? MJ_HAK    : id+1; } // 白→發→中
+	return 0;
+}
 
 
 
@@ -88,11 +123,10 @@ enum MJTaatsuType {
 // 手牌
 class MJHand {
 public:
-	std::vector<MJID> mItems;
+	std::vector<MJID> mTiles;
 
 	MJHand();
 	MJHand(const MJID *id, int size);
-	MJHand(const std::vector<MJID> &tiles);
 
 	int size() const;
 	bool empty() const;
@@ -101,28 +135,27 @@ public:
 	MJID get(int index) const;
 	void add(MJID id);
 	void addArray(const MJID *id, int count=0);
-	void addArray(const std::vector<MJID> &items);
-	MJID removeAt(int index); // index 位置にある牌を取り除き、その牌番号を返す
-	MJID removePair(); // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
-	MJID removePong(); // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す
-	MJID removeChunz();// 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
-	MJID removeTaatsuRyanmen(); // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
-	MJID removeTaatsuKanchan();  // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
-	int findRemove(MJID id); // id に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
-	int findRemoveAll(MJID id); // id に一致する牌があれば、全て取り除いて 1 を返す
-	int findRemovePong(MJID id); // id が刻子を含んでいれば、その3牌を取り除いて 1 を返す
-	int findRemoveChunz(MJID id); // id を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
+	MJID removeByIndex(int index);    // index 位置にある牌を取り除き、その牌番号を返す
+	MJID removeFirstPair();           // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
+	MJID removeFirstKoutsu();         // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す
+	MJID removeFirstJuntsu();         // 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
+	MJID removeFirstTaatsuRyanmen();  // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
+	MJID removeFirstTaatsuKanchan();  // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
+	int findAndRemove(MJID id);       // id に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
+	int findAndRemoveAll(MJID id);    // id に一致する牌があれば、全て取り除いて 1 を返す
+	int findAndRemoveKoutsu(MJID id); // id が刻子を含んでいれば、その3牌を取り除いて 1 を返す
+	int findAndRemoveJuntsu(MJID id); // id を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
 };
 // 手牌を構成面子に分解したときの形
 struct MJPattern {
 	MJPattern() {
 		memset(tiles, 0, sizeof(tiles));
 		memset(koutsu, 0, sizeof(koutsu));
-		memset(chuntsu, 0, sizeof(chuntsu));
+		memset(juntsu, 0, sizeof(juntsu));
 		memset(amari, 0, sizeof(amari));
 		numTiles = 0;
 		numKoutsu = 0;
-		numChuntsu = 0;
+		numJuntsu = 0;
 		numAmari = 0;
 		toitsu = 0;
 		taatsuType = (MJTaatsuType)0;
@@ -137,8 +170,8 @@ struct MJPattern {
 	MJID koutsu[4]; // 刻子（この形が刻子を含んでいる場合、それぞれの刻子構成牌の１つが入る。最大で４刻子）
 	int numKoutsu;
 
-	MJID chuntsu[4]; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
-	int numChuntsu;
+	MJID juntsu[4]; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
+	int numJuntsu;
 
 	MJID toitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
 
@@ -191,7 +224,7 @@ public:
 
 	// ツモ牌を指定し、あがっているか調べる。
 	// 上がっている場合、その牌を必要としていたたテンパイ形を返し、役を result にセットする
-	const MJPattern * checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, std::vector<MJYaku> &result) const;
+	const MJPattern * checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, std::vector<MJYaku> &result) const;
 
 	// テンパイパターンを得る
 	const MJPattern * getTempai(int index) const;

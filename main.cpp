@@ -19,6 +19,7 @@ class CTest: public CSimpleApp {
 	MJEval mEval;
 	MJID mJikaze;
 	MJID mBakaze;
+	MJID mDora;
 
 	// 山牌を一枚とる
 	MJID getNextTile() {
@@ -48,6 +49,7 @@ public:
 			// 情報
 			ImGui::Text(u8"場風: %s", getTileStringU8(mBakaze).c_str());
 			ImGui::Text(u8"自風: %s", getTileStringU8(mJikaze).c_str());
+			ImGui::Text(u8"ドラ: %s", getTileStringU8(mDora).c_str());
 			ImGui::Text(u8"残りの牌数: %d", mNextTiles.size());
 
 			int shanten = mEval.getShanten();
@@ -56,7 +58,7 @@ public:
 				ImGui::Text(u8"シャンテン数: %d", shanten);
 			} else {
 				mYaku.clear();
-				const MJPattern *pat = mEval.checkAgari(mTsumo, mJikaze, mBakaze, mYaku);
+				const MJPattern *pat = mEval.checkAgari(mTsumo, mJikaze, mBakaze, mDora, mYaku);
 				if (pat) {
 					ImGui::Text(u8"アガリ！");
 					if (mYaku.size() > 0) {
@@ -133,7 +135,7 @@ public:
 				}
 				if (ImGui::BeginPopupContextItem()) {
 					if (guiTileListButton(&id)) {
-						mHandTiles.removeAt(i);
+						mHandTiles.removeByIndex(i);
 						mHandTiles.add(id);
 						changed = true;
 					}
@@ -166,7 +168,7 @@ public:
 
 			if (index != -1) {
 				if (index >= 0) {
-					mHandTiles.removeAt(index); // 手牌から捨てる
+					mHandTiles.removeByIndex(index); // 手牌から捨てる
 					mHandTiles.add(mTsumo); // 手牌にツモ牌を入れる
 					mEval.eval(mHandTiles); // 再評価する
 				} else {
@@ -221,6 +223,10 @@ public:
 		for (int i=0; i<13; i++) {
 			mHandTiles.add(getNextTile());
 		}
+
+		// ドラを決める
+		MJID indicator = getNextTile(); // ドラ表示牌
+		mDora = MJ_GETDORA(indicator);
 
 		// 1枚ツモっておく
 		mTsumo = getNextTile();
