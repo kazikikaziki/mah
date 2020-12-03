@@ -348,6 +348,8 @@ public:
 					std::string s = MJ_ToString(tiles);
 					ImGui::Text(s.c_str());
 				}
+
+				ImGui::Text(u8"【面子】＜余り牌＞｜待ち牌");
 				for (auto it=melds.begin(); it!=melds.end(); ++it) {
 					std::string s = MJ_ToString(*it);
 					ImGui::Text(s.c_str());

@@ -1871,43 +1871,55 @@ class MJParser {
 public:
 	std::vector<MJMelds> mResult; // 見つかった組み合わせ
 	int mMaxMelds; // これまでに見つかった最大の面子数
+	int mMinShanten; // これまでに見つかった最小のシャンテン数
 
 	MJParser() {
 		mMaxMelds = 0;
+		mMinShanten = -1;
 	}
 	void parse(const MJTiles &tiles) {
 
-		// 国士無双の形を調べる
-		MJMelds kokushi;
-		checkKokushi(tiles, kokushi);
-
-		// 七対子の形を調べる
-		MJMelds chitoi;
-		checkChitoi(tiles, chitoi);
-
 		// ４面子１雀頭の形を調べる
 		{
-			// 面子の組み合わせを列挙する
 			mResult.clear();
+			mMaxMelds = 0;
+			mMinShanten = -1;
+			// 面子の組み合わせを列挙する
 			FINDDATA data;
 			data.tiles = tiles;
-			findNextMelds(data);
+			findNextMelds(data); // <-- これの結果は mResult に入る
+		}
 
-			// テンパイとシャンテン数を調べる
-			for (auto it=mResult.begin(); it!=mResult.end(); ++it) {
-				findMachi(*it);
+		// 国士無双の形を調べる
+		{
+			MJMelds kokushi;
+			checkKokushi(tiles, kokushi);
+			if (mResult.empty() || mResult[0].mShanten > kokushi.mShanten) {
+				mResult.clear();
+				mResult.push_back(kokushi);
+			} else if (mResult[0].mShanten == kokushi.mShanten) {
+				mResult.push_back(kokushi);
 			}
 		}
 
-		mResult.push_back(chitoi);
-		mResult.push_back(kokushi);
+		// 七対子の形を調べる
+		{
+			MJMelds chitoi;
+			checkChitoi(tiles, chitoi);
+			if (mResult.empty() || mResult[0].mShanten > chitoi.mShanten) {
+				mResult.clear();
+				mResult.push_back(chitoi);
+			} else if (mResult[0].mShanten == chitoi.mShanten) {
+				mResult.push_back(chitoi);
+			}
+		}
 	}
 private:
 	struct FINDDATA {
 		MJTiles tiles;
 		MJMelds melds;
 	};
-	void checkKokushi(const MJTiles &tiles, MJMelds &melds) {
+	void checkKokushi(const MJTiles &tiles, MJMelds &melds) const {
 		// 国士に必要な牌
 		std::unordered_set<MJID> required = {
 			MJ_MAN(1), MJ_MAN(9), MJ_PIN(1), MJ_PIN(9), MJ_SOU(1), MJ_SOU(9),
@@ -1926,11 +1938,17 @@ private:
 				MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
 			};
 			melds.mMachiType = MJ_MACHI_KOKUSHI13;
+
 		} else {
+			for (auto it=tiles.mTiles.begin(); it!=tiles.mTiles.end(); ++it) {
+				if (!MJ_ISYAOCHU(*it)) {
+					melds.mAmari.push_back(*it);
+				}
+			}
 			melds.mShanten = required.size();
 		}
 	}
-	void checkChitoi(const MJTiles &tiles, MJMelds &melds) {
+	void checkChitoi(const MJTiles &tiles, MJMelds &melds) const {
 		assert(tiles.size() == 13);
 		int i = 0;
 		while (i+1 < tiles.mTiles.size()) {
@@ -1964,7 +1982,7 @@ private:
 			melds.mShanten = 6 - melds.mToitsu.size();
 		}
 	}
-	void findMachi(MJMelds &melds) {
+	void checkMachi(MJMelds &melds) const {
 		// 通常形の確認
 		int num_melds = melds.mKoutsu.size() + melds.mJuntsu.size(); // 雀頭を含まない面子数
 		if (num_melds==4 && melds.mToitsu.size()==0) {
@@ -1995,7 +2013,7 @@ private:
 				// １２が余っているか
 				if (MJ_GETNUM(a) == 1) {
 					melds.mShanten = 0;
-					melds.mMachi.push_back(a+1);
+					melds.mMachi.push_back(a+2);
 					melds.mMachiType = MJ_MACHI_PENCHAN; // 辺３待ち
 					return;
 				}
@@ -2047,6 +2065,21 @@ private:
 			// すべての牌について処理が終わった。
 			assert(data.melds.mToitsu.size() <= 1); // ここでは七対子については調べていない。判定した対子数は 0 または 1 のはず
 			int num_melds = data.melds.mKoutsu.size() + data.melds.mJuntsu.size() + data.melds.mToitsu.size();
+#if 1
+			checkMachi(data.melds);
+			assert(data.melds.mShanten >= 0);
+			if (mMinShanten < 0 || mMinShanten == data.melds.mShanten) {
+				mResult.push_back(data.melds);
+				mMinShanten = data.melds.mShanten;
+
+			} else if (data.melds.mShanten < mMinShanten) {
+				// よりシャンテン数の小さいものが見つかった
+				mResult.clear();
+				mResult.push_back(data.melds);
+				mMinShanten = data.melds.mShanten;
+			}
+
+#else
 			if (mMaxMelds < num_melds) {
 				// より多くの面子を含む組み合わせが見つかった。この結果で書き換える
 				mResult.clear();
@@ -2060,6 +2093,7 @@ private:
 			} else {
 				// より少ない面子しか見つからなかった。この結果を無視する
 			}
+#endif
 			return;
 		}
 		if (data.melds.mToitsu.empty()) { // まだ対子（雀頭候補）を取り除いていない
@@ -2182,18 +2216,18 @@ public:
 		if (!melds.mAmari.empty()) {
 			std::vector<MJID> amari = melds.mAmari;
 			std::sort(amari.begin(), amari.end());
-			s += u8"【";
+			s += u8"＜";
 			for (auto it=amari.begin(); it!=amari.end(); ++it) {
 				s += MJ_ToStringU8(*it);
 			}
-			s += u8"】";
+			s += u8"＞";
 		}
 
 		// 待ち牌
 		if (!melds.mMachi.empty()) {
 			std::vector<MJID> machi = melds.mMachi;
 			std::sort(machi.begin(), machi.end());
-			s += " .. ";
+			s += u8"｜";
 			for (auto it=machi.begin(); it!=machi.end(); ++it) {
 				s += MJ_ToStringU8(*it);
 			}
@@ -2201,7 +2235,7 @@ public:
 
 		// シャンテン数
 		if (melds.mShanten > 0) {
-			s += std::to_string(melds.mShanten) + u8"シャンテン";
+			s += u8"（" + std::to_string(melds.mShanten) + u8"シャンテン）";
 		}
 
 		return s;
