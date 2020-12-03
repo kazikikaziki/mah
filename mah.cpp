@@ -2335,3 +2335,684 @@ std::string MJ_ToString(MJMachiType machi) {
 	}
 	return "";
 }
+
+
+// テンパイ状態の tempai にツモった牌 tsumo を入れて、14牌すべてそろった状態の MJMelds を作成する 
+bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
+	assert(out_kansei);
+	*out_kansei = tempai; // copy
+
+	bool ok = false;
+	switch (tempai.mMachiType) {
+	case MJ_MACHI_NONE:
+		break;
+
+	case MJ_MACHI_KOKUSHI:
+	case MJ_MACHI_TANKI:
+	case MJ_MACHI_CHITOI:
+		assert(out_kansei->mAmari.size() == 1);// 余り牌は1個のはず
+		if (tempai.mMachi.size()==1 && tempai.mMachi[0]==tsumo) {
+			out_kansei->mToitsu.push_back(tsumo); // ツモった牌が対子になった
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_KANCHAN:
+		assert(out_kansei->mAmari.size() == 2);// 余り牌は2個のはず
+		assert(out_kansei->mAmari[0]+2 == out_kansei->mAmari[1]);
+		if (MJ_IS_JUNTSU(tempai.mAmari[0], tsumo, tempai.mAmari[1])) { // 嵌張塔子が順子化した
+			out_kansei->mJuntsu.push_back(tsumo-1); // ツモった牌の一つ左が順子牌になる
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_PENCHAN:
+	case MJ_MACHI_RYANMEN:
+		// 両面・辺張塔子が順子化した
+		assert(out_kansei->mAmari.size() == 2); // 余り牌は2個のはず
+		assert(out_kansei->mAmari[0]+1 == out_kansei->mAmari[1]);
+		if (MJ_IS_JUNTSU(tsumo, tempai.mAmari[0], tempai.mAmari[1])) {
+			out_kansei->mJuntsu.push_back(tsumo); // ツモった牌が順子牌になる
+			ok = true;
+		}
+		if (MJ_IS_JUNTSU(tempai.mAmari[0], tempai.mAmari[1], tsumo)) {
+			out_kansei->mJuntsu.push_back(tsumo-2); // ツモった牌の二つ左が順子牌になる
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_SHABO: // シャボ待ち
+		assert(out_kansei->mAmari.size() == 2); // シャボ待ちの場合、余り牌は2個のはず（もう一つの対子は雀頭扱い（＝余っていない）になっている
+		assert(out_kansei->mAmari[0] == out_kansei->mAmari[1]);
+		if (tempai.mAmari[0] == tsumo) { // 塔子扱いだった対子に重なった
+			out_kansei->mKoutsu.push_back(tsumo);
+			ok = true;
+		}
+		if (tempai.mToitsu.size()==1 && tempai.mToitsu[0]==tsumo) { // 雀頭扱いだった対子に重なった
+			out_kansei->mKoutsu.push_back(tsumo);
+			out_kansei->mToitsu.clear();
+			out_kansei->mToitsu.push_back(out_kansei->mAmari[0]); // 塔子が雀頭化した
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_KOKUSHI13: // 国士無双13面
+		if (MJ_ISYAOCHU(tsumo)) {
+			ok = true;
+		}
+		break;
+	}
+
+	if (ok) {
+		out_kansei->sort();
+		out_kansei->mAmari.clear(); // 余り牌解消
+		out_kansei->mMachi.clear(); // 待ち解消
+		out_kansei->mMachiType = MJ_MACHI_NONE;
+		return true;
+	}
+	return false;
+}
+
+// melds に含まれている牌の種類をビットフラグ(MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)の組み合わせで返す
+int MJ_ColorBits(const MJMelds &melds) {
+	int m = 0;
+	for (auto it=melds.mKoutsu.begin(); it!=melds.mKoutsu.end(); ++it) {
+		if (MJ_ISMAN(*it)) m |= MJ_BIT_MAN;
+		if (MJ_ISPIN(*it)) m |= MJ_BIT_PIN;
+		if (MJ_ISSOU(*it)) m |= MJ_BIT_SOU;
+		if (MJ_ISCHR(*it)) m |= MJ_BIT_CHR;
+	}
+	for (auto it=melds.mToitsu.begin(); it!=melds.mToitsu.end(); ++it) {
+		if (MJ_ISMAN(*it)) m |= MJ_BIT_MAN;
+		if (MJ_ISPIN(*it)) m |= MJ_BIT_PIN;
+		if (MJ_ISSOU(*it)) m |= MJ_BIT_SOU;
+		if (MJ_ISCHR(*it)) m |= MJ_BIT_CHR;
+	}
+	for (auto it=melds.mJuntsu.begin(); it!=melds.mJuntsu.end(); ++it) {
+		if (MJ_ISMAN(*it)) m |= MJ_BIT_MAN;
+		if (MJ_ISPIN(*it)) m |= MJ_BIT_PIN;
+		if (MJ_ISSOU(*it)) m |= MJ_BIT_SOU;
+		if (MJ_ISCHR(*it)) m |= MJ_BIT_CHR;
+	}
+	return m;
+}
+
+// melds が１９字牌のみで構成されているか
+bool MJ_Has19JihaiOnly(const MJMelds &melds) {
+	if (!melds.mJuntsu.empty()) {
+		return false; // 順子がある場合、必ず１９以外の数字があるのでダメ
+	}
+	for (auto it=melds.mKoutsu.begin(); it!=melds.mKoutsu.end(); ++it) {
+		if (MJ_GETBITS(*it) & (MJ_BIT_CHR|MJ_BIT_NUM19)) {
+			return true;
+		}
+	}
+	for (auto it=melds.mToitsu.begin(); it!=melds.mToitsu.end(); ++it) {
+		if (MJ_GETBITS(*it) & (MJ_BIT_CHR|MJ_BIT_NUM19)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// tiles が１９牌を含むかどうか
+bool MJ_Has19(const MJTiles &tiles) {
+	for (auto it=tiles.mTiles.begin(); it!=tiles.mTiles.end(); ++it) {
+		if (MJ_IS19(*it)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// tiles が字牌を含むかどうか
+bool MJ_HasJihai(const MJTiles &tiles) {
+	for (auto it=tiles.mTiles.begin(); it!=tiles.mTiles.end(); ++it) {
+		if (MJ_ISCHR(*it)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+
+#pragma region MJYakuList
+MJYakuList::MJYakuList() {
+	clear();
+}
+void MJYakuList::clear() {
+	mList.clear();
+	mText.clear();
+	mFuList.clear();
+	mFu = 0;
+	mHan = 0;
+	mYakuman = 0;
+	mScore = 0;
+	mOya = false;
+}
+void MJYakuList::addYaku(int han, const char *name_u8) {
+	ITEM item;
+	item.name_u8 = name_u8;
+	item.han = han;
+	item.yakuman = 0;
+	mList.push_back(item);
+}
+void MJYakuList::addYakuman(const char *name_u8) {
+	ITEM item;
+	item.name_u8 = name_u8;
+	item.han = 0;
+	item.yakuman = 1;
+	mList.push_back(item);
+}
+void MJYakuList::addYakuman2(const char *name_u8) {
+	ITEM item;
+	item.name_u8 = name_u8;
+	item.han = 0;
+	item.yakuman = 2;
+	mList.push_back(item);
+}
+void MJYakuList::addFu(int fu, const char *name_u8) {
+	FU item;
+	item.value = fu;
+	item.name_u8 = name_u8;
+	mFuList.push_back(item);
+}
+bool MJYakuList::empty() const {
+	return mList.empty();
+}
+void MJYakuList::updateScore() {
+	mFu = 0;
+	mHan = 0;
+	mYakuman = 0;
+	mScore = 0;
+	for (auto it=mList.begin(); it!=mList.end(); ++it) {
+		mYakuman += it->yakuman;
+		mHan += it->han;
+	}
+	if (mYakuman > 0) {
+		mScore = mYakuman * (mOya ? 24000 : 36000);
+		if (mYakuman == 1) mText = u8"役満";
+		if (mYakuman == 2) mText = u8"ダブル役満";
+		if (mYakuman == 3) mText = u8"トリプル役満";
+		return;
+	}
+	if (mHan >= 13) {
+		mYakuman = 1;
+		mText = std::to_string(mHan) + u8"飜 数え役満";
+		mScore = mOya ? 36000 : 24000;
+		return;
+	}
+
+	for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
+		mFu += it->value;
+	}
+	if (mFu % 10) {
+		mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
+	}
+
+	{
+		switch (mHan) {
+		case 0:  mScore = 0;     mText = std::to_string(mFu) + u8"符 0飜"; break;
+		case 1:  mScore = 1000;  mText = std::to_string(mFu) + u8"符 1飜"; break;
+		case 2:  mScore = 2000;  mText = std::to_string(mFu) + u8"符 2飜"; break;
+		case 3:  mScore = 4000;  mText = std::to_string(mFu) + u8"符 3飜"; break;
+		case 4:  mScore = 8000;  mText = u8"4飜 満貫"; break;
+		case 5:  mScore = 8000;  mText = u8"5飜 満貫"; break;
+		case 6:  mScore = 12000; mText = u8"6飜 跳満"; break;
+		case 7:  mScore = 12000; mText = u8"7飜 跳満"; break;
+		case 8:  mScore = 16000; mText = u8"8飜 倍満"; break;
+		case 9:  mScore = 16000; mText = u8"9飜 倍満"; break;
+		case 10: mScore = 16000; mText = u8"10飜 倍満"; break;
+		case 11: mScore = 24000; mText = u8"11飜 三倍満"; break;
+		case 12: mScore = 24000; mText = u8"12飜 三倍満"; break;
+		}
+		return;
+	}
+}
+#pragma endregion // MJYakuList
+
+
+
+
+
+
+
+bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, MJYakuList &result) {
+	result.clear();
+	
+	if (tempai.mShanten != 0) return false;
+
+	bool is_chitoi = false; // 七対子の形になっている？
+	if (is_chitoi) {
+		if (tempai.mMachiType == MJ_MACHI_CHITOI && tempai.mMachi[0]==tsumo) {
+			is_chitoi = true;
+		}
+	}
+
+	// ツモ牌も入れた完成形
+	MJMelds kansei;
+	if (!MJ_Kansei(tempai, tsumo, &kansei)) {
+		// 4面子1雀頭の形ではない。
+		if (!is_chitoi) {
+			// 七対子の形にもなっていない
+			return 0; // 未完成
+		}
+	}
+
+	// 面子ではなく単なる牌の配列としての完成形
+	assert(tiles.size() == 13);
+	MJTiles kansei_tiles(tiles);
+	kansei_tiles.add(tsumo);
+
+	// 役満
+	if (1) {
+		// 大四喜 or 小四喜
+		if (kansei.mKoutsu.size() == 4) {
+			int num_kaze = 0;
+			for (auto it=kansei.mKoutsu.begin(); it!=kansei.mKoutsu.end(); ++it) {
+				if (MJ_ISKAZE(*it)) {
+					num_kaze++;
+				}
+			}
+			if (num_kaze==4) {
+				result.addYakuman2(u8"大四喜"); // ダブル役満
+			}
+			if (num_kaze==3 && MJ_ISKAZE(kansei.mToitsu[0])) {
+				result.addYakuman(u8"小四喜");
+			}
+		}
+		// 字一色
+		if (MJ_ColorBits(kansei) == MJ_BIT_CHR) {
+			result.addYakuman(u8"字一色");
+		}
+		// 清老頭
+		{
+			int a = MJ_Has19JihaiOnly(kansei);
+			int b = MJ_ColorBits(kansei) & MJ_BIT_CHR;
+			if (a && b==0) {
+				result.addYakuman(u8"清老頭");
+			}
+		}
+		// 四暗刻
+		if (kansei.mKoutsu.size() == 4) {
+			if (tempai.mMachiType == MJ_MACHI_TANKI) {
+				result.addYakuman2(u8"四暗刻単騎"); // ダブル役満
+			} else {
+				result.addYakuman(u8"四暗刻");
+			}
+		}
+		// 大三元
+		if (kansei.mKoutsu.size() >= 3) {
+			int num_sangen = 0;
+			for (auto it=kansei.mKoutsu.begin(); it!=kansei.mKoutsu.end(); ++it) {
+				if (MJ_ISSANGEN(*it)) {
+					num_sangen++;
+				}
+			}
+			if (num_sangen == 3) {
+				result.addYakuman(u8"大三元");
+			}
+		}
+		// 九蓮宝燈
+		if (MJ_ColorBits(kansei) == MJ_BIT_MAN) { // 萬子のみで構成
+			MJTiles tmp(kansei_tiles); // 面子構成ではなく牌の配列で調べる
+
+			tmp.findAndRemove(tsumo); // テンパイ形で調べるのでツモ牌加えない
+			tmp.findAndRemove(MJ_MAN(1));
+			tmp.findAndRemove(MJ_MAN(1));
+			tmp.findAndRemove(MJ_MAN(1));
+			tmp.findAndRemove(MJ_MAN(2));
+			tmp.findAndRemove(MJ_MAN(3));
+			tmp.findAndRemove(MJ_MAN(4));
+			tmp.findAndRemove(MJ_MAN(5));
+			tmp.findAndRemove(MJ_MAN(6));
+			tmp.findAndRemove(MJ_MAN(7));
+			tmp.findAndRemove(MJ_MAN(8));
+			tmp.findAndRemove(MJ_MAN(9));
+			tmp.findAndRemove(MJ_MAN(9));
+			tmp.findAndRemove(MJ_MAN(9));
+			tmp.removeFirstPair();
+			if (tmp.size() == 1) { // この時点で牌が1個残っていたら、それが頭になっている
+				if (tmp.get(0) == tsumo && MJ_ISMAN(tsumo)) {
+					result.addYakuman(u8"九蓮宝燈");
+				}
+			}
+			if (tmp.empty()) { // この時点で牌が残っていない場合1個残っていたら、純正九蓮宝燈
+				if (MJ_ISMAN(tsumo)) {
+					result.addYakuman2(u8"純正九蓮宝燈"); // ダブル役満
+				}
+			}
+		}
+		// 緑一色
+		{
+			MJTiles tmp(kansei_tiles); // 面子構成ではなく牌の配列で調べる
+
+			tmp.findAndRemoveAll(MJ_SOU(2));
+			tmp.findAndRemoveAll(MJ_SOU(3));
+			tmp.findAndRemoveAll(MJ_SOU(4));
+			tmp.findAndRemoveAll(MJ_SOU(6));
+			tmp.findAndRemoveAll(MJ_SOU(8));
+			tmp.findAndRemoveAll(MJ_HAZ);
+			if (tmp.empty()) { // この時点で一つも牌が無ければOK
+				result.addYakuman(u8"緑一色");
+			}
+		}
+	}
+	if (!result.empty()) {
+		result.updateScore();
+		return true;
+	}
+
+	// ６ハン役
+	if (1) {
+		// 清一色
+		int m = MJ_ColorBits(kansei);
+		if (m==MJ_BIT_MAN || m==MJ_BIT_PIN || m==MJ_BIT_SOU) {
+			result.addYaku(6, u8"清一色");
+		}
+	}
+
+	// ３ハン役
+	if (1) {
+		// ジュンチャン（先に清老頭を除外しておくこと）
+		if (1) {
+			int num = 0;
+			for (auto it=kansei.mJuntsu.begin(); it!=kansei.mJuntsu.end(); ++it) {
+				if (MJ_GETJUNZBITS(*it) & MJ_BIT_NUM19) { // 19絡みの順子か？
+					num++;
+				}
+			}
+			for (auto it=kansei.mKoutsu.begin(); it!=kansei.mKoutsu.end(); ++it) {
+				if (MJ_GETBITS(*it) & MJ_BIT_NUM19) { // 19の刻子か？
+					num++;
+				}
+			}
+			for (auto it=kansei.mToitsu.begin(); it!=kansei.mToitsu.end(); ++it) {
+				if (MJ_GETBITS(*it) & MJ_BIT_NUM19) { // 19の対子か？
+					num++;
+				}
+			}
+			if (num == 5) { // ４面子1雀頭のすべてが19牌を含んでいる
+				result.addYaku(3, u8"純全帯么九");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// 二盃口
+		if (kansei.mJuntsu.size() == 4) {
+			// ※七対子よりも優先
+			int a = kansei.mJuntsu[0];
+			int b = kansei.mJuntsu[1];
+			int c = kansei.mJuntsu[2];
+			int d = kansei.mJuntsu[3];
+			if (a==b && b!=c && c==d) { // 111122223333 のような並びを誤判定しないように条件 b!=c を入れておく
+				result.addYaku(3, u8"二盃口");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// 混一色
+		{
+			int m = MJ_ColorBits(kansei);
+			if (m==(MJ_BIT_CHR|MJ_BIT_MAN) || m==(MJ_BIT_CHR|MJ_BIT_PIN) || m==(MJ_BIT_CHR|MJ_BIT_SOU)) {
+				result.addYaku(3, u8"混一色");
+			}
+		}
+	}
+
+	// ２ハン役
+	if (1) {
+		// 混老頭（先に清老頭、字一色を除外しておくこと）
+		if (MJ_Has19JihaiOnly(kansei)) {
+			// ※
+			result.addYaku(2, u8"混老頭");
+		}
+		// 三暗刻（先に四暗刻を除外しておくこと）
+		if (kansei.mKoutsu.size() >= 3) {
+			result.addYaku(2, u8"三暗刻");
+			is_chitoi = false; // 七対子と複合しない
+		}
+		// 三色同刻
+		if (kansei.mKoutsu.size() >= 3) {
+			// 刻子が３または４組ある
+			MJID a = kansei.mKoutsu[0];
+			MJID b = kansei.mKoutsu[1];
+			MJID c = kansei.mKoutsu[2];
+			MJID d = kansei.mKoutsu.size()>3 ? kansei.mKoutsu[3] : 0;
+			
+			// ３組が同じ数字かつ３色あることを確認
+			bool ok = false;
+			if (MJ_SAMENUM3(a,b,c) && MJ_TRICOLOR(a,b,c)) ok = true;
+			if (MJ_SAMENUM3(a,b,d) && MJ_TRICOLOR(a,b,d)) ok = true;
+			if (MJ_SAMENUM3(a,c,d) && MJ_TRICOLOR(a,c,d)) ok = true;
+			if (ok) {
+				result.addYaku(2, u8"三色同刻");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// 三色同順
+		if (kansei.mJuntsu.size() >= 3) {
+			MJID a = kansei.mJuntsu[0];
+			MJID b = kansei.mJuntsu[1];
+			MJID c = kansei.mJuntsu[2];
+			MJID d = kansei.mJuntsu.size()>3 ? kansei.mJuntsu[3] : 0;
+
+			// ３組が同じ数字かつ３色あることを確認
+			bool ok = false;
+			if (MJ_SAMENUM3(a,b,c) && MJ_TRICOLOR(a,b,c)) ok = true;
+			if (MJ_SAMENUM3(a,b,d) && MJ_TRICOLOR(a,b,d)) ok = true;
+			if (MJ_SAMENUM3(a,c,d) && MJ_TRICOLOR(a,c,d)) ok = true;
+			if (ok) {
+				result.addYaku(2, u8"三色同順");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// 小三元（先に四暗刻、大三元を除外しておくこと）
+		if (kansei.mKoutsu.size() >= 2) {
+			int num_sangen = 0;
+			MJID a = kansei.mKoutsu[0];
+			MJID b = kansei.mKoutsu[1];
+			MJID c = kansei.mKoutsu.size()>2 ? kansei.mKoutsu[2] : 0;
+			MJID d = kansei.mKoutsu.size()>3 ? kansei.mKoutsu[3] : 0;
+			if (MJ_ISSANGEN(a)) num_sangen++;
+			if (MJ_ISSANGEN(b)) num_sangen++;
+			if (MJ_ISSANGEN(c)) num_sangen++;
+			if (MJ_ISSANGEN(d)) num_sangen++;
+			if (num_sangen==2 && MJ_ISSANGEN(kansei.mToitsu[0])) {
+				result.addYaku(2, u8"小三元");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// 一気通貫
+		if (kansei.mJuntsu.size() >= 3) {
+			bool ok = false;
+			MJID next=-1;
+			for (auto it=kansei.mJuntsu.begin(); it!=kansei.mJuntsu.end(); ++it) { // ソート済みなので、同じ色は必ず連続している
+				MJID id = *it;
+				if (MJ_GETNUM(id)==1) next=id+3; // 起点順子(123)が見つかった。次に期待する順子を設定(456)
+				if (MJ_GETNUM(id)==4 && id==next) next+=3; // 期待する順子(456)が見つかった。次に期待する順子を設定(789)
+				if (MJ_GETNUM(id)==7 && id==next) ok=true; // 期待する順子(789)が見つかった。成立
+			}
+			if (ok) {
+				result.addYaku(2, u8"一気通貫");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// チャンタ（先に混老頭を除外しておくこと）
+		if (1) {
+			int num19 = 0; // １９牌絡みの面子数
+			int numChar = 0; // 字牌面子数
+			for (auto it=kansei.mJuntsu.begin(); it!=kansei.mJuntsu.end(); ++it) {
+				MJBITS bits = MJ_GETJUNZBITS(*it);
+				if (bits & MJ_BIT_NUM19) num19++; // 19絡みの順子か？
+			}
+			for (auto it=kansei.mKoutsu.begin(); it!=kansei.mKoutsu.end(); ++it) {
+				MJBITS bits = MJ_GETBITS(*it);
+				if (bits & MJ_BIT_NUM19) num19++; // 19の刻子か？
+				if (bits & MJ_BIT_CHR) numChar++; // 字牌の刻子か？
+			}
+			for (auto it=kansei.mToitsu.begin(); it!=kansei.mToitsu.end(); ++it) {
+				MJBITS bits = MJ_GETBITS(*it);
+				if (bits & MJ_BIT_NUM19) num19++; // 19の対子か？
+				if (bits & MJ_BIT_CHR) numChar++; // 字牌の対子か？
+			}
+			if (num19+numChar == 5) { // １９絡みの面子と字牌面子が合わせて５個（４面子１雀頭）あるか？
+				if (numChar == 0) {
+					// 字牌面子が無い＝ジュンチャンなのでダメ
+				} else {
+					result.addYaku(2, u8"混全帯么九");
+				}
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+	}
+
+	// １ハン役
+	if (1) {
+		// 平和
+		if (kansei.mJuntsu.size()==4 && tempai.mMachiType==MJ_MACHI_RYANMEN) { // 完成形で４順子あり、テンパイ形で両面待ちになっている
+			MJID id = kansei.mToitsu[0];
+			if (!MJ_ISSANGEN(id) && id!=jikaze && id!=bakaze) { // 頭が役牌ではない
+				result.addYaku(1, u8"平和");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// タンヤオ
+		{
+			bool yao = MJ_Has19(kansei_tiles) || MJ_HasJihai(kansei_tiles);
+			if (!yao) {
+				result.addYaku(1, u8"断么九");
+			}
+		}
+		// 一盃口
+		{
+			int num = 0;
+			for (int i=0; i+1<kansei.mJuntsu.size(); i++) { // ソート済みであること
+				if (kansei.mJuntsu[i] == kansei.mJuntsu[i+1]) {
+					num++;
+				}
+			}
+			if (num == 1) { // 同じ順子の組がひとつしかない（２の場合は二盃口になってしまうのでダメ）
+				result.addYaku(1, u8"一盃口");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
+		// 役牌
+		{
+			for (auto it=kansei.mKoutsu.begin(); it!=kansei.mKoutsu.end(); ++it) {
+				switch (*it) {
+				case MJ_HAK:
+					result.addYaku(1, u8"白");
+					break;
+				case MJ_HAZ:
+					result.addYaku(1, u8"發");
+					break;
+				case MJ_CHUN:
+					result.addYaku(1, u8"中");
+					break;
+				case MJ_TON:
+					if (jikaze==MJ_TON || bakaze==MJ_TON) {
+						result.addYaku(1, u8"東");
+					}
+					break;
+				case MJ_NAN:
+					if (jikaze==MJ_NAN || bakaze==MJ_NAN) {
+						result.addYaku(1, u8"南");
+					}
+					break;
+				case MJ_SHA:
+					if (jikaze==MJ_SHA || bakaze==MJ_SHA) {
+						result.addYaku(1, u8"西");
+					}
+					break;
+				case MJ_PEI:
+					if (jikaze==MJ_PEI || bakaze==MJ_PEI) {
+						result.addYaku(1, u8"北");
+					}
+					break;
+				}
+			}
+		}
+
+		// 七対子の形になっていて、複合するなら七対子が成立する
+		if (is_chitoi) {
+			result.addYaku(2, u8"七対子");
+		}
+	}
+
+	// ドラ
+	if (1) {
+		int numdora = 0;
+		for (auto it=kansei_tiles.mTiles.begin(); it!=kansei_tiles.mTiles.end(); ++it) {
+			if (*it == dora) {
+				numdora++;
+			}
+		}
+		if (numdora > 0) {
+			char s[16] = {0};
+			sprintf_s(s, sizeof(s), u8"ドラ%d", numdora);
+			result.addYaku(numdora, s);
+		}
+	}
+
+	// 符計算する
+	bool is_menzen = true;
+	bool is_tsumo = true; // ツモ（＝ロンではない）
+	if (is_menzen && !is_tsumo) {
+		result.addFu(30, u8"基礎点（面前ロン）");
+	} else {
+		result.addFu(20, u8"基礎点");
+	}
+	if (is_chitoi) {
+	} else {
+		MJID a = kansei.mToitsu[0];
+		if (MJ_ISSANGEN(a) || a==jikaze || a==bakaze) {
+			result.addFu(2, u8"雀頭（役牌）");
+		}
+		for (auto it=kansei.mKoutsu.begin(); it!=kansei.mKoutsu.end(); ++it) {
+			if (MJ_ISYAOCHU(*it)) {
+				result.addFu(8, u8"暗刻（ヤオ九）");
+			} else {
+				result.addFu(4, u8"暗刻");
+			}
+		}
+		switch (tempai.mMachiType) {
+		case MJ_MACHI_KANCHAN:
+			if (is_tsumo) {
+				result.addFu(4, u8"嵌張ツモ");
+			} else {
+				result.addFu(2, u8"嵌張ロン");
+			}
+			break;
+
+		case MJ_MACHI_PENCHAN:
+			if (is_tsumo) {
+				result.addFu(4, u8"辺張ツモ");
+			} else {
+				result.addFu(2, u8"辺張ロン");
+			}
+			break;
+
+		case MJ_MACHI_RYANMEN:
+			if (is_tsumo) {
+				result.addFu(2, u8"両面ツモ");
+			}
+			break;
+
+		case MJ_MACHI_SHABO:
+			if (is_tsumo) {
+				result.addFu(2, u8"シャボツモ");
+			}
+			break;
+
+		case MJ_MACHI_TANKI:
+			if (is_tsumo) {
+				result.addFu(4, u8"単騎ツモ");
+			} else {
+				result.addFu(2, u8"単騎ロン");
+			}
+			break;
+		}
+	}
+	result.updateScore();
+	return true;
+}

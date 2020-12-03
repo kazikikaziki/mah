@@ -287,9 +287,44 @@ public:
 	void clear();
 	void sort();
 	bool equals(const MJMelds &other) const;
+	bool isTempai() const { return mShanten==0 && mMachiType!=MJ_MACHI_NONE; } // テンパイ＝シャンテン数０かつ待ちが指定されている
+	bool isKansei() const { return mShanten==0 && mMachiType==MJ_MACHI_NONE; } // 完成形＝シャンテン数０かつ待ちが解消されている
+};
+
+// 役とスコア
+class MJYakuList {
+public:
+	MJYakuList();
+	void clear();
+	void addYaku(int han, const char *name_u8);
+	void addYakuman(const char *name_u8); // 役満
+	void addYakuman2(const char *name_u8); // ダブル役満
+	void addFu(int fu, const char *name_u8);
+	bool empty() const;
+	void updateScore();
+
+
+	struct ITEM {
+		std::string name_u8;
+		int han;
+		int yakuman;
+	};
+	struct FU {
+		std::string name_u8;
+		int value;
+	};
+	std::vector<ITEM> mList;
+	std::vector<FU> mFuList;
+	std::string mText;
+	int mFu;
+	int mHan;
+	int mYakuman;
+	int mScore;
+	bool mOya;
 };
 
 void MJ_FindMelds(const MJTiles &tiles, std::vector<MJMelds> &result);
+bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, MJYakuList &result);
 std::string MJ_ToString(const MJTiles &tiles);
 std::string MJ_ToString(const MJMelds &melds);
 std::string MJ_ToString(MJMachiType machi);

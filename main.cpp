@@ -353,6 +353,21 @@ public:
 				for (auto it=melds.begin(); it!=melds.end(); ++it) {
 					std::string s = MJ_ToString(*it);
 					ImGui::Text(s.c_str());
+
+					MJYakuList yaku;
+					if (MJ_EvalYaku(tiles, *it, mTsumo, mJikaze, mBakaze, mDora, yaku)) {
+						ImGui::Indent();
+						ImGui::Text(u8"%s %d点", yaku.mText.c_str(), yaku.mScore);
+						if (ImGui::IsItemHovered()) {
+							ImGui::BeginTooltip();
+							for (int i=0; i<yaku.mFuList.size(); i++) {
+								auto fu = yaku.mFuList[i];
+								ImGui::Text(u8"%d符 %s", fu.value, fu.name_u8.c_str());
+							}
+							ImGui::EndTooltip();
+						}
+						ImGui::Unindent();
+					}
 				}
 		//	}
 		}
