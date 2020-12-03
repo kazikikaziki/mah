@@ -285,8 +285,11 @@ public:
 
 	MJMelds();
 	void clear();
+	void sort();
+	bool equals(const MJMelds &other) const;
 };
 
 void MJ_FindMelds(const MJTiles &tiles, std::vector<MJMelds> &result);
 std::string MJ_ToString(const MJTiles &tiles);
 std::string MJ_ToString(const MJMelds &melds);
+std::string MJ_ToString(MJMachiType machi);

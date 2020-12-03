@@ -1603,6 +1603,25 @@ void MJMelds::clear() {
 	mMachiType = MJ_MACHI_NONE;
 	mShanten = -1;
 }
+void MJMelds::sort() {
+	std::sort(mKoutsu.begin(), mKoutsu.end());
+	std::sort(mJuntsu.begin(), mJuntsu.end());
+	std::sort(mToitsu.begin(), mToitsu.end());
+	std::sort(mAmari.begin(), mAmari.end());
+	std::sort(mMachi.begin(), mMachi.end());
+}
+bool MJMelds::equals(const MJMelds &other) const {
+	MJMelds a = *this; // copy
+	MJMelds b = other; // copy
+	a.sort();
+	b.sort();
+	return
+		a.mKoutsu == b.mKoutsu &&
+		a.mJuntsu == b.mJuntsu &&
+		a.mToitsu == b.mToitsu &&
+		a.mAmari == b.mAmari &&
+		a.mMachi == b.mMachi;
+}
 #pragma endregion // MJMelds
 
 
@@ -1794,6 +1813,18 @@ int MJTiles::findAndRemoveJuntsu(MJID id) {
 #pragma endregion // MJTiles
 
 
+
+bool MJ_push_back_unique(std::vector<MJMelds> &melds, const MJMelds &value) {
+	for (auto it=melds.begin(); it!=melds.end(); ++it) {
+		if (it->equals(value)) {
+			return false; // 同一パターンが既に登録されている
+		}
+	}
+	melds.push_back(value);
+	return true;
+}
+
+
 // 面子を取り除いた後の余り牌からできるだけ多くの塔子・対子を取る
 class MJTaatsuCounter {
 public:
@@ -1898,7 +1929,7 @@ public:
 				mResult.clear();
 				mResult.push_back(kokushi);
 			} else if (mResult[0].mShanten == kokushi.mShanten) {
-				mResult.push_back(kokushi);
+				MJ_push_back_unique(mResult, kokushi);
 			}
 		}
 
@@ -1910,7 +1941,7 @@ public:
 				mResult.clear();
 				mResult.push_back(chitoi);
 			} else if (mResult[0].mShanten == chitoi.mShanten) {
-				mResult.push_back(chitoi);
+				MJ_push_back_unique(mResult, chitoi);
 			}
 		}
 	}
@@ -1920,6 +1951,27 @@ private:
 		MJMelds melds;
 	};
 	void checkKokushi(const MJTiles &tiles, MJMelds &melds) const {
+		// 手牌からヤオチュウ牌をひとつつづ取り除いていく
+		MJTiles tmp(tiles);
+		tmp.findAndRemove(MJ_MAN(1)); tmp.findAndRemove(MJ_MAN(9));
+		tmp.findAndRemove(MJ_PIN(1)); tmp.findAndRemove(MJ_PIN(9));
+		tmp.findAndRemove(MJ_SOU(1)); tmp.findAndRemove(MJ_SOU(9));
+		tmp.findAndRemove(MJ_TON); tmp.findAndRemove(MJ_NAN);
+		tmp.findAndRemove(MJ_SHA); tmp.findAndRemove(MJ_PEI);
+		tmp.findAndRemove(MJ_HAK); tmp.findAndRemove(MJ_HAZ); tmp.findAndRemove(MJ_CHUN);
+		if (tmp.size() == 0) {
+			// 手牌が残っていない。
+			// 全てのヤオチュウ牌の削除に成功した（＝全種類のヤオチュウ牌を１個ずつもっている）
+			// つまり13面待ちの状態になっている
+			melds.mShanten = 0;
+			melds.mMachi = std::vector<MJID>{
+				MJ_MAN(1), MJ_MAN(9), MJ_PIN(1), MJ_PIN(9), MJ_SOU(1), MJ_SOU(9),
+				MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
+			};
+			melds.mMachiType = MJ_MACHI_KOKUSHI13;
+			return;
+		}
+
 		// 国士に必要な牌
 		std::unordered_set<MJID> required = {
 			MJ_MAN(1), MJ_MAN(9), MJ_PIN(1), MJ_PIN(9), MJ_SOU(1), MJ_SOU(9),
@@ -1929,23 +1981,36 @@ private:
 		for (auto it=tiles.mTiles.begin(); it!=tiles.mTiles.end(); ++it) {
 			required.erase(*it);
 		}
-		// この時点で req に残っている牌が、足りない牌である
-		if (required.empty()) {
-			// 足りない牌が無い＝全種類のヤオチュウ牌を既に持っている＝１３面待ちテンパイ
-			melds.mShanten = 0;
-			melds.mMachi = std::vector<MJID>{
-				MJ_MAN(1), MJ_MAN(9), MJ_PIN(1), MJ_PIN(9), MJ_SOU(1), MJ_SOU(9),
-				MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
-			};
-			melds.mMachiType = MJ_MACHI_KOKUSHI13;
-
-		} else {
-			for (auto it=tiles.mTiles.begin(); it!=tiles.mTiles.end(); ++it) {
-				if (!MJ_ISYAOCHU(*it)) {
-					melds.mAmari.push_back(*it);
-				}
+		if (required.size() == 1) {
+			// 必要牌が１つ足りない
+			if (tmp.size() == 1 && !MJ_ISYAOCHU(tmp.get(0))) {
+				// 余計な非ヤオチュウ牌を持っている
+				// イーシャンテン
+				melds.mShanten = 1;
+				return;
+			} else {
+				// 手牌にヤオチュウ牌が1つ残っている。単騎待ちテンパイ
+				melds.mShanten = 0;
+				melds.mMachi.push_back(*required.begin());
+				return;
 			}
-			melds.mShanten = required.size();
+		}
+		// 2個以上の牌が余っている。
+		// シャンテン数調べる。
+		// 余った牌のなかにヤオチュウ牌があるか調べる。少なくとも１個のヤオチュウ牌があれば
+		// それが頭になるので、シャンテン数は余り牌個数-1になる。
+		// ヤオチュウ牌が1つもなければすべての牌を有効牌と入れ替えないといけないので、
+		// シャンテン数は余り牌個数と同じになる
+		bool has_yaochu = false;
+		for (int i=0; i<tmp.size(); i++) {
+			if (MJ_ISYAOCHU(tmp.get(i))) {
+				has_yaochu = true;
+				break;
+			}
+		}
+		melds.mShanten = has_yaochu ? (tmp.size()-1) : tmp.size();
+		for (int i=0; i<tmp.size(); i++) {
+			melds.mAmari.push_back(tmp.get(i));
 		}
 	}
 	void checkChitoi(const MJTiles &tiles, MJMelds &melds) const {
@@ -2069,14 +2134,18 @@ private:
 			checkMachi(data.melds);
 			assert(data.melds.mShanten >= 0);
 			if (mMinShanten < 0 || mMinShanten == data.melds.mShanten) {
-				mResult.push_back(data.melds);
-				mMinShanten = data.melds.mShanten;
+				// 重複チェック。１１２２３３など同一順子が複数ある場合などは重複パターンができてしまうので除外する
+				if (MJ_push_back_unique(mResult, data.melds)) {
+					mMinShanten = data.melds.mShanten;
+				}
+				return;
 
 			} else if (data.melds.mShanten < mMinShanten) {
 				// よりシャンテン数の小さいものが見つかった
 				mResult.clear();
 				mResult.push_back(data.melds);
 				mMinShanten = data.melds.mShanten;
+				return;
 			}
 
 #else
@@ -2231,6 +2300,7 @@ public:
 			for (auto it=machi.begin(); it!=machi.end(); ++it) {
 				s += MJ_ToStringU8(*it);
 			}
+			s += u8"【" + MJ_ToString(melds.mMachiType) + u8"】";
 		}
 
 		// シャンテン数
@@ -2256,4 +2326,17 @@ std::string MJ_ToString(const MJTiles &tiles) {
 }
 std::string MJ_ToString(const MJMelds &melds) {
 	return MJPrint::toString(melds);
+}
+std::string MJ_ToString(MJMachiType machi) {
+	switch (machi) {
+	case MJ_MACHI_TANKI:    return u8"単騎";
+	case MJ_MACHI_PENCHAN:  return u8"辺張";
+	case MJ_MACHI_KANCHAN:  return u8"間張";
+	case MJ_MACHI_RYANMEN:  return u8"両面";
+	case MJ_MACHI_SHABO:    return u8"シャボ";
+	case MJ_MACHI_KOKUSHI:  return u8"国士無双単騎";
+	case MJ_MACHI_KOKUSHI13:return u8"国士無双13面";
+	case MJ_MACHI_CHITOI:   return u8"七対子単騎";
+	}
+	return "";
 }
