@@ -1,12 +1,5 @@
-#pragma once
-#define USING_IMGUI 1
-
+Ôªø#pragma once
 #include <d3d9.h>
-
-#if USING_IMGUI
-#include "imgui/imgui.h"
-#endif
-
 
 
 class CSimpleApp {
@@ -15,19 +8,19 @@ public:
 	void run(int cw, int ch);
 	void postExit();
 
-	// ÉÅÉCÉìÉãÅ[ÉväJénéûÇ…åƒÇŒÇÍÇÈ
-	// ó·) ImGui::StyleColorsDark();
+	// „É°„Ç§„É≥„É´„Éº„ÉóÈñãÂßãÊôÇ„Å´Âëº„Å∞„Çå„Çã
+	// ‰æã) ImGui::StyleColorsDark();
 	virtual void onStart() {}
 
-	// ÉÅÉCÉìÉãÅ[ÉvèIóπéûÇ…åƒÇŒÇÍÇÈ
+	// „É°„Ç§„É≥„É´„Éº„ÉóÁµÇ‰∫ÜÊôÇ„Å´Âëº„Å∞„Çå„Çã
 	virtual void onEnd() {}
 
-	// Ç±Ç±Ç≈ Direct3D ÇégÇ§
-	// ó·) dev->Clear(0, NULL, D3DCLEAR_TARGET, 0xFF0000FF, 0, 0);
+	// „Åì„Åì„Åß Direct3D „Çí‰Ωø„ÅÜ
+	// ‰æã) dev->Clear(0, NULL, D3DCLEAR_TARGET, 0xFF0000FF, 0, 0);
 	virtual void onDraw(IDirect3DDevice9 *dev) {}
 
-	// Ç±Ç±Ç≈ ImGui ÇégÇ§
-	// ó·) ImGui::ShowDemoWindow();
+	// „Åì„Åì„Åß ImGui „Çí‰Ωø„ÅÜ
+	// ‰æã) ImGui::ShowDemoWindow();
 	virtual void onGUI() {}
 
 };

@@ -116,9 +116,14 @@ public:
 					}
 				}
 			}
+			ImGui::Dummy(ImVec2(0, 4));
 
 			// 牌ボタン
 			ImGui::Separator();
+			ImGui::Text(u8"捨てる牌をクリックすると、次の牌をツモってきます。右クリックメニューで牌を変更できます（チート）");
+			ImGui::Dummy(ImVec2(0, 4));
+
+			int changed = false;
 			int index = -1;
 			for (int i=0; i<mHandTiles.size(); i++) {
 				MJID id = mHandTiles.get(i);
@@ -126,8 +131,19 @@ public:
 				if (guiTileButton(id)) {
 					index = i; // 牌ボタンが押された
 				}
+				if (ImGui::BeginPopupContextItem()) {
+					if (guiTileListButton(&id)) {
+						mHandTiles.removeAt(i);
+						mHandTiles.add(id);
+						changed = true;
+					}
+					ImGui::EndPopup();
+				}
 				ImGui::SameLine();
 				ImGui::PopID();
+			}
+			if (changed) {
+				mEval.eval(mHandTiles); // 再評価する
 			}
 			
 			// ツモボタン
@@ -137,53 +153,16 @@ public:
 			if (guiTileButton(mTsumo)) {
 				index = -2; // ツモ切り
 			}
+			if (ImGui::BeginPopupContextItem()) {
+				if (guiTileListButton(&mTsumo)) {
+				}
+				ImGui::EndPopup();
+			}
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip(u8"いまツモもった牌。\nツモ切りするならここをクリック");
 			}
 			ImGui::SameLine();
-			if (agari) {
-				ImGui::Text(u8"さらにツモる");
-			} else {
-				ImGui::Text(u8"ツモ");
-			}
-
-			// 次ツモ
-			{
-				const int N = 9*3+7;
-				const char *str[N] = {
-					u8"一", u8"二", u8"三", u8"四", u8"五", u8"六", u8"七", u8"八", u8"九",
-					u8"①", u8"②", u8"③", u8"④", u8"⑤", u8"⑥", u8"⑦", u8"⑧", u8"⑨",
-					u8"１", u8"２", u8"３", u8"４", u8"５", u8"６", u8"７", u8"８", u8"９",
-					u8"東", u8"南", u8"西", u8"北", u8"白", u8"發", u8"中",
-				};
-				const MJID ids[N] = {
-					MJ_MAN(1), MJ_MAN(2), MJ_MAN(3), MJ_MAN(4), MJ_MAN(5), MJ_MAN(6), MJ_MAN(7), MJ_MAN(8), MJ_MAN(9), 
-					MJ_PIN(1), MJ_PIN(2), MJ_PIN(3), MJ_PIN(4), MJ_PIN(5), MJ_PIN(6), MJ_PIN(7), MJ_PIN(8), MJ_PIN(9), 
-					MJ_SOU(1), MJ_SOU(2), MJ_SOU(3), MJ_SOU(4), MJ_SOU(5), MJ_SOU(6), MJ_SOU(7), MJ_SOU(8), MJ_SOU(9), 
-					MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
-				};
-				if (mNextTiles.size() > 0) {
-					int sel = -1;
-					MJID next = mNextTiles.back();
-					for (int i=0; i<N; i++) {
-						if (next == ids[i]) {
-							sel = i;
-							break;
-						}
-					}
-					ImGui::Dummy(ImVec2(8, 8));
-					ImGui::SetCursorPosX(tusmoX); // ツモボタンと位置を揃える
-					ImGui::SetNextItemWidth(64);
-					if (ImGui::Combo(u8"次のツモ牌", &sel, str, N)) {
-						next = ids[sel];
-						mNextTiles.pop_back(); 
-						mNextTiles.push_back(next); // 次にツモってくる牌を書き換える
-					}
-					if (ImGui::IsItemHovered()) {
-						ImGui::SetTooltip(u8"次にツモってくる牌を確認、変更できる\n※簡易機能なので、ここを変更した場合は牌数の整合性がなくなる。同じ牌が５個来るかもしれない");
-					}
-				}
-			}
+			ImGui::Text(u8"ツモ");
 
 			if (index != -1) {
 				if (index >= 0) {
@@ -195,6 +174,8 @@ public:
 				}
 				mTsumo = getNextTile(); // 次のツモ牌を得る
 			}
+			ImGui::Dummy(ImVec2(0, 4));
+
 
 			ImGui::Separator();
 			// リセット
@@ -251,6 +232,44 @@ public:
 		std::string u8 = getTileStringU8(tile);
 		ImGui::SetNextItemWidth(16);
 		return ImGui::Button(u8.c_str());
+	}
+	bool guiTileListButton(MJID *tile) {
+		MJID old = *tile;
+		if (ImGui::Button(u8"一")) *tile=MJ_MAN(1); ImGui::SameLine();
+		if (ImGui::Button(u8"二")) *tile=MJ_MAN(2); ImGui::SameLine();
+		if (ImGui::Button(u8"三")) *tile=MJ_MAN(3); ImGui::SameLine();
+		if (ImGui::Button(u8"四")) *tile=MJ_MAN(4); ImGui::SameLine();
+		if (ImGui::Button(u8"五")) *tile=MJ_MAN(5); ImGui::SameLine();
+		if (ImGui::Button(u8"六")) *tile=MJ_MAN(6); ImGui::SameLine();
+		if (ImGui::Button(u8"七")) *tile=MJ_MAN(7); ImGui::SameLine();
+		if (ImGui::Button(u8"八")) *tile=MJ_MAN(8); ImGui::SameLine();
+		if (ImGui::Button(u8"九")) *tile=MJ_MAN(9);
+		if (ImGui::Button(u8"①")) *tile=MJ_PIN(1); ImGui::SameLine();
+		if (ImGui::Button(u8"②")) *tile=MJ_PIN(2); ImGui::SameLine();
+		if (ImGui::Button(u8"③")) *tile=MJ_PIN(3); ImGui::SameLine();
+		if (ImGui::Button(u8"④")) *tile=MJ_PIN(4); ImGui::SameLine();
+		if (ImGui::Button(u8"⑤")) *tile=MJ_PIN(5); ImGui::SameLine();
+		if (ImGui::Button(u8"⑥")) *tile=MJ_PIN(6); ImGui::SameLine();
+		if (ImGui::Button(u8"⑦")) *tile=MJ_PIN(7); ImGui::SameLine();
+		if (ImGui::Button(u8"⑧")) *tile=MJ_PIN(8); ImGui::SameLine();
+		if (ImGui::Button(u8"⑨")) *tile=MJ_PIN(9);
+		if (ImGui::Button(u8"１")) *tile=MJ_SOU(1); ImGui::SameLine();
+		if (ImGui::Button(u8"２")) *tile=MJ_SOU(2); ImGui::SameLine();
+		if (ImGui::Button(u8"３")) *tile=MJ_SOU(3); ImGui::SameLine();
+		if (ImGui::Button(u8"４")) *tile=MJ_SOU(4); ImGui::SameLine();
+		if (ImGui::Button(u8"５")) *tile=MJ_SOU(5); ImGui::SameLine();
+		if (ImGui::Button(u8"６")) *tile=MJ_SOU(6); ImGui::SameLine();
+		if (ImGui::Button(u8"７")) *tile=MJ_SOU(7); ImGui::SameLine();
+		if (ImGui::Button(u8"８")) *tile=MJ_SOU(8); ImGui::SameLine();
+		if (ImGui::Button(u8"９")) *tile=MJ_SOU(9);
+		if (ImGui::Button(u8"東")) *tile=MJ_TON; ImGui::SameLine();
+		if (ImGui::Button(u8"南")) *tile=MJ_NAN; ImGui::SameLine();
+		if (ImGui::Button(u8"西")) *tile=MJ_SHA; ImGui::SameLine();
+		if (ImGui::Button(u8"北")) *tile=MJ_PEI; ImGui::SameLine();
+		if (ImGui::Button(u8"白")) *tile=MJ_HAK; ImGui::SameLine();
+		if (ImGui::Button(u8"發")) *tile=MJ_HAZ; ImGui::SameLine();
+		if (ImGui::Button(u8"中")) *tile=MJ_CHUN;
+		return old != *tile;
 	}
 	std::string getTileStringU8(MJID tile) {
 		switch (tile) {

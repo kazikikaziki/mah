@@ -1,4 +1,4 @@
-#include "app.h"
+﻿#include "app.h"
 //
 #include <assert.h>
 #include <d3d9.h>
@@ -7,32 +7,33 @@
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_dx9.h"
 
+
 #define APPFONT_FILE      "c:\\windows\\fonts\\meiryo.ttc"
 #define APPFONT_TTC        2 // (0=Regular, 1=Italic, 2=Bold, 3=BoldItalic)
 #define APPFONT_SIZE       14
 #define APPWINDOWCLASSNAME L"MyWindowClass"
 
-// ImGUI �͈ꕔ�̊��������Ή����Ă��Ȃ��B
-// �ǉ��Ŏg����������������ꍇ�͂����ɓo�^����
+// ImGUI は一部の漢字しか対応していない。
+// 追加で使いたい感じがある場合はここに登録する
 // http://itpro.nikkeibp.co.jp/article/COLUMN/20091209/341831/?rt=nocnt
 static const wchar_t *EXTRA_CHARS = 
-	// 2010�N�ɏ�p�����ɒǉ����ꂽ196�����B
-	// �ꕔSJIS��Ή��̊���������̂Œ��ӁBSJIS�ŕۑ����悤�Ƃ���ƕ�����������
+	// 2010年に常用漢字に追加された196文字。
+	// 一部SJIS非対応の漢字があるので注意。SJISで保存しようとすると文字化けする
 	//
-	// @todo �ȉ����Q�l�ɂ��āA���S�Ȋ����̃��X�g���쐬����
-	// imgui �œ��{�ꂪ�u?�v�ɂȂ�ꍇ�̑Ώ�
+	// @todo 以下を参考にして、完全な漢字のリストを作成する
+	// imgui で日本語が「?」になる場合の対処
 	// https://qiita.com/benikabocha/items/a25571c1b059eaf952de/
 	//
-	L"���B�����؈ވ֜b�����S�T���Q�����������Չ劢�����~�R�W"
-	L"�[�`�{�������؊ߊ�T�ʋE�P�k�Ћ͋ќ����A�F�w�یm��������"
-	L"���Ҍ������[�A�����������эǍ�򙋎A�a�����a���@����" // �u���v�̋����̂� SJIS �͈͊O�Ȃ̂ŏ��O����
-	L"����㵏R���@�K�c�t�{�������Ґʐ��A�B�FⳑV�_�k�]�u���H��"
-	L"�������͑ՒN�U�]�k���\�}���Œܒߒ��M�@�i�q�����ȓ��Ø���" // �u�U�v�̋����̂� SJIS �͈͊O�Ȃ̂ŏ��O����
-	L"�ޗ��������P�l�@���Ôč�����G�I�]���������̚M�I�e�@�r" // �u���v�u�j�v�̋����̂� SJIS �͈͊O�Ȃ̂ŏ��O����
-	L"�u���������˖��Śg�N�dᇗ��f煗����ɗ��ėژC�G�M�Ę[�e"
-	// ����ȊO�̕���
-	L"���S�I�я�ɑ���⁩������������"
-	L"�@�A�B�C�D�E�F�G�Hᢔv�@"
+	L"挨曖宛嵐畏萎椅彙茨咽淫唄鬱怨媛艶旺岡臆俺苛牙瓦楷潰諧崖蓋"
+	L"骸柿顎葛釜鎌韓玩伎亀毀畿臼嗅巾僅錦惧串窟熊詣憬稽隙桁拳鍵"
+	L"舷股虎錮勾梗喉乞傲駒頃痕沙挫采塞埼柵刹拶斬恣摯餌鹿　嫉腫" // 「叱」の旧字体は SJIS 範囲外なので除外した
+	L"呪袖羞蹴憧拭尻芯腎須裾凄醒脊戚煎羨腺詮箋膳狙遡曽爽痩踪捉"
+	L"遜汰唾堆戴誰旦綻緻酎貼嘲捗椎爪鶴諦溺　妬賭藤瞳栃頓貪丼那" // 「填」の旧字体は SJIS 範囲外なので除外した
+	L"奈梨謎鍋匂虹捻罵　箸氾汎阪斑眉膝肘訃阜蔽餅璧蔑哺蜂貌　睦" // 「剥」「頬」の旧字体は SJIS 範囲外なので除外した
+	L"勃昧枕蜜冥麺冶弥闇喩湧妖瘍沃拉辣藍璃慄侶瞭瑠呂賂弄籠麓脇"
+	// それ以外の文字
+	L"※牢礫贄杖碧蒼橙鞘←→↑↓綾堰憑"
+	L"①②③④⑤⑥⑦⑧⑨發牌蓮么"
 	;
 
 
@@ -49,9 +50,9 @@ std::vector<ImWchar> g_Kanji;
 
 LRESULT CALLBACK _WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wp, lp)) {
-		// ������ ImGui_ImplWin32_WndProcHandler �� 1 ��Ԃ����ꍇ�A���̃��b�Z�[�W�͏����ς݂ł��邽��
-		// ���ɓ`�����Ă͂Ȃ�Ȃ��B����̓}�E�X�J�[�\���̌`��ݒ�Ȃǂɉe������B
-		// �������������Ȃ��� ImGui �̃e�L�X�g�G�f�B�^�ɃJ�[�\�����d�˂Ă��J�[�\���`�� IBeam �ɂȂ�Ȃ������肷��
+		// ここで ImGui_ImplWin32_WndProcHandler が 1 を返した場合、そのメッセージは処理済みであるため
+		// 次に伝搬してはならない。これはマウスカーソルの形状設定などに影響する。
+		// 正しく処理しないと ImGui のテキストエディタにカーソルを重ねてもカーソル形状が IBeam にならなかったりする
 		return 1;
 	}
 
@@ -97,7 +98,7 @@ void CSimpleApp::run(int cw, int ch) {
 		LONG_PTR style = GetWindowLongPtrW(g_hWnd, GWL_STYLE);
 		LONG_PTR exstyle = GetWindowLongPtrW(g_hWnd, GWL_EXSTYLE);
 		RECT rect = {0, 0, cw, ch};
-		AdjustWindowRectEx(&rect, (DWORD)style, has_menu, (DWORD)exstyle); // AdjustWindowRectEx �ł� Window style �� 32 �r�b�g�̂܂܈����Ă���
+		AdjustWindowRectEx(&rect, (DWORD)style, has_menu, (DWORD)exstyle); // AdjustWindowRectEx では Window style を 32 ビットのまま扱っている
 		int ww = rect.right - rect.left;
 		int hh = rect.bottom - rect.top;
 		SetWindowPos(g_hWnd, NULL, 0, 0, ww, hh, SWP_NOACTIVATE|SWP_NOZORDER|SWP_NOMOVE);
@@ -121,23 +122,23 @@ void CSimpleApp::run(int cw, int ch) {
 		ImGui_ImplWin32_Init(g_hWnd);
 		ImGui_ImplDX9_Init(g_D3DDev);
 		ImGuiIO &io = ImGui::GetIO();
-		io.IniFilename = ""; // ImGUI �Ǝ��� ini �t�@�C����}��
-		io.LogFilename = ""; // ImGUI �Ǝ��� log �t�@�C����}��
+		io.IniFilename = ""; // ImGUI 独自の ini ファイルを抑制
+		io.LogFilename = ""; // ImGUI 独自の log ファイルを抑制
 		ImFontConfig conf;
 		conf.FontNo = APPFONT_TTC;
 		if (0) {
 			io.Fonts->AddFontFromFileTTF(APPFONT_FILE, APPFONT_SIZE, &conf, io.Fonts->GetGlyphRangesJapanese());
 		} else {
 			if (g_Kanji.empty()) {
-				// ImGui ���Ŏ����ݒ肳�ꂽ���{�ꕶ�����X�g��ǉ�����
+				// ImGui 側で自動設定された日本語文字リストを追加する
 				const ImWchar *jp_chars = ImGui::GetIO().Fonts->GetGlyphRangesJapanese();
 				for (int i=0; jp_chars[i]; i++) {
 					ImWchar imwc = (ImWchar)(jp_chars[i] & 0xFFFF);
 					g_Kanji.push_back(imwc);
 				}
-				// ImGui �̃��X�g�ɖ���������ǉ�����i2010�N�ɏ�p�����ɒǉ����ꂽ196�����j
+				// ImGui のリストに無い文字を追加する（2010年に常用漢字に追加された196文字）
 				for (int i=0; EXTRA_CHARS[i]; i++) {
-					// 2��ǉ����邱�Ƃɒ���
+					// 2回追加することに注意
 					ImWchar imwc = (ImWchar)(EXTRA_CHARS[i] & 0xFFFF);
 					g_Kanji.push_back(imwc);
 					g_Kanji.push_back(imwc);

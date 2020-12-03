@@ -2,19 +2,15 @@
 #include <vector>
 #include <string>
 
-#define MJ_GROUP_MAN            100
-#define MJ_GROUP_PIN            200
-#define MJ_GROUP_SOU            300
-#define MJ_GROUP_CHR            400
+#define MJ_OFFSET_MAN            100
+#define MJ_OFFSET_PIN            200
+#define MJ_OFFSET_SOU            300
+#define MJ_OFFSET_CHR            400
 
-#define MJ_GETGROUP(n)          ((int)(n) / 100) // 牌の種類を得る (MJ_GROUP_MAN, MJ_GROUP_PIN, MJ_GROUP_SOU, MJ_GROUP_CHR)
-#define MJ_GETNUM(n)            (MJ_IS_NUM(n) ? (int)(n) % 100 : 0) // 牌の数字(1～9)を得る。数字牌でない場合は 0
-#define MJ_SAMEGROUP(a, b)      (MJ_GETGROUP(a) == MJ_GETGROUP(b))
-
-#define MJ_MAN(n)               (MJ_GROUP_MAN +(n)) // 萬子の MJID を得る (1<=n<=9)
-#define MJ_PIN(n)               (MJ_GROUP_PIN +(n)) // 筒子の MJID を得る (1<=n<=9)
-#define MJ_SOU(n)               (MJ_GROUP_SOU +(n)) // 索子の MJID を得る (1<=n<=9)
-#define MJ_CHR(n)               (MJ_GROUP_CHR +(n)) // 字牌の MJID を得る (1<=n<=9)
+#define MJ_MAN(n)               (MJ_OFFSET_MAN + (n)) // 萬子の MJID を得る (1<=n<=9)
+#define MJ_PIN(n)               (MJ_OFFSET_PIN + (n)) // 筒子の MJID を得る (1<=n<=9)
+#define MJ_SOU(n)               (MJ_OFFSET_SOU + (n)) // 索子の MJID を得る (1<=n<=9)
+#define MJ_CHR(n)               (MJ_OFFSET_CHR + (n)) // 字牌の MJID を得る (1<=n<=9)
 
 #define MJ_TON                  MJ_CHR(1) // MJID (東)
 #define MJ_NAN                  MJ_CHR(2) // MJID (南)
@@ -24,10 +20,26 @@
 #define MJ_HAZ                  MJ_CHR(6) // MJID (發)
 #define MJ_CHUN                 MJ_CHR(7) // MJID (中)
 
+
+
+
+#define MJ_BIT_MAN  0x0001 // 萬子
+#define MJ_BIT_PIN  0x0010 // 筒子
+#define MJ_BIT_SOU  0x0100 // 索子
+#define MJ_BIT_CHR  0x1000 // 字牌
+#define MJ_BIT_MANPINSOU  (MJ_BIT_MAN|MJ_BIT_PIN|MJ_BIT_SOU)
+
+#define MJ_GETBIT(n)            (MJ_IS_MAN(n) ? MJ_BIT_MAN : MJ_IS_PIN(n) ? MJ_BIT_PIN : MJ_IS_SOU(n) ? MJ_BIT_SOU : MJ_IS_CHR(n) ? MJ_BIT_CHR : 0) // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
+#define MJ_GETNUM(n)            (MJ_IS_NUM(n) ? (int)(n) % 100 : 0) // 牌の数字(1～9)を得る。数字牌でない場合は 0
+#define MJ_SAMEGROUP(a, b)      (MJ_GETGROUP(a) == MJ_GETGROUP(b))
+#define MJ_SAMENUM(a, b)        (MJ_IS_NUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b))
+#define MJ_SAMENUM3(a, b, c)    (MJ_IS_NUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b) && MJ_GETNUM(b)==MJ_GETNUM(c))
+#define MJ_TRICOLOR(a, b, c)    ((MJ_GETBIT(a) | MJ_GETBIT(b) | MJ_GETBIT(c)) & MJ_BIT_MANPINSOU == MJ_BIT_MANPINSOU)
+
 #define MJ_IS_MAN(id)           (MJ_MAN(1) <= (id) && (id) <= MJ_MAN(9)) // 萬子か？
 #define MJ_IS_PIN(id)           (MJ_PIN(1) <= (id) && (id) <= MJ_PIN(9)) // 筒子か？
 #define MJ_IS_SOU(id)           (MJ_SOU(1) <= (id) && (id) <= MJ_SOU(9)) // 索子か？
-#define MJ_IS_ZI(id)            (MJ_CHR(1) <= (id) && (id) <= MJ_CHR(7)) // 字牌か？
+#define MJ_IS_CHR(id)           (MJ_CHR(1) <= (id) && (id) <= MJ_CHR(7)) // 字牌か？
 #define MJ_IS_VALID(id)         (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id) || MJ_IS_ZI(id)) // 有効な牌番号か？
 #define MJ_IS_NUM(id)           (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id)) // 数字牌か？
 #define MJ_IS_1or9(id)          ((id)==MJ_MAN(1) || (id)==MJ_MAN(9) || (id)==MJ_PIN(1) || (id)==MJ_PIN(9) || (id)==MJ_SOU(1) || (id)==MJ_SOU(9)) // 1,9の数字牌か？
@@ -35,10 +47,13 @@
 #define MJ_IS_KAZE(id)          ((id)==MJ_TON || (id)==MJ_NAN || (id)==MJ_SHA || (id)==MJ_PEI) // 東西南北か？
 #define MJ_IS_SANGEN(id)        ((id)==MJ_HAK || (id)==MJ_HAZ || (id)==MJ_CHUN) // 白發中か？
 #define MJ_IS_YAOCHU(id)        (MJ_IS_1or9(id) || MJ_IS_KAZE(id) || MJ_IS_SANGEN(id)) // 1,9,字牌か？
-#define MJ_IS_NEXT(a, b)        ((MJ_GETGROUP(a)==MJ_GETGROUP(b))  &&  MJ_IS_NUM(a)  &&  ((a)+1 == (b))) // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
-#define MJ_IS_NEXTNEXT(a, b)    ((MJ_GETGROUP(a)==MJ_GETGROUP(b))  &&  MJ_IS_NUM(a)  &&  ((a)+2 == (b))) // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
+#define MJ_IS_NEXT(a, b)        ((MJ_GETBIT(a)==MJ_GETBIT(b)) && MJ_IS_NUM(a)  &&  ((a)+1 == (b))) // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
+#define MJ_IS_NEXTNEXT(a, b)    ((MJ_GETBIT(a)==MJ_GETBIT(b)) && MJ_IS_NUM(a)  &&  ((a)+2 == (b))) // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
 #define MJ_IS_CHUNTSU(a, b, c)  (MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c)) // 牌 a b c が順子になっているか？
 #define MJ_IS_KOUTSU(a, b, c)   ((a)==(b) && (b)==(c)) // 牌 a b c が刻子になっているか？
+
+
+
 
 typedef int MJID;
 

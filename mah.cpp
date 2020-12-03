@@ -13,17 +13,6 @@
 #define MJ_HAN_YAKUMAN  (-1) // 役満
 #define MJ_HAN_YAKUMAN2 (-2) // ダブル役満
 
-enum MJColorBit {
-	BIT_MAN = 0x0001,
-	BIT_PIN = 0x0010,
-	BIT_SOU = 0x0100,
-	BIT_JI  = 0x1000,
-};
-typedef int MJColorBits;
-
-
-
-
 
 // 属性
 enum MJAttr {
@@ -714,7 +703,7 @@ int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParser
 // id で構成される対子の牌種類を返す
 MJAttrs MJ_AtamaAttr(MJID id) {
 	MJAttrs ret = 0;
-	if (MJ_IS_ZI(id)) {
+	if (MJ_IS_CHR(id)) {
 		ret |= MJ_ATTR_JIHAI;
 	}
 	if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==9) {
@@ -795,26 +784,26 @@ bool MJ_Has19JihaiOnly(const MJPattern &pattern) {
 }
 
 
-// pattern に含まれている牌の種類をビットフラグの組み合わせで返す
-MJColorBits MJ_GetColorBits(const MJPattern &pattern) {
+// pattern に含まれている牌の種類をビットフラグ(MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)の組み合わせで返す
+int MJ_GetColorBits(const MJPattern &pattern) {
 	int m = 0;
 	for (int i=0; i<pattern.numChuntsu; i++) {
-		if (MJ_IS_MAN(pattern.chuntsu[i])) m |= BIT_MAN;
-		if (MJ_IS_PIN(pattern.chuntsu[i])) m |= BIT_PIN;
-		if (MJ_IS_SOU(pattern.chuntsu[i])) m |= BIT_SOU;
-	//	if (MJ_IS_ZI (pattern.chuntsu[i])) m |= BIT_JI;
+		if (MJ_IS_MAN(pattern.chuntsu[i])) m |= MJ_BIT_MAN;
+		if (MJ_IS_PIN(pattern.chuntsu[i])) m |= MJ_BIT_PIN;
+		if (MJ_IS_SOU(pattern.chuntsu[i])) m |= MJ_BIT_SOU;
+	//	if (MJ_IS_CHR(pattern.chuntsu[i])) m |= MJ_BIT_CHR;
 	}
 	for (int i=0; i<pattern.numKoutsu; i++) {
-		if (MJ_IS_MAN(pattern.koutsu[i])) m |= BIT_MAN;
-		if (MJ_IS_PIN(pattern.koutsu[i])) m |= BIT_PIN;
-		if (MJ_IS_SOU(pattern.koutsu[i])) m |= BIT_SOU;
-		if (MJ_IS_ZI (pattern.koutsu[i])) m |= BIT_JI;
+		if (MJ_IS_MAN(pattern.koutsu[i])) m |= MJ_BIT_MAN;
+		if (MJ_IS_PIN(pattern.koutsu[i])) m |= MJ_BIT_PIN;
+		if (MJ_IS_SOU(pattern.koutsu[i])) m |= MJ_BIT_SOU;
+		if (MJ_IS_CHR(pattern.koutsu[i])) m |= MJ_BIT_CHR;
 	}
 	{
-		if (MJ_IS_MAN(pattern.toitsu)) m |= BIT_MAN;
-		if (MJ_IS_PIN(pattern.toitsu)) m |= BIT_PIN;
-		if (MJ_IS_SOU(pattern.toitsu)) m |= BIT_SOU;
-		if (MJ_IS_ZI (pattern.toitsu)) m |= BIT_JI;
+		if (MJ_IS_MAN(pattern.toitsu)) m |= MJ_BIT_MAN;
+		if (MJ_IS_PIN(pattern.toitsu)) m |= MJ_BIT_PIN;
+		if (MJ_IS_SOU(pattern.toitsu)) m |= MJ_BIT_SOU;
+		if (MJ_IS_CHR(pattern.toitsu)) m |= MJ_BIT_CHR;
 	}
 	return m;
 }
@@ -962,7 +951,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 			}
 		}
 		// 字一色
-		if (MJ_GetColorBits(kansei) == BIT_JI) {
+		if (MJ_GetColorBits(kansei) == MJ_BIT_CHR) {
 			MJYaku yaku;
 			yaku.name = u8"字一色";
 			yaku.yakuman = 1;
@@ -971,7 +960,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 		// 清老頭
 		{
 			int a = MJ_Has19JihaiOnly(kansei);
-			int b = MJ_GetColorBits(kansei) & BIT_JI;
+			int b = MJ_GetColorBits(kansei) & MJ_BIT_CHR;
 			if (a && b==0) {
 				MJYaku yaku;
 				yaku.name = u8"清老頭";
@@ -1002,7 +991,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 			}
 		}
 		// 九蓮宝燈
-		if (MJ_GetColorBits(kansei) == BIT_MAN) {
+		if (MJ_GetColorBits(kansei) == MJ_BIT_MAN) {
 			MJHand hand;
 			MJ_KanseiTehai(kansei, &hand);
 			hand.findRemove(tsumo); // テンパイ形で調べるのでツモ牌加えない
@@ -1062,8 +1051,8 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 	// ６ハン役
 	{
 		// 清一色
-		MJColorBits m = MJ_GetColorBits(kansei);
-		if (m==BIT_MAN || m==BIT_PIN || m==BIT_SOU) {
+		int m = MJ_GetColorBits(kansei);
+		if (m==MJ_BIT_MAN || m==MJ_BIT_PIN || m==MJ_BIT_SOU) {
 			result.push_back(MJYaku(u8"清一色", 6));
 		}
 	}
@@ -1087,7 +1076,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 				num++;
 			}
 			if (num == 5) { // ４面子1雀頭のすべてが19牌を含んでいる
-				result.push_back(MJYaku(u8"ジュンチャン", 3));
+				result.push_back(MJYaku(u8"純全帯么九", 3));
 				is_chitoi = false; // 七対子と複合しない
 			}
 		}
@@ -1105,8 +1094,8 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 		}
 		// 混一色
 		{
-			MJColorBits m = MJ_GetColorBits(kansei);
-			if (m==(BIT_JI|BIT_MAN) || m==(BIT_JI|BIT_PIN) || m==(BIT_JI|BIT_SOU)) {
+			int m = MJ_GetColorBits(kansei);
+			if (m==(MJ_BIT_CHR|MJ_BIT_MAN) || m==(MJ_BIT_CHR|MJ_BIT_PIN) || m==(MJ_BIT_CHR|MJ_BIT_SOU)) {
 				result.push_back(MJYaku(u8"混一色", 3));
 			}
 		}
@@ -1127,12 +1116,18 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 		}
 		// 三色同刻
 		if (kansei.numKoutsu >= 3) {
-			// ※四暗刻を優先
+			// 刻子が３または４組ある
 			MJID a = kansei.koutsu[0];
 			MJID b = kansei.koutsu[1];
 			MJID c = kansei.koutsu[2];
 			MJID d = kansei.koutsu[3]; // 刻子が4未満の場合は 0 が入る
-			if ((a+1==b && b+1==c) || (b+1==c && c+1==d)) {
+			
+			// ３組が同じ数字かつ３色あることを確認
+			bool ok = false;
+			if (MJ_SAMENUM3(a,b,c) && MJ_TRICOLOR(a,b,c)) ok = true;
+			if (MJ_SAMENUM3(a,b,d) && MJ_TRICOLOR(a,b,d)) ok = true;
+			if (MJ_SAMENUM3(a,c,d) && MJ_TRICOLOR(a,c,d)) ok = true;
+			if (ok) {
 				result.push_back(MJYaku(u8"三色同刻", 2));
 				is_chitoi = false; // 七対子と複合しない
 			}
@@ -1143,31 +1138,15 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 			MJID b = kansei.chuntsu[1];
 			MJID c = kansei.chuntsu[2];
 			MJID d = kansei.chuntsu[3]; // 順子が4未満の場合は 0 が入る
-			std::unordered_map<MJID, int> tmp;
-			tmp[MJ_GETNUM(a)]++; // 数字部分だけに注目し。その数字から始まる順子の個数を調べる
-			tmp[MJ_GETNUM(b)]++;
-			tmp[MJ_GETNUM(c)]++;
-			tmp[MJ_GETNUM(d)]++;
-			MJID triple = 0;
-			for (auto it=tmp.begin(); it!=tmp.end(); it++) {
-				if (it->second >= 3) {
-					// it->first から始まる順子が3組以上ある
-					triple = it->first;
-					break;
-				}
-			}
-			if (triple >= 0) {
-				std::unordered_set<int> color;
-				color.insert(MJ_GETGROUP(a));
-				color.insert(MJ_GETGROUP(b));
-				color.insert(MJ_GETGROUP(c));
-				color.insert(MJ_GETGROUP(d));
-				color.erase(0); // 無効な組み合わせを引く
-				// この時点で要素数が３あれば、三色ある
-				if (color.size() == 3) {
-					result.push_back(MJYaku(u8"三色同順", 2));
-					is_chitoi = false; // 七対子と複合しない
-				}
+
+			// ３組が同じ数字かつ３色あることを確認
+			bool ok = false;
+			if (MJ_SAMENUM3(a,b,c) && MJ_TRICOLOR(a,b,c)) ok = true;
+			if (MJ_SAMENUM3(a,b,d) && MJ_TRICOLOR(a,b,d)) ok = true;
+			if (MJ_SAMENUM3(a,c,d) && MJ_TRICOLOR(a,c,d)) ok = true;
+			if (ok) {
+				result.push_back(MJYaku(u8"三色同順", 2));
+				is_chitoi = false; // 七対子と複合しない
 			}
 		}
 		// 小三元
@@ -1216,7 +1195,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 				num++;
 			}
 			if (num == 5) { // ４面子1雀頭のすべてが19字牌を含んでいる
-				result.push_back(MJYaku(u8"チャンタ", 2));
+				result.push_back(MJYaku(u8"混全帯么九", 2));
 				is_chitoi = false; // 七対子と複合しない
 			}
 		}
@@ -1236,7 +1215,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 		{
 			bool yao = MJ_Has19(kansei) || MJ_HasJihai(kansei);
 			if (!yao) {
-				result.push_back(MJYaku(u8"タンヤオ", 1));
+				result.push_back(MJYaku(u8"断么九", 1));
 			}
 		}
 		// 一盃口
