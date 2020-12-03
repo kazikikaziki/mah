@@ -1794,6 +1794,79 @@ int MJTiles::findAndRemoveJuntsu(MJID id) {
 #pragma endregion // MJTiles
 
 
+// 面子を取り除いた後の余り牌からできるだけ多くの塔子・対子を取る
+class MJTaatsuCounter {
+public:
+	int mResult;
+
+	MJTaatsuCounter() {
+		mResult = 0;
+	}
+
+	// 面子解析後の余り牌のなかから可能な限り多くの塔子を取り出し、その数を返す
+	// ※amari は純粋な余り牌でなくてはならず、刻子、順子を含んでいてはいけない
+	int count(const MJTiles &amari) {
+		mResult = 0;
+		findNextTaatsu(amari, 0);
+		return mResult;
+	}
+	int count(const std::vector<MJID> &amari) {
+		MJTiles tiles;
+		tiles.add(amari.data(), amari.size());
+		return count(tiles);
+	}
+
+private:
+	void findNextTaatsu(const MJTiles &tiles, int found) {
+		// 塔子（対子、両面、嵌張）の組み合わせを調べる
+		if (tiles.empty()) {
+			// すべての牌について処理が終わった
+			// これまでに見つかった組み合わせよりも多くの塔子が見つかったなら塔子数を更新する
+			if (found > mResult) {
+				mResult = found;
+			}
+			return;
+		}
+		{
+			// 先頭の牌を含む対子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+			MJTiles tmp(tiles);
+			MJID tile = tmp.removeFirstPair();
+			if (tile) {
+				findNextTaatsu(tmp, found+1); // 塔子が１つ増えたので found+1 する
+			}
+		}
+		{
+			// 先頭の牌を含む両面塔子または辺１２、辺８９塔子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+			MJTiles tmp(tiles);
+			MJID tile = tmp.removeFirstTaatsuRyanmen();
+			if (tile) {
+				findNextTaatsu(tmp, found+1);
+			}
+		}
+		{
+			// 先頭の牌を含む間張塔子があるならそれを取り除き、残りの部分の形を再帰的に調べる
+			MJTiles tmp(tiles);
+			MJID tile = tmp.removeFirstTaatsuKanchan();
+			if (tile) {
+				findNextTaatsu(tmp, found+1);
+			}
+		}
+		{
+			// 先頭牌を含む塔子について調べ終わった。
+			// この牌をいったん余り牌として退避し、残りの部分について同様に調べていく
+			MJTiles tmp(tiles);
+			MJID tile = tmp.removeByIndex(0);
+			if (tile) {
+				findNextTaatsu(tmp, found); // 塔子の数は変化していないので found のままでよい
+			} else {
+				assert(0);
+			}
+		}
+	}
+};
+
+
+
 class MJParser {
 public:
 	std::vector<MJMelds> mResult; // 見つかった組み合わせ
@@ -1951,6 +2024,22 @@ private:
 			melds.mShanten = 1;
 			return;
 		}
+		// まだテンパイしていない。シャンテン数を調べる
+		{
+			// まず余り牌からできるだけ多くの塔子を取り出し、その数を数える
+			MJTaatsuCounter taatsu_counter;
+			taatsu_counter.count(melds.mAmari);
+			
+			// ただし、塔子ととして有効なのは 4-面子数のみ。
+			// 面子と塔子の合計が 4 以上あっても塔子オーバーで意味がない
+			int num_taatsu = std::min(4 - num_melds, taatsu_counter.mResult);
+			melds.mShanten = 8; // ４面子１雀頭を目指す場合、完全に手がバラバラ時のシャンテン数は８（ちなみに七対子なら最大６）
+			melds.mShanten -= num_melds * 2; // 面子が１組完成しているごとにシャンテン数は２減る
+			melds.mShanten -= num_taatsu; // 塔子が１組あるごとにシャンテン数は１減る
+			melds.mShanten -= melds.mToitsu.size(); // 雀頭候補の対子があればシャンテン数は１減る
+			assert(melds.mShanten >= 1);
+			return;
+		}
 	}
 	void findNextMelds(FINDDATA &data) {
 		// 面子（刻子、順子、雀頭）の組み合わせを調べる
@@ -1975,7 +2064,7 @@ private:
 		}
 		if (data.melds.mToitsu.empty()) { // まだ対子（雀頭候補）を取り除いていない
 			// 先頭の牌を対子があるならそれを取り除き、残りの部分の形を再帰的に調べる
-			FINDDATA tmp = data;
+			FINDDATA tmp(data);
 			MJID tile = tmp.tiles.removeFirstPair();
 			if (tile) {
 				tmp.melds.mToitsu.push_back(tile);
@@ -1984,7 +2073,7 @@ private:
 		}
 		{
 			// 先頭の牌を含む刻子があるならそれを取り除き、残りの部分の形を再帰的に調べる
-			FINDDATA tmp = data;
+			FINDDATA tmp(data);
 			MJID tile = tmp.tiles.removeFirstKoutsu();
 			if (tile) {
 				tmp.melds.mKoutsu.push_back(tile);
@@ -1993,7 +2082,7 @@ private:
 		}
 		{
 			// 先頭の牌を含む順子があるならそれを取り除き、残りの部分の形を再帰的に調べる
-			FINDDATA tmp = data;
+			FINDDATA tmp(data);
 			MJID tile = tmp.tiles.removeFirstJuntsu();
 			if (tile) {
 				tmp.melds.mJuntsu.push_back(tile);
@@ -2003,7 +2092,7 @@ private:
 		{
 			// 先頭牌を含む面子について調べ終わった。
 			// この牌をいったん余り牌として退避し、残りの部分について同様に調べていく
-			FINDDATA tmp = data;
+			FINDDATA tmp(data);
 			MJID tile = tmp.tiles.removeByIndex(0);
 			if (tile) {
 				tmp.melds.mAmari.push_back(tile);
