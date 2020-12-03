@@ -2260,24 +2260,21 @@ public:
 			std::sort(order.begin(), order.end());
 			for (auto it=order.begin(); it!=order.end(); ++it) {
 				if (it->type == SMeld::TOITSU) {
-					s += u8"【";
+					if (!s.empty()) s += u8" | ";
 					s += MJ_ToStringU8(it->id);
 					s += MJ_ToStringU8(it->id);
-					s += u8"】";
 				}
 				if (it->type == SMeld::KOUTSU) {
-					s += u8"【";
+					if (!s.empty()) s += u8" | ";
 					s += MJ_ToStringU8(it->id);
 					s += MJ_ToStringU8(it->id);
 					s += MJ_ToStringU8(it->id);
-					s += u8"】";
 				}
 				if (it->type == SMeld::JUNTSU) {
-					s += u8"【";
+					if (!s.empty()) s += u8" | ";
 					s += MJ_ToStringU8(it->id);
 					s += MJ_ToStringU8(it->id+1);
 					s += MJ_ToStringU8(it->id+2);
-					s += u8"】";
 				}
 			}
 		}
@@ -2285,22 +2282,20 @@ public:
 		if (!melds.mAmari.empty()) {
 			std::vector<MJID> amari = melds.mAmari;
 			std::sort(amari.begin(), amari.end());
-			s += u8"＜";
+			s += u8" || ";
 			for (auto it=amari.begin(); it!=amari.end(); ++it) {
 				s += MJ_ToStringU8(*it);
 			}
-			s += u8"＞";
 		}
 
 		// 待ち牌
 		if (!melds.mMachi.empty()) {
 			std::vector<MJID> machi = melds.mMachi;
 			std::sort(machi.begin(), machi.end());
-			s += u8"｜";
+			s += u8"   【" + MJ_ToString(melds.mMachiType) + u8"】";
 			for (auto it=machi.begin(); it!=machi.end(); ++it) {
 				s += MJ_ToStringU8(*it);
 			}
-			s += u8"【" + MJ_ToString(melds.mMachiType) + u8"】";
 		}
 
 		// シャンテン数
