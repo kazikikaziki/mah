@@ -10,7 +10,7 @@
 #define MJ_MAN(n)               (MJ_OFFSET_MAN + (n)) // 萬子の MJID を得る (1<=n<=9)
 #define MJ_PIN(n)               (MJ_OFFSET_PIN + (n)) // 筒子の MJID を得る (1<=n<=9)
 #define MJ_SOU(n)               (MJ_OFFSET_SOU + (n)) // 索子の MJID を得る (1<=n<=9)
-#define MJ_CHR(n)               (MJ_OFFSET_CHR + (n)) // 字牌の MJID を得る (1<=n<=9)
+#define MJ_CHR(n)               (MJ_OFFSET_CHR + (n)) // 字牌の MJID を得る (1<=n<=7)
 
 #define MJ_TON                  MJ_CHR(1) // MJID (東)
 #define MJ_NAN                  MJ_CHR(2) // MJID (南)
@@ -93,12 +93,12 @@ inline MJID MJ_GETDORA(MJID id) {
 	return 0;
 }
 
-
-
+// 牌の文字列形式を得る。デバッグ用。UTF8
+std::string MJ_ToStringU8(MJID id);
 
 // 待ちの形
 enum MJMachiType {
-	MJ_MACHI_UNKNOWN,
+	MJ_MACHI_NONE,      // 待ちなし（テンパイしていない）
 	MJ_MACHI_TANKI,     // 単騎待ち
 	MJ_MACHI_PENCHAN,   // 辺張待ち
 	MJ_MACHI_KANCHAN,   // 間張待ち
@@ -112,12 +112,12 @@ enum MJMachiType {
 
 // 塔子の種類
 enum MJTaatsuType {
-	MJ_TAATSU_NONE, // 塔子なし
-	MJ_TAATSU_RYAN, // 両面塔子
+	MJ_TAATSU_NONE,  // 塔子なし
+	MJ_TAATSU_RYAN,  // 両面塔子
 	MJ_TAATSU_PEN12, // 辺１２塔子
 	MJ_TAATSU_PEN89, // 辺８９塔子
-	MJ_TAATSU_KAN, // 嵌張塔子
-	MJ_TAATSU_TOI, // 対子
+	MJ_TAATSU_KAN,   // 嵌張塔子
+	MJ_TAATSU_TOI,   // 対子
 };
 
 // 手牌
@@ -135,6 +135,8 @@ public:
 	MJID get(int index) const;
 	void add(MJID id);
 	void addArray(const MJID *id, int count=0);
+	void parse(const char *u8);
+	std::string toString() const;
 	MJID removeByIndex(int index);    // index 位置にある牌を取り除き、その牌番号を返す
 	MJID removeFirstPair();           // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
 	MJID removeFirstKoutsu();         // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す

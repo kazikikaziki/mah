@@ -47,9 +47,16 @@ public:
 		if (ImGui::Begin("Test", NULL, ImGuiWindowFlags_NoResize)) {
 
 			// 情報
-			ImGui::Text(u8"場風: %s", getTileStringU8(mBakaze).c_str());
-			ImGui::Text(u8"自風: %s", getTileStringU8(mJikaze).c_str());
-			ImGui::Text(u8"ドラ: %s", getTileStringU8(mDora).c_str());
+			ImGui::Text(u8"場風: %s", MJ_ToStringU8(mBakaze).c_str());
+			ImGui::Text(u8"自風: %s", MJ_ToStringU8(mJikaze).c_str());
+			ImGui::Text(u8"ドラ: ");
+			ImGui::SameLine();
+			if (ImGui::Button(MJ_ToStringU8(mDora).c_str())) {
+			}
+			if (ImGui::BeginPopupContextItem()) {
+				guiTileListButton(&mDora);
+				ImGui::EndPopup();
+			}
 			ImGui::Text(u8"残りの牌数: %d", mNextTiles.size());
 
 			int shanten = mEval.getShanten();
@@ -95,7 +102,7 @@ public:
 						ImGui::Text(u8"待ち：");
 						for (auto it=sorted.begin(); it!=sorted.end(); it++) {
 							ImGui::SameLine();
-							ImGui::Text(u8"%s", getTileStringU8(*it).c_str()); 
+							ImGui::Text(u8"%s", MJ_ToStringU8(*it).c_str()); 
 						}
 					}
 					ImGui::EndGroup();
@@ -104,13 +111,13 @@ public:
 						for (int i=0; i<mEval.getTempaiCount(); i++) {
 							const MJPattern *pat = mEval.getTempai(i);
 							switch (pat->machiType) {
-							case MJ_MACHI_TANKI:   ImGui::Text(u8"【単騎】%s", getTileStringU8(pat->machi1).c_str()); break;
-							case MJ_MACHI_PENCHAN: ImGui::Text(u8"【辺張】%s", getTileStringU8(pat->machi1).c_str()); break;
-							case MJ_MACHI_KANCHAN: ImGui::Text(u8"【間張】%s", getTileStringU8(pat->machi1).c_str()); break;
-							case MJ_MACHI_CHITOI:  ImGui::Text(u8"【単騎】%s", getTileStringU8(pat->machi1).c_str()); break; // 七対子単騎
-							case MJ_MACHI_KOKUSHI: ImGui::Text(u8"【単騎】%s", getTileStringU8(pat->machi1).c_str()); break; // 国士単騎
-							case MJ_MACHI_RYANMEN: ImGui::Text(u8"【両面】%s-%s", getTileStringU8(pat->machi1).c_str(), getTileStringU8(pat->machi2).c_str()); break;
-							case MJ_MACHI_SHABO:   ImGui::Text(u8"【シャボ】%s%s", getTileStringU8(pat->machi1).c_str(), getTileStringU8(pat->machi2).c_str()); break;
+							case MJ_MACHI_TANKI:   ImGui::Text(u8"【単騎】%s", MJ_ToStringU8(pat->machi1).c_str()); break;
+							case MJ_MACHI_PENCHAN: ImGui::Text(u8"【辺張】%s", MJ_ToStringU8(pat->machi1).c_str()); break;
+							case MJ_MACHI_KANCHAN: ImGui::Text(u8"【間張】%s", MJ_ToStringU8(pat->machi1).c_str()); break;
+							case MJ_MACHI_CHITOI:  ImGui::Text(u8"【単騎】%s", MJ_ToStringU8(pat->machi1).c_str()); break; // 七対子単騎
+							case MJ_MACHI_KOKUSHI: ImGui::Text(u8"【単騎】%s", MJ_ToStringU8(pat->machi1).c_str()); break; // 国士単騎
+							case MJ_MACHI_RYANMEN: ImGui::Text(u8"【両面】%s-%s", MJ_ToStringU8(pat->machi1).c_str(), MJ_ToStringU8(pat->machi2).c_str()); break;
+							case MJ_MACHI_SHABO:   ImGui::Text(u8"【シャボ】%s%s", MJ_ToStringU8(pat->machi1).c_str(), MJ_ToStringU8(pat->machi2).c_str()); break;
 							case MJ_MACHI_KOKUSHI13: ImGui::Text(u8"国士無双１３面待ち"); break;
 							}
 						}
@@ -188,6 +195,28 @@ public:
 				ImGui::SetTooltip(u8"牌を再シャッフルし、配り直す");
 			}
 			ImGui::SameLine();
+			if (ImGui::Button(u8"テスト")) {
+				ImGui::OpenPopup("preset");
+			}
+			if (ImGui::BeginPopup("preset")) {
+				const char *hai1 = u8"一一二二三三四四五五六六七";
+				const char *hai2 = u8"一一一二三四五六七八九九九";
+				if (ImGui::MenuItem(hai1)) {
+					mHandTiles.clear();
+					mHandTiles.parse(hai1);
+					mEval.eval(mHandTiles);
+				}
+				if (ImGui::MenuItem(hai2)) {
+					mHandTiles.clear();
+					mHandTiles.parse(hai1);
+					mEval.eval(mHandTiles);
+				}
+				ImGui::EndPopup();
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(u8"もう一度評価関数を通す。\nプログラムの確認用");
+			}
+			ImGui::SameLine();
 			if (ImGui::Button(u8"再評価")) {
 				mEval.eval(mHandTiles);
 			}
@@ -235,7 +264,7 @@ public:
 		mEval.eval(mHandTiles);
 	}
 	bool guiTileButton(MJID tile) {
-		std::string u8 = getTileStringU8(tile);
+		std::string u8 = MJ_ToStringU8(tile);
 		ImGui::SetNextItemWidth(16);
 		return ImGui::Button(u8.c_str());
 	}
@@ -276,45 +305,6 @@ public:
 		if (ImGui::Button(u8"發")) *tile=MJ_HAZ; ImGui::SameLine();
 		if (ImGui::Button(u8"中")) *tile=MJ_CHUN;
 		return old != *tile;
-	}
-	std::string getTileStringU8(MJID tile) {
-		switch (tile) {
-		case MJ_TON: return u8"東";
-		case MJ_NAN: return u8"南";
-		case MJ_SHA: return u8"西";
-		case MJ_PEI: return u8"北";
-		case MJ_HAK: return u8"白";
-		case MJ_HAZ: return u8"發";
-		case MJ_CHUN:return u8"中";
-		}
-		if (MJ_ISMAN(tile)) {
-			const char *tbl[] = {
-				u8"一", u8"二", u8"三",
-				u8"四", u8"五", u8"六",
-				u8"七", u8"八", u8"九",
-			};
-			int num = tile - MJ_MAN(1);
-			return tbl[num];
-		}
-		if (MJ_ISPIN(tile)) {
-			const char *tbl[] = {
-				u8"①", u8"②", u8"③",
-				u8"④", u8"⑤", u8"⑥",
-				u8"⑦", u8"⑧", u8"⑨",
-			};
-			int num = tile - MJ_PIN(1);
-			return tbl[num];
-		}
-		if (MJ_ISSOU(tile)) {
-			const char *tbl[] = {
-				u8"１", u8"２", u8"３",
-				u8"４", u8"５", u8"６",
-				u8"７", u8"８", u8"９",
-			};
-			int num = tile - MJ_SOU(1);
-			return tbl[num];
-		}
-		return "";
 	}
 };
 

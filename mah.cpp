@@ -73,6 +73,87 @@ void MJHand::addArray(const MJID *id, int count) {
 		std::sort(mTiles.begin(), mTiles.end());
 	}
 }
+
+const char *g_ManStr[] = {u8"一", u8"二", u8"三", u8"四", u8"五", u8"六", u8"七", u8"八", u8"九", NULL};
+const char *g_PinStr[] = {u8"①", u8"②", u8"③", u8"④", u8"⑤", u8"⑥", u8"⑦", u8"⑧", u8"⑨", NULL};
+const char *g_SouStr[] = {u8"１", u8"２", u8"３", u8"４", u8"５", u8"６", u8"７", u8"８", u8"９", NULL};
+const char *g_ChrStr[] = {u8"東", u8"南", u8"西", u8"北", u8"白", u8"發", u8"中", NULL};
+
+std::string MJ_ToStringU8(MJID id) {
+	if (MJ_ISMAN(id)) {
+		int i = id - MJ_MAN(1);
+		return g_ManStr[i];
+	}
+	if (MJ_ISPIN(id)) {
+		int i = id - MJ_PIN(1);
+		return g_PinStr[i];
+	}
+	if (MJ_ISSOU(id)) {
+		int i = id - MJ_SOU(1);
+		return g_SouStr[i];
+	}
+	if (MJ_ISCHR(id)) {
+		int i = id - MJ_TON;
+		return g_ChrStr[i];
+	}
+	return "";
+}
+
+bool _readstr(const char *str, int *pos, const char *t) {
+	const char *s = str + (*pos);
+	size_t slen = strlen(s);
+	size_t tlen = strlen(t);
+	if (slen >= tlen && strncmp(s, t, tlen) == 0) {
+		*pos += tlen;
+		return true;
+	}
+	return false;
+}
+
+void MJHand::parse(const char *u8) {
+	clear();
+	const char *s = u8;
+	int pos = 0;
+	while (s[pos]) {
+		bool notfound = true;
+		for (int i=0; i<8; i++) {
+			if (_readstr(s, &pos, g_ManStr[i])) {
+				add(MJ_MAN(1) + i);
+				notfound = false;
+			}
+		}
+		for (int i=0; i<8; i++) {
+			if (_readstr(s, &pos, g_PinStr[i])) {
+				add(MJ_PIN(1) + i);
+				notfound = false;
+			}
+		}
+		for (int i=0; i<8; i++) {
+			if (_readstr(s, &pos, g_SouStr[i])) {
+				add(MJ_SOU(1) + i);
+				notfound = false;
+			}
+		}
+		for (int i=0; i<6; i++) {
+			if (_readstr(s, &pos, g_ChrStr[i])) {
+				add(MJ_CHR(1) + i);
+				notfound = false;
+			}
+		}
+		if (notfound) break;
+	}
+}
+
+std::string MJHand::toString() const {
+	std::string s;
+	for (int i=0; i<mTiles.size(); i++) {
+		MJID id = mTiles[i];
+		s += MJ_ToStringU8(id);
+	}
+	return s;
+}
+
+
 MJID MJHand::removeByIndex(int index) {
 	// インデックス番目にある牌を削除して牌番号を返す
 	// 削除できない場合は 0 を返す
