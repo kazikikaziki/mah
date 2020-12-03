@@ -336,6 +336,23 @@ public:
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip(u8"もう一度評価関数を通す。\nプログラムの確認用");
 			}
+		//	if (ImGui::Button(u8"再評価2")) {
+				MJTiles tiles;
+				for (int i=0; i<mHandTiles.size(); i++) {
+					tiles.add(mHandTiles.get(i));
+				}
+
+				std::vector<MJMelds> melds;
+				MJ_FindMelds(tiles, melds);
+				{
+					std::string s = MJ_ToString(tiles);
+					ImGui::Text(s.c_str());
+				}
+				for (auto it=melds.begin(); it!=melds.end(); ++it) {
+					std::string s = MJ_ToString(*it);
+					ImGui::Text(s.c_str());
+				}
+		//	}
 		}
 		ImGui::End();
 		//ImGui::ShowDemoWindow();

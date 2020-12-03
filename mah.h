@@ -245,3 +245,48 @@ private:
 
 int MJ_Score(const MJYaku *yaku, int count, int *out_han, int *out_yakuman);
 bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei);
+
+
+
+// 手牌
+class MJTiles {
+public:
+	std::vector<MJID> mTiles;
+
+	MJTiles();
+	void clear();
+	bool empty() const;
+	void add(MJID tile);
+	void add(const MJID *tiles, int count);
+	int size() const;
+	MJID get(int index) const;
+	MJID removeByIndex(int index);      // index 位置にある牌を取り除き、その牌番号を返す
+	MJID removeFirstPair();             // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
+	MJID removeFirstKoutsu();           // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す
+	MJID removeFirstJuntsu();           // 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
+	MJID removeFirstTaatsuRyanmen();    // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
+	MJID removeFirstTaatsuKanchan();    // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
+	int  findAndRemove(MJID tile);       // tile に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
+	int  findAndRemoveAll(MJID tile);    // tile に一致する牌があれば、全て取り除いて 1 を返す
+	int  findAndRemoveKoutsu(MJID tile); // tile が刻子を含んでいれば、その3牌を取り除いて 1 を返す
+	int  findAndRemoveJuntsu(MJID tile); // tile を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
+};
+
+// 手牌を構成面子 (Meld) に分解したときの形
+class MJMelds {
+public:
+	std::vector<MJID> mKoutsu; // 刻子（この形が刻子を含んでいる場合、それぞれの刻子構成牌の１つが入る。最大で４刻子）
+	std::vector<MJID> mJuntsu; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
+	std::vector<MJID> mToitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
+	std::vector<MJID> mAmari;  // 面子として使えなかった余り牌。
+	std::vector<MJID> mMachi;  // テンパイ状態の場合、その待ち牌
+	MJMachiType mMachiType;
+	int mShanten;
+
+	MJMelds();
+	void clear();
+};
+
+void MJ_FindMelds(const MJTiles &tiles, std::vector<MJMelds> &result);
+std::string MJ_ToString(const MJTiles &tiles);
+std::string MJ_ToString(const MJMelds &melds);
