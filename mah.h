@@ -21,41 +21,45 @@
 #define MJ_CHUN                 MJ_CHR(7) // MJID (中)
 
 
-
-
-#define MJ_BIT_MAN  0x0001 // 萬子
-#define MJ_BIT_PIN  0x0010 // 筒子
-#define MJ_BIT_SOU  0x0100 // 索子
-#define MJ_BIT_CHR  0x1000 // 字牌
-#define MJ_BIT_MANPINSOU  (MJ_BIT_MAN|MJ_BIT_PIN|MJ_BIT_SOU)
-
-#define MJ_GETBIT(n)            (MJ_IS_MAN(n) ? MJ_BIT_MAN : MJ_IS_PIN(n) ? MJ_BIT_PIN : MJ_IS_SOU(n) ? MJ_BIT_SOU : MJ_IS_CHR(n) ? MJ_BIT_CHR : 0) // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
-#define MJ_GETNUM(n)            (MJ_IS_NUM(n) ? (int)(n) % 100 : 0) // 牌の数字(1～9)を得る。数字牌でない場合は 0
-#define MJ_SAMEGROUP(a, b)      (MJ_GETGROUP(a) == MJ_GETGROUP(b))
-#define MJ_SAMENUM(a, b)        (MJ_IS_NUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b))
-#define MJ_SAMENUM3(a, b, c)    (MJ_IS_NUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b) && MJ_GETNUM(b)==MJ_GETNUM(c))
-#define MJ_TRICOLOR(a, b, c)    ((MJ_GETBIT(a) | MJ_GETBIT(b) | MJ_GETBIT(c)) & MJ_BIT_MANPINSOU == MJ_BIT_MANPINSOU)
-
-#define MJ_IS_MAN(id)           (MJ_MAN(1) <= (id) && (id) <= MJ_MAN(9)) // 萬子か？
-#define MJ_IS_PIN(id)           (MJ_PIN(1) <= (id) && (id) <= MJ_PIN(9)) // 筒子か？
-#define MJ_IS_SOU(id)           (MJ_SOU(1) <= (id) && (id) <= MJ_SOU(9)) // 索子か？
-#define MJ_IS_CHR(id)           (MJ_CHR(1) <= (id) && (id) <= MJ_CHR(7)) // 字牌か？
-#define MJ_IS_VALID(id)         (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id) || MJ_IS_ZI(id)) // 有効な牌番号か？
-#define MJ_IS_NUM(id)           (MJ_IS_MAN(id) || MJ_IS_PIN(id) || MJ_IS_SOU(id)) // 数字牌か？
-#define MJ_IS_1or9(id)          ((id)==MJ_MAN(1) || (id)==MJ_MAN(9) || (id)==MJ_PIN(1) || (id)==MJ_PIN(9) || (id)==MJ_SOU(1) || (id)==MJ_SOU(9)) // 1,9の数字牌か？
-#define MJ_IS_2_8(id)           (MJ_IS_NUM(id)) && !MJ_IS_1or9(id)) // 2～8の数字牌か？
-#define MJ_IS_KAZE(id)          ((id)==MJ_TON || (id)==MJ_NAN || (id)==MJ_SHA || (id)==MJ_PEI) // 東西南北か？
-#define MJ_IS_SANGEN(id)        ((id)==MJ_HAK || (id)==MJ_HAZ || (id)==MJ_CHUN) // 白發中か？
-#define MJ_IS_YAOCHU(id)        (MJ_IS_1or9(id) || MJ_IS_KAZE(id) || MJ_IS_SANGEN(id)) // 1,9,字牌か？
-#define MJ_IS_NEXT(a, b)        ((MJ_GETBIT(a)==MJ_GETBIT(b)) && MJ_IS_NUM(a)  &&  ((a)+1 == (b))) // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
-#define MJ_IS_NEXTNEXT(a, b)    ((MJ_GETBIT(a)==MJ_GETBIT(b)) && MJ_IS_NUM(a)  &&  ((a)+2 == (b))) // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
-#define MJ_IS_CHUNTSU(a, b, c)  (MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c)) // 牌 a b c が順子になっているか？
-#define MJ_IS_KOUTSU(a, b, c)   ((a)==(b) && (b)==(c)) // 牌 a b c が刻子になっているか？
-
-
-
-
 typedef int MJID;
+
+enum MJBIT {
+	MJ_BIT_MAN       = 0x0001, // 萬子
+	MJ_BIT_PIN       = 0x0010, // 筒子
+	MJ_BIT_SOU       = 0x0100, // 索子
+	MJ_BIT_CHR       = 0x1000, // 字牌
+	MJ_BIT_MANPINSOU = MJ_BIT_MAN|MJ_BIT_PIN|MJ_BIT_SOU,
+};
+typedef int MJBITS; 
+
+// 牌の種類を判定
+inline bool MJ_ISMAN(MJID id)    { return MJ_MAN(1) <= id && id <= MJ_MAN(9); } // 萬子か？
+inline bool MJ_ISPIN(MJID id)    { return MJ_PIN(1) <= id && id <= MJ_PIN(9); } // 筒子か？
+inline bool MJ_ISSOU(MJID id)    { return MJ_SOU(1) <= id && id <= MJ_SOU(9); } // 索子か？
+inline bool MJ_ISCHR(MJID id)    { return MJ_CHR(1) <= id && id <= MJ_CHR(7); } // 字牌か？
+inline bool MJ_ISVALID(MJID id)  { return MJ_ISMAN(id) || MJ_ISPIN(id) || MJ_ISSOU(id) || MJ_ISCHR(id); } // 有効な牌番号か？
+inline bool MJ_ISNUM(MJID id)    { return MJ_ISMAN(id) || MJ_ISPIN(id) || MJ_ISSOU(id); } // 数字牌か？
+inline bool MJ_IS19(MJID id)     { return id==MJ_MAN(1) || id==MJ_MAN(9) || id==MJ_PIN(1) || id==MJ_PIN(9) || id==MJ_SOU(1) || id==MJ_SOU(9); } // 1,9牌か？
+inline bool MJ_IS28(MJID id)     { return MJ_ISNUM(id) && !MJ_IS19(id); } // 2～8の数字牌か？
+inline bool MJ_ISKAZE(MJID id)   { return id==MJ_TON || id==MJ_NAN || id==MJ_SHA || id==MJ_PEI; } // 東西南北か？
+inline bool MJ_ISSANGEN(MJID id) { return id==MJ_HAK || id==MJ_HAZ || id==MJ_CHUN; } // 白發中か？
+inline bool MJ_ISYAOCHU(MJID id) { return MJ_IS19(id) || MJ_ISCHR(id); } // 1,9,字牌か？
+inline int  MJ_GETNUM(MJID id)   { return MJ_ISNUM(id) ? (id % 100) : 0; } // 牌の数字(1～9)を得る。数字牌でない場合は 0
+inline MJBITS MJ_GETBIT(MJID id) { return MJ_ISMAN(id) ? MJ_BIT_MAN : MJ_ISPIN(id) ? MJ_BIT_PIN : MJ_ISSOU(id) ? MJ_BIT_SOU : MJ_ISCHR(id) ? MJ_BIT_CHR : 0; } // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
+
+// 牌の組み合わせを判定
+inline bool MJ_SAMEGROUP(MJID a, MJID b)          { return MJ_GETBIT(a) == MJ_GETBIT(b); } // 牌 a b が同じ種類（萬子、筒子、索子、字牌）か？
+inline bool MJ_SAMENUM(MJID a, MJID b)            { return MJ_ISNUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b); } // 牌 a b が同じ種類かつ同じ数字か？
+inline bool MJ_SAMENUM3(MJID a, MJID b, MJID c)   { return MJ_SAMENUM(a, b) && MJ_SAMENUM(b, c); } // 牌 a b c が同じ種類かつ同じ数字か？
+inline bool MJ_TRICOLOR(MJID a, MJID b, MJID c)   { return ((MJ_GETBIT(a)|MJ_GETBIT(b)|MJ_GETBIT(c)) & MJ_BIT_MANPINSOU) == MJ_BIT_MANPINSOU; } // 牌 a b c が同じ数字かつ３色あるか？
+inline bool MJ_IS_NEXT(MJID a, MJID b)            { return MJ_SAMEGROUP(a, b) && MJ_ISNUM(a) && a+1==b; } // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
+inline bool MJ_IS_NEXTNEXT(MJID a, MJID b)        { return MJ_SAMEGROUP(a, b) && MJ_ISNUM(a) && a+2==b; } // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
+inline bool MJ_IS_CHUNTSU(MJID a, MJID b, MJID c) { return MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c); } // 牌 a b c が順子になっているか？
+inline bool MJ_IS_KOUTSU(MJID a, MJID b, MJID c)  { return a==b && b==c; } // 牌 a b c が刻子になっているか？
+
+
+
+
 
 // 待ちの形
 enum MJMachiType {
@@ -73,7 +77,7 @@ enum MJMachiType {
 
 // 塔子の種類
 enum MJTaatsuType {
-	MJ_TAATSU_UNKNOWN,
+	MJ_TAATSU_NONE, // 塔子なし
 	MJ_TAATSU_RYAN, // 両面塔子
 	MJ_TAATSU_PEN12, // 辺１２塔子
 	MJ_TAATSU_PEN89, // 辺８９塔子

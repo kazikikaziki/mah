@@ -281,7 +281,7 @@ public:
 		case MJ_HAZ: return u8"發";
 		case MJ_CHUN:return u8"中";
 		}
-		if (MJ_IS_MAN(tile)) {
+		if (MJ_ISMAN(tile)) {
 			const char *tbl[] = {
 				u8"一", u8"二", u8"三",
 				u8"四", u8"五", u8"六",
@@ -290,7 +290,7 @@ public:
 			int num = tile - MJ_MAN(1);
 			return tbl[num];
 		}
-		if (MJ_IS_PIN(tile)) {
+		if (MJ_ISPIN(tile)) {
 			const char *tbl[] = {
 				u8"①", u8"②", u8"③",
 				u8"④", u8"⑤", u8"⑥",
@@ -299,7 +299,7 @@ public:
 			int num = tile - MJ_PIN(1);
 			return tbl[num];
 		}
-		if (MJ_IS_SOU(tile)) {
+		if (MJ_ISSOU(tile)) {
 			const char *tbl[] = {
 				u8"１", u8"２", u8"３",
 				u8"４", u8"５", u8"６",

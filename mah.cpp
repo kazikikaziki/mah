@@ -541,7 +541,7 @@ int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
 
 	if (tmp.size() == 1) { 
 		// １個の牌が余った＝その牌が足りない
-		if (tmp2.size() == 1 && !MJ_IS_YAOCHU(tmp2.get(0))) {
+		if (tmp2.size() == 1 && !MJ_ISYAOCHU(tmp2.get(0))) {
 			// 余計な非ヤオチュウ牌を持っている
 			// イーシャンテン
 			if (out_shanten) *out_shanten = 1;
@@ -564,7 +564,7 @@ int MJ_EvalKokushiTempai(const MJHand &hand, int *out_shanten, MJID *out_wait) {
 		// シャンテン数は余り牌個数と同じになる
 		bool hasYaochu = false;
 		for (int i=0; i<tmp.size(); i++) {
-			if (MJ_IS_YAOCHU(tmp.get(i))) {
+			if (MJ_ISYAOCHU(tmp.get(i))) {
 				hasYaochu = true;
 				break;
 			}
@@ -703,7 +703,7 @@ int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParser
 // id で構成される対子の牌種類を返す
 MJAttrs MJ_AtamaAttr(MJID id) {
 	MJAttrs ret = 0;
-	if (MJ_IS_CHR(id)) {
+	if (MJ_ISCHR(id)) {
 		ret |= MJ_ATTR_JIHAI;
 	}
 	if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==9) {
@@ -788,22 +788,22 @@ bool MJ_Has19JihaiOnly(const MJPattern &pattern) {
 int MJ_GetColorBits(const MJPattern &pattern) {
 	int m = 0;
 	for (int i=0; i<pattern.numChuntsu; i++) {
-		if (MJ_IS_MAN(pattern.chuntsu[i])) m |= MJ_BIT_MAN;
-		if (MJ_IS_PIN(pattern.chuntsu[i])) m |= MJ_BIT_PIN;
-		if (MJ_IS_SOU(pattern.chuntsu[i])) m |= MJ_BIT_SOU;
-	//	if (MJ_IS_CHR(pattern.chuntsu[i])) m |= MJ_BIT_CHR;
+		if (MJ_ISMAN(pattern.chuntsu[i])) m |= MJ_BIT_MAN;
+		if (MJ_ISPIN(pattern.chuntsu[i])) m |= MJ_BIT_PIN;
+		if (MJ_ISSOU(pattern.chuntsu[i])) m |= MJ_BIT_SOU;
+	//	if (MJ_ISCHR(pattern.chuntsu[i])) m |= MJ_BIT_CHR;
 	}
 	for (int i=0; i<pattern.numKoutsu; i++) {
-		if (MJ_IS_MAN(pattern.koutsu[i])) m |= MJ_BIT_MAN;
-		if (MJ_IS_PIN(pattern.koutsu[i])) m |= MJ_BIT_PIN;
-		if (MJ_IS_SOU(pattern.koutsu[i])) m |= MJ_BIT_SOU;
-		if (MJ_IS_CHR(pattern.koutsu[i])) m |= MJ_BIT_CHR;
+		if (MJ_ISMAN(pattern.koutsu[i])) m |= MJ_BIT_MAN;
+		if (MJ_ISPIN(pattern.koutsu[i])) m |= MJ_BIT_PIN;
+		if (MJ_ISSOU(pattern.koutsu[i])) m |= MJ_BIT_SOU;
+		if (MJ_ISCHR(pattern.koutsu[i])) m |= MJ_BIT_CHR;
 	}
 	{
-		if (MJ_IS_MAN(pattern.toitsu)) m |= MJ_BIT_MAN;
-		if (MJ_IS_PIN(pattern.toitsu)) m |= MJ_BIT_PIN;
-		if (MJ_IS_SOU(pattern.toitsu)) m |= MJ_BIT_SOU;
-		if (MJ_IS_CHR(pattern.toitsu)) m |= MJ_BIT_CHR;
+		if (MJ_ISMAN(pattern.toitsu)) m |= MJ_BIT_MAN;
+		if (MJ_ISPIN(pattern.toitsu)) m |= MJ_BIT_PIN;
+		if (MJ_ISSOU(pattern.toitsu)) m |= MJ_BIT_SOU;
+		if (MJ_ISCHR(pattern.toitsu)) m |= MJ_BIT_CHR;
 	}
 	return m;
 }
@@ -933,7 +933,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 		if (kansei.numKoutsu == 4) {
 			int numKaze = 0;
 			for (int i=0; i<kansei.numKoutsu; i++) {
-				if (MJ_IS_KAZE(kansei.koutsu[i])) {
+				if (MJ_ISKAZE(kansei.koutsu[i])) {
 					numKaze++;
 				}
 			}
@@ -943,7 +943,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 				yaku.yakuman = 2; // ダブル役満
 				result.push_back(yaku);
 			}
-			if (numKaze==3 && MJ_IS_KAZE(kansei.toitsu)) {
+			if (numKaze==3 && MJ_ISKAZE(kansei.toitsu)) {
 				MJYaku yaku;
 				yaku.name = u8"小四喜";
 				yaku.yakuman = 1;
@@ -979,7 +979,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 		if (kansei.numKoutsu >= 3) {
 			int numSangen = 0;
 			for (int i=0; i<kansei.numKoutsu; i++) {
-				if (MJ_IS_SANGEN(kansei.koutsu[i])) {
+				if (MJ_ISSANGEN(kansei.koutsu[i])) {
 					numSangen++;
 				}
 			}
@@ -1010,7 +1010,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 			hand.findRemove(MJ_MAN(9));
 			hand.removePair();
 			if (hand.size() == 1) { // この時点で牌が1個残っていたら、それが頭になっている
-				if (hand.get(0) == tsumo && MJ_IS_MAN(tsumo)) {
+				if (hand.get(0) == tsumo && MJ_ISMAN(tsumo)) {
 					MJYaku yaku;
 					yaku.name = u8"九蓮宝燈";
 					yaku.yakuman = 1;
@@ -1018,7 +1018,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 				}
 			}
 			if (hand.empty()) { // この時点で牌が残っていない場合1個残っていたら、純正九蓮宝燈
-				if (MJ_IS_MAN(tsumo)) {
+				if (MJ_ISMAN(tsumo)) {
 					MJYaku yaku;
 					yaku.name = u8"純正九蓮宝燈";
 					yaku.yakuman = 2; // ダブル役満
@@ -1154,11 +1154,11 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 			// ※四暗刻、大三元を優先
 			int numSangen = 0;
 			for (int i=0; i<kansei.numKoutsu; i++) {
-				if (MJ_IS_SANGEN(kansei.koutsu[i])) {
+				if (MJ_ISSANGEN(kansei.koutsu[i])) {
 					numSangen++;
 				}
 			}
-			if (numSangen==2 && MJ_IS_SANGEN(kansei.toitsu)) {
+			if (numSangen==2 && MJ_ISSANGEN(kansei.toitsu)) {
 				result.push_back(MJYaku(u8"小三元", 2));
 				is_chitoi = false; // 七対子と複合しない
 			}
@@ -1205,7 +1205,7 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 	{
 		// 平和
 		if (kansei.numChuntsu==4 && tempai.taatsuType==MJ_TAATSU_RYAN) { // 完成形で４順子あり、テンパイ形で両面待ちになっている
-			bool atamaIsYaku = MJ_IS_SANGEN(kansei.toitsu) || kansei.toitsu==jikaze || kansei.toitsu==bakaze;
+			bool atamaIsYaku = MJ_ISSANGEN(kansei.toitsu) || kansei.toitsu==jikaze || kansei.toitsu==bakaze;
 			if (!atamaIsYaku) { // 頭が役牌ではない
 				result.push_back(MJYaku(u8"平和", 1));
 				is_chitoi = false; // 七対子と複合しない
@@ -1346,12 +1346,17 @@ bool MJEval::eval(const MJHand &tiles) {
 				tempai.numKoutsu = mpr->numKoutsu;
 				tempai.numChuntsu = mpr->numChuntsu;
 				tempai.toitsu = mpr->atama;
-				if (tpr->list.size() == 1) {
-					assert(mpr->numAmari == 2);
-					assert(mpr->amari[0] == tpr->list[0].id);
+				if (tpr->list.size() == 1) { // 塔子が１つだけある場合、そこが待ち牌になる
+				//	assert(mpr->numAmari == 2); // 
+				//	assert(mpr->amari[0] == tpr->list[0].id);
 					memcpy(tempai.amari, mpr->amari, sizeof(MJPattern::amari)); // 待ちにかかわる塔子（単騎待ちの場合は塔子なし）
 					tempai.numAmari = mpr->numAmari;
 					tempai.taatsuType = tpr->list[0].type; // 待ちにかかわる塔子（単騎待ちの場合は塔子なし）
+				
+				} else if (tpr->list.size() == 0 && tpr->numAmari == 1) { // 塔子がなくて余り牌が１の場合は単騎待ちになる
+					memcpy(tempai.amari, tpr->amari, sizeof(MJPattern::amari)); // 待ちにかかわる塔子（単騎待ちの場合は塔子なし）
+					tempai.numAmari = tpr->numAmari;
+					tempai.taatsuType = MJ_TAATSU_NONE; // 待ちにかかわる塔子（単騎待ちの場合は塔子なし）
 				}
 				if (wait1>0 && wait2>0 && wait1>wait2) {
 					std::swap(wait1, wait2);
@@ -1377,7 +1382,7 @@ const MJPattern * MJEval::checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, std::
 	for (size_t i=0; i<mResults.size(); i++) {
 		const MJPattern *tempai = &mResults[i];
 		if (tempai->machiType == MJ_MACHI_KOKUSHI13) {
-			if (MJ_IS_YAOCHU(tsumo)) {
+			if (MJ_ISYAOCHU(tsumo)) {
 				MJYaku yaku;
 				yaku.name = u8"国士無双１３面";
 				yaku.yakuman = 2; // ダブル役満
