@@ -17,8 +17,8 @@ class CTest: public CSimpleApp {
 	MJHand mHandTiles;
 	MJID mTsumo;
 	MJEval mEval;
-	MJID mJikaze;
 	MJID mBakaze;
+	MJID mJikaze;
 	MJID mDora;
 
 	// 山牌を一枚とる
@@ -43,7 +43,8 @@ public:
 	virtual void onDraw(IDirect3DDevice9 *dev) {
 	}
 	virtual void onGUI() {
-		ImGui::SetNextWindowSize(ImVec2(500, 300));
+		ImGui::SetNextWindowPos(ImVec2(40, 10));
+		ImGui::SetNextWindowSize(ImVec2(500, 400));
 		if (ImGui::Begin("Test", NULL, ImGuiWindowFlags_NoResize)) {
 
 			// 情報
@@ -59,6 +60,9 @@ public:
 			}
 			ImGui::Text(u8"残りの牌数: %d", mNextTiles.size());
 
+			ImGui::Dummy(ImVec2(0, 4));
+			ImGui::Separator();
+			ImGui::Dummy(ImVec2(0, 4));
 			int shanten = mEval.getShanten();
 			int agari = 0;
 			if (shanten > 0) {
@@ -70,8 +74,50 @@ public:
 					ImGui::Text(u8"アガリ！");
 					if (mYaku.size() > 0) {
 						for (int i=0; i<mYaku.size(); i++) {
-							ImGui::Text(u8"【%s】", mYaku[i].name.c_str());
+							const MJYaku &yaku = mYaku[i];
+							ImGui::Text(u8"【%s】", yaku.name.c_str());
+							ImGui::SameLine();
+							if (yaku.han > 0) {
+								ImGui::Text(u8"%d飜", yaku.han);
+							} else if (yaku.yakuman == 1) {
+								ImGui::Text(u8"役満");
+							} else if (yaku.yakuman == 2) {
+								ImGui::Text(u8"ダブル役満");
+							} else {
+								ImGui::NewLine();
+							}
 						}
+					}
+					int han = 0;
+					int yakuman = 0;
+					int score = MJ_Score(mYaku.data(), mYaku.size(), &han, &yakuman);
+					if (yakuman > 0) {
+						if (han > 0) { // ハン数も設定されている場合、これは数え役満 (han >= 13)
+							assert(han >= 13);
+							ImGui::Text(u8"%d飜 数え役満 %d点", han, score);
+						} else if (yakuman == 1) {
+							ImGui::Text(u8"役満 %d点", score);
+						} else if (yakuman == 2) {
+							ImGui::Text(u8"ダブル役満 %d点", score);
+						} else if (yakuman == 3) {
+							ImGui::Text(u8"トリプル役満 %d点", score);
+						} else {
+							assert(0);
+						}
+
+					} else if (han > 0) {
+						if (han >= 11) {
+							ImGui::Text(u8"%d飜 三倍満 %d点", han, score);
+						} else if (han >= 8) {
+							ImGui::Text(u8"%d飜 倍満 %d点", han, score);
+						} else if (han >= 6) {
+							ImGui::Text(u8"%d飜 跳満 %d点", han, score);
+						} else if (han >= 4) {
+							ImGui::Text(u8"%d飜 満貫 %d点", han, score);
+						} else {
+							ImGui::Text(u8"%d飜 %d点", han, score);
+						}
+
 					} else {
 						ImGui::Text(u8"【役無し】");
 					}
@@ -129,6 +175,7 @@ public:
 
 			// 牌ボタン
 			ImGui::Separator();
+			ImGui::Dummy(ImVec2(0, 4));
 			ImGui::Text(u8"捨てる牌をクリックすると、次の牌をツモってきます。右クリックメニューで牌を変更できます（チート）");
 			ImGui::Dummy(ImVec2(0, 4));
 
@@ -187,6 +234,7 @@ public:
 
 
 			ImGui::Separator();
+			ImGui::Dummy(ImVec2(0, 4));
 			// リセット
 			if (ImGui::Button(u8"リセット")) {
 				resetTiles();
@@ -199,17 +247,19 @@ public:
 				ImGui::OpenPopup("preset");
 			}
 			if (ImGui::BeginPopup("preset")) {
-				const char *hai1 = u8"一一二二三三四四五五六六七";
-				const char *hai2 = u8"一一一二三四五六七八九九九";
-				if (ImGui::MenuItem(hai1)) {
-					mHandTiles.clear();
-					mHandTiles.parse(hai1);
-					mEval.eval(mHandTiles);
-				}
-				if (ImGui::MenuItem(hai2)) {
-					mHandTiles.clear();
-					mHandTiles.parse(hai1);
-					mEval.eval(mHandTiles);
+				const char *hai[] = {
+					u8"二二三三四四五五六六七七八",
+					u8"一一二二三三四四五五六六七",
+					u8"一一一二三四五六七八九九九",
+					u8"一九①⑨１９東南西北白發中",
+					NULL // Sentinel
+				};
+				for (int i=0; hai[i]!=NULL; i++) {
+					if (ImGui::MenuItem(hai[i])) {
+						mHandTiles.clear();
+						mHandTiles.parse(hai[i]);
+						mEval.eval(mHandTiles);
+					}
 				}
 				ImGui::EndPopup();
 			}
@@ -229,7 +279,7 @@ public:
 	}
 	void resetTiles() {
 		mJikaze = MJ_TON;
-		mBakaze = MJ_TON;
+		mBakaze = MJ_NAN;
 
 		// 全ての牌を4個ずつ用意する
 		mNextTiles.clear();
@@ -314,6 +364,6 @@ public:
 
 int main() {
 	CTest app;
-	app.run(640, 480);
+	app.run(640, 500);
 	return 0;
 }

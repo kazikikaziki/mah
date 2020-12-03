@@ -242,3 +242,4 @@ private:
 	int mShanten;
 };
 
+int MJ_Score(const MJYaku *yaku, int count, int *out_han, int *out_yakuman);

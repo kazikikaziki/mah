@@ -116,25 +116,25 @@ void MJHand::parse(const char *u8) {
 	int pos = 0;
 	while (s[pos]) {
 		bool notfound = true;
-		for (int i=0; i<8; i++) {
+		for (int i=0; i<9; i++) {
 			if (_readstr(s, &pos, g_ManStr[i])) {
 				add(MJ_MAN(1) + i);
 				notfound = false;
 			}
 		}
-		for (int i=0; i<8; i++) {
+		for (int i=0; i<9; i++) {
 			if (_readstr(s, &pos, g_PinStr[i])) {
 				add(MJ_PIN(1) + i);
 				notfound = false;
 			}
 		}
-		for (int i=0; i<8; i++) {
+		for (int i=0; i<9; i++) {
 			if (_readstr(s, &pos, g_SouStr[i])) {
 				add(MJ_SOU(1) + i);
 				notfound = false;
 			}
 		}
-		for (int i=0; i<6; i++) {
+		for (int i=0; i<7; i++) {
 			if (_readstr(s, &pos, g_ChrStr[i])) {
 				add(MJ_CHR(1) + i);
 				notfound = false;
@@ -309,12 +309,12 @@ int MJHand::findAndRemoveJuntsu(MJID id) {
 
 
 struct MJMentsuParserResult {
-	MJID atama; // 雀頭・対子
+	MJID atama;     // 雀頭・対子
 	MJID koutsu[4]; // 刻子
 	MJID juntsu[4]; // 順子
-	int numAtama; // 雀頭の数。0 または 1 のみ
-	int numKoutsu; // 刻子の数
-	int numJuntsu; // 順子の数
+	int numAtama;   // 雀頭の数。0 または 1 のみ
+	int numKoutsu;  // 刻子の数
+	int numJuntsu;  // 順子の数
 	MJID amari[14]; // 面子にできなかった余り牌
 	int numAmari;
 
@@ -766,18 +766,10 @@ int MJ_EvalMentsuTempai(const MJMentsuParserResult &mentsu, const MJTaatsuParser
 
 // pattern が１９牌を含むかどうか
 bool MJ_Has19(const MJPattern &pattern) {
-	for (int i=0; i<pattern.numJuntsu; i++) {
-		if (MJ_GETJUNZBITS(pattern.juntsu[i]) & MJ_BIT_NUM19) {
+	for (int i=0; i<pattern.numTiles; i++) {
+		if (MJ_IS19(pattern.tiles[i])) {
 			return true;
 		}
-	}
-	for (int i=0; i<pattern.numKoutsu; i++) {
-		if (MJ_GETBITS(pattern.koutsu[i]) & MJ_BIT_NUM19) {
-			return true;
-		}
-	}
-	if (MJ_GETBITS(pattern.toitsu) & MJ_BIT_NUM19) {
-		return true;
 	}
 	return false;
 }
@@ -785,18 +777,10 @@ bool MJ_Has19(const MJPattern &pattern) {
 
 // pattern が字牌を含むかどうか
 bool MJ_HasJihai(const MJPattern &pattern) {
-	for (int i=0; i<pattern.numJuntsu; i++) {
-		if (MJ_GETJUNZBITS(pattern.juntsu[i]) & MJ_BIT_CHR) {
+	for (int i=0; i<pattern.numTiles; i++) {
+		if (MJ_ISCHR(pattern.tiles[i])) {
 			return true;
 		}
-	}
-	for (int i=0; i<pattern.numKoutsu; i++) {
-		if (MJ_GETBITS(pattern.koutsu[i]) & MJ_BIT_CHR) {
-			return true;
-		}
-	}
-	if (MJ_GETBITS(pattern.toitsu) & MJ_BIT_CHR) {
-		return true;
 	}
 	return false;
 }
@@ -874,44 +858,77 @@ bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei)
 	*out_kansei = tempai; // copy
 
 	bool ok = false;
-	if (tempai.numAmari==1 && tempai.amari[0]==tsumo) { // 単騎
-		out_kansei->toitsu = tsumo;
-		ok = true;
+	switch (tempai.machiType) {
+	case MJ_MACHI_NONE:      // 待ちなし（テンパイしていない）
+		break;
+
+	case MJ_MACHI_KOKUSHI: // 国士無双単騎
+	case MJ_MACHI_TANKI: // 単騎待ち
+	case MJ_MACHI_CHITOI: // 七対子単騎
+		assert(tempai.numAmari == 1); // 余り牌は1個のはず
+		if (tempai.amari[0] == tsumo) { // 単騎
+			out_kansei->toitsu = tsumo;
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_KANCHAN:
+		assert(tempai.numAmari == 2); // 余り牌は2個のはず
+		if (MJ_IS_JUNTSU(tempai.amari[0], tsumo, tempai.amari[1])) { // 嵌張塔子が順子化した
+			out_kansei->juntsu[out_kansei->numJuntsu] = tempai.amari[0]; // 順子構成牌の中で最も小さいのは余り牌[0]
+			out_kansei->numJuntsu++;
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_PENCHAN:
+	case MJ_MACHI_RYANMEN:
+		// 両面・辺張塔子が順子化した
+		assert(tempai.numAmari == 2); // 余り牌は2個のはず
+		if (MJ_IS_JUNTSU(tsumo, tempai.amari[0], tempai.amari[1])) {
+			out_kansei->juntsu[out_kansei->numJuntsu] = tsumo; // 順子構成牌の中で最も小さいのはツモ牌
+			out_kansei->numJuntsu++;
+			ok = true;
+		}
+		if (MJ_IS_JUNTSU(tempai.amari[0], tempai.amari[1], tsumo)) {
+			out_kansei->juntsu[out_kansei->numJuntsu] = tempai.amari[0]; // 順子構成牌の中で最も小さいのは余り牌[0]
+			out_kansei->numJuntsu++;
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_SHABO: // シャボ待ち
+		assert(tempai.numAmari == 2); // シャボ待ちの場合、余り牌は2個のはず（もう一つの対子は雀頭扱い（＝余っていない）になっている
+		if (tempai.amari[0]==tsumo && tempai.amari[1]==tsumo) { // 塔子扱いだった対子に重なった
+			out_kansei->koutsu[out_kansei->numKoutsu] = tsumo;
+			out_kansei->numKoutsu++;
+			ok = true;
+		}
+		if (tempai.toitsu==tsumo) { // 雀頭扱いだった対子に重なった
+			out_kansei->koutsu[out_kansei->numKoutsu] = tsumo;
+			out_kansei->numKoutsu++;
+			out_kansei->toitsu = tempai.amari[0]; // 塔子が雀頭化した
+			ok = true;
+		}
+		break;
+
+	case MJ_MACHI_KOKUSHI13: // 国士無双13面
+		if (MJ_ISYAOCHU(tsumo)) {
+			ok = true;
+		}
+		break;
 	}
-	if (tempai.numAmari==2 && tempai.amari[0]==tsumo && tempai.amari[1]==tsumo) { // 塔子扱いだった対子に重なった
-		out_kansei->koutsu[out_kansei->numKoutsu] = tsumo;
-		out_kansei->numKoutsu++;
-		ok = true;
-	}
-	if (tempai.numAmari==2 && tempai.toitsu==tsumo) { // 雀頭扱いだった対子に重なった
-		out_kansei->koutsu[out_kansei->numKoutsu] = tsumo;
-		out_kansei->numKoutsu++;
-		out_kansei->toitsu = tempai.amari[0]; // 塔子が雀頭化した
-		ok = true;
-	}
-	if (tempai.numAmari==2 && MJ_IS_JUNTSU(tsumo, tempai.amari[0], tempai.amari[1])) { // 両面・辺張塔子が順子化した
-		out_kansei->juntsu[out_kansei->numJuntsu] = tsumo; // 順子構成牌の中で最も小さいのはツモ牌
-		out_kansei->numJuntsu++;
-		ok = true;
-	}
-	if (tempai.numAmari==2 && MJ_IS_JUNTSU(tempai.amari[0], tempai.amari[1], tsumo)) { // 両面・辺張塔子が順子化した
-		out_kansei->juntsu[out_kansei->numJuntsu] = tempai.amari[0]; // 順子構成牌の中で最も小さいのは余り牌[0]
-		out_kansei->numJuntsu++;
-		ok = true;
-	}
-	if (tempai.numAmari==2 && MJ_IS_JUNTSU(tempai.amari[0], tsumo, tempai.amari[1])) { // 嵌張塔子が順子化した
-		out_kansei->juntsu[out_kansei->numJuntsu] = tempai.amari[0]; // 順子構成牌の中で最も小さいのは余り牌[0]
-		out_kansei->numJuntsu++;
-		ok = true;
-	}
+
 	if (ok) {
 		// ツモ牌によって面子が完成した
+		for (int i=0; i<tempai.numTiles; i++) {
+			out_kansei->tiles[i] = tempai.tiles[i];
+		}
+		out_kansei->tiles[tempai.numTiles] = tsumo;
+		out_kansei->numTiles = tempai.numTiles + 1;
 		out_kansei->numAmari = 0; // 余り牌解消
 		memset(out_kansei->amari, 0, sizeof(out_kansei->amari));
 		out_kansei->taatsuType = (MJTaatsuType)0; // 塔子解消
-
-		// 牌並び更新
-		MJ_Sort(*out_kansei);
 		return true;
 	}
 
@@ -922,20 +939,7 @@ bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei)
 // 完成手牌
 void MJ_KanseiTehai(const MJPattern &pattern, MJHand *out_hand) {
 	*out_hand = MJHand();
-	for (int i=0; i<pattern.numJuntsu; i++) {
-		out_hand->add(pattern.juntsu[i]);
-		out_hand->add(pattern.juntsu[i]+1);
-		out_hand->add(pattern.juntsu[i]+2);
-	}
-	for (int i=0; i<pattern.numKoutsu; i++) {
-		out_hand->add(pattern.koutsu[i]);
-		out_hand->add(pattern.koutsu[i]);
-		out_hand->add(pattern.koutsu[i]);
-	}
-	if (pattern.toitsu) {
-		out_hand->add(pattern.toitsu);
-		out_hand->add(pattern.toitsu);
-	}
+	out_hand->addArray(pattern.tiles, pattern.numTiles);
 }
 
 
@@ -944,7 +948,7 @@ void MJ_KanseiTehai(const MJPattern &pattern, MJHand *out_hand) {
 // 通常役が成立した場合は翻数を正の値で返す
 // アガリ系の場合はその役名を yaku_u8 に utf8 でセットする
 bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, std::vector<MJYaku> &result) {
-
+	if (tempai.numTiles != 13) return false;
 	bool is_chitoi = false; // 七対子の形になっている？
 	if (is_chitoi) {
 		if (tempai.machiType == MJ_MACHI_CHITOI && tempai.machi1==tsumo) {
@@ -1331,6 +1335,61 @@ bool MJ_EvalMentsuYaku(const MJPattern &tempai, MJID tsumo, MJID jikaze, MJID ba
 }
 
 
+void copyTiles(MJPattern *pattern, const MJID *tiles, int count) {
+	std::vector<MJID> tmp;
+	for (int i=0; i<count; i++) {
+		tmp.push_back(tiles[i]);
+	}
+	std::sort(tmp.begin(), tmp.end());
+	for (int i=0; i<count; i++) {
+		pattern->tiles[i] = tmp[i];
+	}
+	pattern->numTiles = count;
+}
+
+int MJ_Score(const MJYaku *yaku, int count, int *out_han, int *out_yakuman) {
+	int han = 0;
+	int yakuman = 0;
+	for (int i=0; i<count; i++) {
+		if (yaku[i].yakuman > 0) {
+			yakuman += yaku[i].yakuman;
+		}
+		if (yaku[i].han > 0) {
+			han += yaku[i].han;
+		}
+	}
+	if (yakuman > 0) {
+		if (out_han) *out_han = 0;
+		if (out_yakuman) *out_yakuman = yakuman;
+		return 24000 * yakuman;
+	}
+	if (han >= 13) {
+		if (out_han) *out_han = han;
+		if (out_yakuman) *out_yakuman = 1; // 数え役満
+		return 24000;
+	}
+	{
+		if (out_han) *out_han = han;
+		if (out_yakuman) *out_yakuman = 0;
+		switch (han) {
+		case 0:  break;
+		case 1:  return 1000;
+		case 2:  return 2000;
+		case 3:  return 4000;
+		case 4:  return 8000;
+		case 5:  return 8000;
+		case 6:  return 12000;
+		case 7:  return 12000;
+		case 8:  return 16000;
+		case 9:  return 16000;
+		case 10: return 16000;
+		case 11: return 24000;
+		case 12: return 24000;
+		}
+	}
+	return 0;
+}
+
 #pragma region MJEval
 MJEval::MJEval() {
 	mShanten = -1;
@@ -1341,7 +1400,7 @@ bool MJEval::eval(const MJHand &tiles) {
 	mResults.clear();
 	mShanten = -1;
 
-	// 国士無双チェック
+	// 国士無双のテンパイチェック
 	{
 		int shanten = 0;
 		MJID wait = 0;
@@ -1349,6 +1408,8 @@ bool MJEval::eval(const MJHand &tiles) {
 		if (kokushi == 1) {
 			// 国士無双単騎
 			MJPattern tempai;
+			copyTiles(&tempai, tiles.data(), tiles.size());
+			tempai.numTiles = tiles.size();
 			tempai.machiType = MJ_MACHI_KOKUSHI;
 			tempai.machi1 = wait;
 			mResults.push_back(tempai);
@@ -1358,6 +1419,7 @@ bool MJEval::eval(const MJHand &tiles) {
 		if (kokushi == 2) {
 			// 国士無双１３面待ち
 			MJPattern tempai;
+			copyTiles(&tempai, tiles.data(), tiles.size());
 			tempai.machiType = MJ_MACHI_KOKUSHI13;
 			mResults.push_back(tempai);
 			mShanten = 0;
@@ -1373,7 +1435,11 @@ bool MJEval::eval(const MJHand &tiles) {
 		int shanten = 0;
 		MJID wait = 0;
 		if (MJ_EvalChitoitsuTempai(tiles, &shanten, &wait)) {
+			// 七対子テンパイ
 			MJPattern tempai;
+			copyTiles(&tempai, tiles.data(), tiles.size());
+			tempai.amari[0] = wait;
+			tempai.numAmari = 1;
 			tempai.machiType = MJ_MACHI_CHITOI;
 			tempai.machi1 = wait;
 			mResults.push_back(tempai);
@@ -1387,9 +1453,9 @@ bool MJEval::eval(const MJHand &tiles) {
 	for (int m=0; m<mp.size(); m++) {
 		const MJMentsuParserResult *mpr = mp.get(m);
 
-		MJHand tiles(mpr->amari, mpr->numAmari);
+		MJHand tmp(mpr->amari, mpr->numAmari);
 		MJTaatsuParser tp;
-		tp.parse(tiles);
+		tp.parse(tmp);
 
 		for (int t=0; t<tp.size(); t++) {
 			const MJTaatsuParserResult *tpr = tp.get(t);
@@ -1422,7 +1488,7 @@ bool MJEval::eval(const MJHand &tiles) {
 				tempai.machi1 = wait1;
 				tempai.machi2 = wait2;
 				tempai.machiType = machiType;
-				MJ_Sort(tempai);
+				copyTiles(&tempai, tiles.data(), tiles.size());
 				mResults.push_back(tempai);
 				mShanten = 0;
 
@@ -1437,6 +1503,9 @@ bool MJEval::eval(const MJHand &tiles) {
 	return mShanten == 0;
 }
 const MJPattern * MJEval::checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, std::vector<MJYaku> &result) const {
+	const MJPattern *resulttempai = NULL;
+	std::vector<MJYaku> maxyaku;
+	int maxscore = 0;
 	for (size_t i=0; i<mResults.size(); i++) {
 		const MJPattern *tempai = &mResults[i];
 		if (tempai->machiType == MJ_MACHI_KOKUSHI13) {
@@ -1456,12 +1525,26 @@ const MJPattern * MJEval::checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, MJID 
 				result.push_back(yaku);
 				return tempai;
 			}
-			if (MJ_EvalMentsuYaku(*tempai, tsumo, jikaze, bakaze, dora, result)) {
-				return tempai;
+			std::vector<MJYaku> yaku;
+			result.clear();
+			if (MJ_EvalMentsuYaku(*tempai, tsumo, jikaze, bakaze, dora, yaku)) {
+				if (resulttempai == NULL) {
+					resulttempai = tempai;
+					maxyaku = yaku;
+					maxscore = MJ_Score(maxyaku.data(), maxyaku.size(), NULL, NULL);
+				} else {
+					int score = MJ_Score(yaku.data(), yaku.size(), NULL, NULL);
+					if (maxscore < score) {
+						resulttempai = tempai;
+						maxyaku = yaku;
+						maxscore = score;
+					}
+				}
 			}
 		}
 	}
-	return NULL;
+	result = maxyaku;
+	return resulttempai;
 }
 const MJPattern * MJEval::getTempai(int index) const {
 	return &mResults[index];
