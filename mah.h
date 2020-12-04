@@ -94,8 +94,6 @@ inline MJID MJ_GETDORA(MJID id) {
 	return 0;
 }
 
-// 牌の文字列形式を得る。デバッグ用。UTF8
-std::string MJ_ToStringU8(MJID id);
 
 // 待ちの形
 enum MJMachiType {
@@ -109,143 +107,6 @@ enum MJMachiType {
 	MJ_MACHI_KOKUSHI13, // 国士無双13面
 	MJ_MACHI_CHITOI,    // 七対子単騎
 };
-
-
-// 塔子の種類
-enum MJTaatsuType {
-	MJ_TAATSU_NONE,  // 塔子なし
-	MJ_TAATSU_RYAN,  // 両面塔子
-	MJ_TAATSU_PEN12, // 辺１２塔子
-	MJ_TAATSU_PEN89, // 辺８９塔子
-	MJ_TAATSU_KAN,   // 嵌張塔子
-	MJ_TAATSU_TOI,   // 対子
-};
-
-// 手牌
-class MJHand {
-public:
-	std::vector<MJID> mTiles;
-
-	MJHand();
-	MJHand(const MJID *id, int size);
-
-	int size() const;
-	bool empty() const;
-	void clear();
-	const MJID * data() const;
-	MJID get(int index) const;
-	void add(MJID id);
-	void addArray(const MJID *id, int count=0);
-	void parse(const char *u8);
-	std::string toString() const;
-	MJID removeByIndex(int index);    // index 位置にある牌を取り除き、その牌番号を返す
-	MJID removeFirstPair();           // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
-	MJID removeFirstKoutsu();         // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す
-	MJID removeFirstJuntsu();         // 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
-	MJID removeFirstTaatsuRyanmen();  // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
-	MJID removeFirstTaatsuKanchan();  // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
-	int findAndRemove(MJID id);       // id に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
-	int findAndRemoveAll(MJID id);    // id に一致する牌があれば、全て取り除いて 1 を返す
-	int findAndRemoveKoutsu(MJID id); // id が刻子を含んでいれば、その3牌を取り除いて 1 を返す
-	int findAndRemoveJuntsu(MJID id); // id を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
-};
-// 手牌を構成面子に分解したときの形
-struct MJPattern {
-	MJPattern() {
-		memset(tiles, 0, sizeof(tiles));
-		memset(koutsu, 0, sizeof(koutsu));
-		memset(juntsu, 0, sizeof(juntsu));
-		memset(amari, 0, sizeof(amari));
-		numTiles = 0;
-		numKoutsu = 0;
-		numJuntsu = 0;
-		numAmari = 0;
-		toitsu = 0;
-		taatsuType = (MJTaatsuType)0;
-		machi1 = 0;
-		machi2 = 0;
-		machiType = (MJMachiType)0;
-	}
-
-	MJID tiles[14]; // 牌の並び（ソート済み）
-	int numTiles; // 牌の数。テンパイしているなら13。完成形について調べているなら14（槓子が無い場合）
-
-	MJID koutsu[4]; // 刻子（この形が刻子を含んでいる場合、それぞれの刻子構成牌の１つが入る。最大で４刻子）
-	int numKoutsu;
-
-	MJID juntsu[4]; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
-	int numJuntsu;
-
-	MJID toitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
-
-	// 面子として使えなかった余り牌。
-	// テンパイ状態の場合のみ設定されるので、最大２個まで。単騎待ちなら１個。
-	MJID amari[2];
-	int numAmari;
-
-	// 塔子の種類
-	// 余り牌を２個使ってできる塔子の種類。単騎待ちの場合は塔子ができないので 0 になる
-	MJTaatsuType taatsuType;
-
-	// テンパイ状態の場合、その待ち牌。単騎なら machi1 だけが設定され machi2 は 0 になる。
-	// 国士無双１３面待ちなど特殊な待ちの場合も 0 になる。待ちの形は machiType を見ること。
-	// なお、手牌が複数の分割方法で面子に分解できるとき、 MJPattern はそのうちの一つのパターンを表すだけであるため、
-	// 他面待ちという状態は存在しない。複数のパターンを重ねた結果３面以上の待ちになるだけである。
-	// 例えば九蓮宝燈９面待ちだった場合、たくさんのパターンが生成されるが、それらすべての待ち牌を合わせると９面待ちになるだけであり、
-	// ひとつのパターンで９面待ちという状態にはならない
-	MJID machi1;
-	MJID machi2;
-	MJMachiType machiType;
-};
-
-
-struct MJYaku {
-	std::string name; // 役名（utf8)
-	int han; // 飜数（役満でない場合）
-	int yakuman; // 0=役満ではない 1=役満 2=ダブル役満
-
-	MJYaku() {
-		han = 0;
-		yakuman = 0;
-	}
-	MJYaku(const char *_name, int _han, int _yakuman=0) {
-		name = _name;
-		han = _han;
-		yakuman = _yakuman;
-	}
-};
-
-// 状況確認
-class MJEval {
-public:
-	MJEval();
-
-	// テンパイしているかどうか判定する
-	// テンパイしていれば true を返す。全てのテンパイ形を getTempai で取得できる
-	// テンパイしていない場合、 getTempaiCount は 0 を返し、シャンテン数を getShanten で得ることができる
-	bool eval(const MJHand &tiles);
-
-	// ツモ牌を指定し、あがっているか調べる。
-	// 上がっている場合、その牌を必要としていたたテンパイ形を返し、役を result にセットする
-	const MJPattern * checkAgari(MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, std::vector<MJYaku> &result) const;
-
-	// テンパイパターンを得る
-	const MJPattern * getTempai(int index) const;
-
-	// テンパイのパターン数を得る
-	int getTempaiCount() const;
-
-	// 現在のシャンテン数を得る
-	int getShanten() const;
-
-private:
-	std::vector<MJPattern> mResults;
-	int mShanten;
-};
-
-int MJ_Score(const MJYaku *yaku, int count, int *out_han, int *out_yakuman);
-bool MJ_KanseiMentsu(const MJPattern &tempai, MJID tsumo, MJPattern *out_kansei);
-
 
 
 // 手牌
@@ -272,6 +133,7 @@ public:
 	int  findAndRemoveJuntsu(MJID tile); // tile を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
 };
 
+
 // 手牌を構成面子 (Meld) に分解したときの形
 class MJMelds {
 public:
@@ -290,6 +152,7 @@ public:
 	bool isTempai() const { return mShanten==0 && mMachiType!=MJ_MACHI_NONE; } // テンパイ＝シャンテン数０かつ待ちが指定されている
 	bool isKansei() const { return mShanten==0 && mMachiType==MJ_MACHI_NONE; } // 完成形＝シャンテン数０かつ待ちが解消されている
 };
+
 
 // 役とスコア
 class MJYakuList {
@@ -316,15 +179,24 @@ public:
 	std::vector<ITEM> mList;
 	std::vector<FU> mFuList;
 	std::string mText;
-	int mFu;
+	int mFu; // 繰り上げ後の符
+	int mRawFu; // 繰り上げ前の符
 	int mHan;
 	int mYakuman;
 	int mScore;
 	bool mOya;
 };
 
+
+int MJ_ReadTiles(const char *s, std::vector<MJID> &out_tiles);
+int MJ_ReadTiles(const char *s, MJTiles &out_tiles);
 void MJ_FindMelds(const MJTiles &tiles, std::vector<MJMelds> &result);
 bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, MJYakuList &result);
 std::string MJ_ToString(const MJTiles &tiles);
 std::string MJ_ToString(const MJMelds &melds);
 std::string MJ_ToString(MJMachiType machi);
+std::string MJ_ToString(MJID tile);
+std::string MJ_GetMeldsString(const MJMelds &melds);
+std::string MJ_GetAmariString(const MJMelds &melds);
+std::string MJ_GetShantenString(const MJMelds &melds);
+std::string MJ_GetMachiString(const MJMelds &melds, bool with_type);
