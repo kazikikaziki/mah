@@ -149,6 +149,8 @@ struct MJEvalResult {
 	int total_fu;           // 符を全て加算し、10未満を切り上げした値
 	int total_fu_raw;       // 符を全て加算した値（切り上げしない）
 	int score;              // 点数
+	int score_oya;          // 親の点数（親のアガリの場合は0）
+	int score_ko;           // 子の点数
 	char score_text_u8[64]; // アガリ情報の文字列表現
 
 	MJEvalResult() {
@@ -178,6 +180,8 @@ struct MJEvalResult {
 		total_fu = 0;
 		total_fu_raw = 0;
 		score = 0;
+		score_oya = 0;
+		score_ko = 0;
 		score_text_u8[0] = 0;
 	}
 };

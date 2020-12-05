@@ -138,6 +138,8 @@ public:
 	int mHan;
 	int mYakuman;
 	int mScore;
+	int mScoreOya;
+	int mScoreKo;
 	bool mOya;
 };
 
@@ -936,6 +938,8 @@ void MJYakuList::clear() {
 	mHan = 0;
 	mYakuman = 0;
 	mScore = 0;
+	mScoreOya = 0;
+	mScoreKo = 0;
 	mOya = false;
 }
 void MJYakuList::addYaku(int han, const char *name_u8) {
@@ -979,7 +983,7 @@ void MJYakuList::updateScore() {
 		mHan += it->han;
 	}
 	if (mYakuman > 0) {
-		mScore = mYakuman * (mOya ? 36000 : 24000);
+		mScore = mYakuman * (mOya ? 48000 : 32000);
 		if (mYakuman == 1) mText = u8"役満";
 		if (mYakuman == 2) mText = u8"ダブル役満";
 		if (mYakuman == 3) mText = u8"トリプル役満";
@@ -988,38 +992,76 @@ void MJYakuList::updateScore() {
 	if (mHan >= 13) {
 		mYakuman = 1;
 		mText = std::to_string(mHan) + u8"飜 数え役満";
-		mScore = mOya ? 36000 : 24000;
+		mScore = mOya ? 48000 : 32000;
 		return;
 	}
-	if (mHan >= 4) {
-		// 満貫以上は符計算しない
-		mFu = 0;
-		mRawFu = 0;
-		mFuList.clear();
-	} else {
-		for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
-			mRawFu += it->value;
+
+	// 符を数える
+	for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
+		mRawFu += it->value;
+	}
+	mFu = mRawFu;
+	if (mRawFu % 10 != 0) {
+		mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
+	}
+	struct SCO {
+		int score;
+		int oya;
+		int ko;
+	};
+	const SCO table_ko[] = {
+		// 1翻 2翻 3翻 4翻
+		// 1翻 -------- 2翻 --------- 3翻 -----------4翻
+		{  -1, -1,  -1}, {1300, 400, 700}, {2600, 700,1300}, {5200,1300,2600}, // 20符
+		{1000,300, 500}, {2000, 500,1000}, {3900,1000,2000}, {7700,2000,3900}, // 30符
+		{1300,400, 700}, {2600, 700,1300}, {5200,1300,2600}, {   0,   0,   0}, // 40符
+		{1600,400, 800}, {3200, 800,1600}, {6400,1600,3200}, {   0,   0,   0}, // 50符
+		{2000,500,1000}, {3900,1000,2000}, {7700,2000,3900}, {   0,   0,   0}, // 60符
+		{2300,600,1200}, {4500,1200,2300}, {   0,   0,   0}, {   0,   0,   0}, // 70符
+	};
+	const SCO table_oya[] = {
+		// 1翻 -------- 2翻 --------- 3翻 -----------4翻
+		{  -1,0,  -1}, {2000,0, 700}, { 3900,0,1300}, { 7700,0,2600}, // 20符
+		{1500,0, 500}, {2900,0,1000}, { 5800,0,2000}, {11600,0,3900}, // 30符
+		{2000,0, 700}, {3900,0,1300}, { 7700,0,2600}, {    0,0,   0}, // 40符
+		{2400,0, 800}, {4800,0,1600}, { 9600,0,3200}, {    0,0,   0}, // 50符
+		{2900,0,1000}, {5800,0,2000}, {11600,0,3900}, {    0,0,   0}, // 60符
+		{3400,0,1200}, {6800,0,2300}, {    0,0,   0}, {    0,0,   0}, // 70符
+	};
+	if (mHan <= 4) {
+		int i = 4 * (mFu / 10 - 2) + (mHan - 1);
+		assert(i >= 0);
+		SCO sco;
+		if (mOya) {
+			sco = table_oya[i];
+		} else {
+			sco = table_ko[i];
 		}
-		mFu = mRawFu;
-		if (mRawFu % 10 != 0) {
-			mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
-		}
+		mScore = sco.score;
+		mScoreOya = sco.oya;
+		mScoreKo = sco.ko;
 	}
 	{
 		switch (mHan) {
-		case 0:  mScore = 0;     mText = std::to_string(mFu) + u8"符 0飜"; break;
-		case 1:  mScore = 1000;  mText = std::to_string(mFu) + u8"符 1飜"; break;
-		case 2:  mScore = 2000;  mText = std::to_string(mFu) + u8"符 2飜"; break;
-		case 3:  mScore = 4000;  mText = std::to_string(mFu) + u8"符 3飜"; break;
-		case 4:  mScore = 8000;  mText = u8"4飜 満貫"; break;
-		case 5:  mScore = 8000;  mText = u8"5飜 満貫"; break;
-		case 6:  mScore = 12000; mText = u8"6飜 跳満"; break;
-		case 7:  mScore = 12000; mText = u8"7飜 跳満"; break;
-		case 8:  mScore = 16000; mText = u8"8飜 倍満"; break;
-		case 9:  mScore = 16000; mText = u8"9飜 倍満"; break;
-		case 10: mScore = 16000; mText = u8"10飜 倍満"; break;
-		case 11: mScore = 24000; mText = u8"11飜 三倍満"; break;
-		case 12: mScore = 24000; mText = u8"12飜 三倍満"; break;
+		case 0:  /*mScore = 0;   計算済み*/  mText = std::to_string(mFu) + u8"符 0飜"; break;
+		case 1:  /*mScore = 1000;計算済み*/  mText = std::to_string(mFu) + u8"符 1飜"; break;
+		case 2:  /*mScore = 2000;計算済み*/  mText = std::to_string(mFu) + u8"符 2飜"; break;
+		case 3:  /*mScore = 4000;計算済み*/  mText = std::to_string(mFu) + u8"符 3飜"; break;
+		case 4:  /*mScore = 8000;計算済み*/  mText = u8"4飜 満貫"; break;
+		case 5:  mScore=mOya? 8000:12000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"5飜 満貫"; break;
+		case 6:  mScore=mOya?12000:18000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"6飜 跳満"; break;
+		case 7:  mScore=mOya?12000:18000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"7飜 跳満"; break;
+		case 8:  mScore=mOya?16000:24000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"8飜 倍満"; break;
+		case 9:  mScore=mOya?16000:24000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"9飜 倍満"; break;
+		case 10: mScore=mOya?16000:24000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"10飜 倍満"; break;
+		case 11: mScore=mOya?24000:36000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"11飜 三倍満"; break;
+		case 12: mScore=mOya?24000:36000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"12飜 三倍満"; break;
+		}
+		if (mScore >= 8000) {
+			// 満貫以上は符計算しない
+			mFu = 0;
+			mRawFu = 0;
+			mFuList.clear();
 		}
 		return;
 	}
@@ -1034,7 +1076,8 @@ void MJYakuList::updateScore() {
 
 bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, MJYakuList &result) {
 	result.clear();
-	
+	result.mOya = (jikaze == MJ_TON);
+
 	if (tempai.mShanten != 0) return false;
 
 	bool is_chitoi = false; // 七対子の形になっている？
@@ -1541,7 +1584,9 @@ int MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vecto
 				res.total_yakuman = yakulist.mYakuman;
 				res.total_fu = yakulist.mFu;
 				res.total_fu_raw = yakulist.mRawFu;
-				res.score = yakulist.mScore;
+				res.score     = yakulist.mScore;
+				res.score_oya = yakulist.mScoreOya;
+				res.score_ko  = yakulist.mScoreKo;
 				strcpy_s(res.score_text_u8, sizeof(res.score_text_u8), yakulist.mText.c_str());
 				has_agari = true;
 			}

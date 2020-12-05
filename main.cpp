@@ -205,7 +205,11 @@ public:
 						}
 						// 合計
 						ImGui::Separator();
-						ImGui::Text(u8"%s %d点", eval.score_text_u8, eval.score);
+						if (eval.score_oya) {
+							ImGui::Text(u8"%s %d点 (%d/%d)", eval.score_text_u8, eval.score, eval.score_oya, eval.score_ko);
+						} else {
+							ImGui::Text(u8"%s %d点 (%dオール)", eval.score_text_u8, eval.score, eval.score_ko);
+						}
 
 						ImGui::TreePop();
 					}
