@@ -23,16 +23,166 @@ const char *g_SampleTiles[] = {
 	NULL // Sentinel
 };
 
+bool MJGui_TileButtons(MJID *tile) {
+	assert(tile);
+	bool clicked = false;
+	if (ImGui::Button(u8"一")) { *tile=MJ_MAN(1); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"二")) { *tile=MJ_MAN(2); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"三")) { *tile=MJ_MAN(3); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"四")) { *tile=MJ_MAN(4); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"五")) { *tile=MJ_MAN(5); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"六")) { *tile=MJ_MAN(6); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"七")) { *tile=MJ_MAN(7); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"八")) { *tile=MJ_MAN(8); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"九")) { *tile=MJ_MAN(9); clicked=true; } 
+	if (ImGui::Button(u8"①")) { *tile=MJ_PIN(1); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"②")) { *tile=MJ_PIN(2); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"③")) { *tile=MJ_PIN(3); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"④")) { *tile=MJ_PIN(4); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"⑤")) { *tile=MJ_PIN(5); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"⑥")) { *tile=MJ_PIN(6); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"⑦")) { *tile=MJ_PIN(7); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"⑧")) { *tile=MJ_PIN(8); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"⑨")) { *tile=MJ_PIN(9); clicked=true; } 
+	if (ImGui::Button(u8"１")) { *tile=MJ_SOU(1); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"２")) { *tile=MJ_SOU(2); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"３")) { *tile=MJ_SOU(3); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"４")) { *tile=MJ_SOU(4); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"５")) { *tile=MJ_SOU(5); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"６")) { *tile=MJ_SOU(6); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"７")) { *tile=MJ_SOU(7); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"８")) { *tile=MJ_SOU(8); clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"９")) { *tile=MJ_SOU(9); clicked=true; }
+	if (ImGui::Button(u8"東")) { *tile=MJ_TON;    clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"南")) { *tile=MJ_NAN;    clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"西")) { *tile=MJ_SHA;    clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"北")) { *tile=MJ_PEI;    clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"白")) { *tile=MJ_HAK;    clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"發")) { *tile=MJ_HAZ;    clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"中")) { *tile=MJ_CHUN;   clicked=true; } 
+	return clicked;
+}
+bool MJGui_TileEdit(MJID *tile) {
+	bool changed = false;
+	assert(tile);
+	ImGui::SetNextItemWidth(16);
+	if (ImGui::Button(MJ_ToString(*tile).c_str())) {
+		ImGui::OpenPopup("##tilebuttons");
+	}
+	if (ImGui::BeginPopup("##tilebuttons")) {
+		if (MJGui_TileButtons(tile)) {
+			changed = true;
+		}
+		ImGui_VSpace();
+		ImGui::Separator();
+		ImGui::Text(u8"牌を選んでください\n※牌数の整合性はチェックしません。\n同一牌を５個以上使わないよう気を付けてください");
+		if (changed) ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+	return changed;
+}
+bool MJGui_WindButtons(MJID *tile) {
+	assert(tile);
+	bool clicked = false;
+	if (ImGui::Button(u8"東")) { *tile=MJ_TON; clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"南")) { *tile=MJ_NAN; clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"西")) { *tile=MJ_SHA; clicked=true; } ImGui::SameLine();
+	if (ImGui::Button(u8"北")) { *tile=MJ_PEI; clicked=true; }
+	return clicked;
+}
+bool MJGui_WindEdit(MJID *tile) {
+	bool changed = false;
+	assert(tile);
+	ImGui::SetNextItemWidth(16);
+	if (ImGui::Button(MJ_ToString(*tile).c_str())) {
+		ImGui::OpenPopup("##windbuttons");
+	}
+	if (ImGui::BeginPopup("##windbuttons")) {
+		if (MJGui_WindButtons(tile)) {
+			changed = true;
+		}
+		if (changed) ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+	return changed;
+}
+bool MJGui_PresetButton(std::vector<MJID> *tiles) {
+	bool result = false;
+	assert(tiles);
+	if (ImGui::Button(u8"プリセット")) {
+		ImGui::OpenPopup("##preset");
+	}
+	if (ImGui::BeginPopup("##preset")) {
+		for (int i=0; g_SampleTiles[i]!=NULL; i++) {
+			if (ImGui::MenuItem(g_SampleTiles[i])) {
+				tiles->clear();
+				MJ_ReadTiles(g_SampleTiles[i], *tiles);
+				result = true;
+			}
+		}
+		ImGui::EndPopup();
+	}
+	return result;
+}
+bool MJGui_PongButton(const char *label, const std::vector<MJID> &tiles, MJSet *openset) {
+	assert(openset);
+	if (ImGui::Button(label)) {
+		ImGui::OpenPopup("##pong");
+	}
+	bool retval = false;
+	if (ImGui::BeginPopup("##pong")){
+		std::vector<MJID> hand = tiles;
+		std::vector<MJSet> list;
+		MJ_EnumPong(tiles.data(), tiles.size(), list);
+		for (auto it=list.begin(); it!=list.end(); ++it) {
+			const MJSet &set = *it;
+			std::string s = u8"【" + MJ_ToString(set.tile) + u8"】をポン";
+			if (ImGui::MenuItem(s.c_str())) {
+				*openset = set;
+				retval = true;
+			}
+		}
+		ImGui::EndPopup();
+	}
+	return retval;
+}
+bool MJGui_ChowButton(const char *label, const std::vector<MJID> &tiles, MJSet *openset) {
+	assert(openset);
+	if (ImGui::Button(label)) {
+		ImGui::OpenPopup("##chow");
+	}
+	bool retval = false;
+	if (ImGui::BeginPopup("##chow")){
+		std::vector<MJID> hand = tiles;
+		std::vector<MJSet> list;
+		MJ_EnumChow(tiles.data(), tiles.size(), list);
+		for (auto it=list.begin(); it!=list.end(); ++it) {
+			const MJSet &set = *it;
+			MJID taken=0, pull0=0, pull1=0; // 鳴いた牌、手牌から抜いた牌x2 を得る
+			set.get_open_tiles(&taken, &pull0, &pull1);
+			std::string s = u8"【" + MJ_ToString(pull0) + MJ_ToString(pull1) + u8"】を倒して【" + MJ_ToString(taken) + u8"】をチー";
+			if (ImGui::MenuItem(s.c_str())) {
+				*openset = set;
+				retval = true;
+			}
+		}
+		ImGui::EndPopup();
+	}
+	return retval;
+}
 
 
 
-
-
+static void _RemoveTile(std::vector<MJID> &tiles, MJID id) {
+	auto it = std::find(tiles.begin(), tiles.end(), id);
+	if (it != tiles.end()) tiles.erase(it);
+}
 
 class CTest: public CSimpleApp {
 	std::vector<MJEvalResult> mEval; // 評価結果
 	std::vector<MJID> mRawTiles;     // 理牌なしの配列。表示、操作用
 	std::vector<MJID> mWaitingTiles; // 待ち牌
+	std::vector<MJSet> mOpenSets;    // 鳴いた面子
 	MJID mTsumo;
 	MJID mBakaze;
 	MJID mJikaze;
@@ -48,6 +198,7 @@ public:
 		mDora  = MJ_GetDora(MJ_MAN(1));
 		mTsumo = MJ_MAN(2);
 		mRawTiles.clear();
+		mOpenSets.clear();
 		mWaitingTiles.clear();
 		MJ_ReadTiles(g_SampleTiles[0], mRawTiles);
 		std::sort(mRawTiles.begin(), mRawTiles.end());
@@ -71,9 +222,9 @@ public:
 		if (ImGui::Begin("Test", NULL, ImGuiWindowFlags_NoResize)) {
 
 			// 情報
-			ImGui::PushID("bakaze"); ImGui::Text(u8"場風"); ImGui::SameLine(); guiKazeButton(&mBakaze); ImGui_SameLineSpace(); ImGui_SameLineSpace(); ImGui::PopID();
-			ImGui::PushID("jikaze"); ImGui::Text(u8"自風"); ImGui::SameLine(); guiKazeButton(&mJikaze); ImGui_SameLineSpace(); ImGui_SameLineSpace(); ImGui::PopID();
-			ImGui::PushID("doraxx"); ImGui::Text(u8"ドラ"); ImGui::SameLine(); guiTileButton(&mDora);   ImGui_SameLineSpace(); ImGui_SameLineSpace(); ImGui::PopID();
+			ImGui::PushID("##bakaze"); ImGui::Text(u8"場風"); ImGui::SameLine(); MJGui_WindEdit(&mBakaze); ImGui_SameLineSpace(); ImGui_SameLineSpace(); ImGui::PopID();
+			ImGui::PushID("##jikaze"); ImGui::Text(u8"自風"); ImGui::SameLine(); MJGui_WindEdit(&mJikaze); ImGui_SameLineSpace(); ImGui_SameLineSpace(); ImGui::PopID();
+			ImGui::PushID("##doraxx"); ImGui::Text(u8"ドラ"); ImGui::SameLine(); MJGui_TileEdit(&mDora);   ImGui_SameLineSpace(); ImGui_SameLineSpace(); ImGui::PopID();
 			ImGui::NewLine();
 			ImGui_VSpace();
 			ImGui::Separator();
@@ -83,7 +234,7 @@ public:
 				ImGui::BeginGroup();
 				for (int i=0; i<mRawTiles.size(); i++) {
 					ImGui::PushID(i);
-					if (guiTileButton(&mRawTiles[i])) {
+					if (MJGui_TileEdit(&mRawTiles[i])) {
 						mShouldEval = true;
 					}
 					ImGui::SameLine();
@@ -97,7 +248,7 @@ public:
 				{
 					ImGui_SameLineSpace();
 					ImGui::PushID("tsumo");
-					if (guiTileButton(&mTsumo)) {
+					if (MJGui_TileEdit(&mTsumo)) {
 						mShouldEval = true;
 					}
 					if (ImGui::IsItemHovered()) {
@@ -118,10 +269,48 @@ public:
 				// プリセット
 				{
 					ImGui_SameLineSpace();
-					if (guiPresetButton(&mRawTiles)) {
+					if (MJGui_PresetButton(&mRawTiles)) {
+						mWaitingTiles.clear();
+						mOpenSets.clear();
 						mShouldEval = true;
 					}
 				}
+
+				// 鳴いた牌
+				{
+					std::string s;
+					for (int i=0; i<mOpenSets.size(); i++) {
+						MJID t0, t1, t2;
+						int rot = mOpenSets[i].get_open_order(&t0, &t1, &t2);
+						if (rot == 1) { s += "["+MJ_ToString(t0)+"]" +     MJ_ToString(t1)     +     MJ_ToString(t2)     + "  "; } // 左の牌を横倒しにする
+						if (rot == 2) { s +=     MJ_ToString(t0)     + "["+MJ_ToString(t1)+"]" +     MJ_ToString(t2)     + "  "; } // 中央の牌を横倒しにする
+						if (rot == 3) { s +=     MJ_ToString(t0)     +     MJ_ToString(t1)     + "["+MJ_ToString(t2)+"]" + "  "; } // 右の牌を横倒しにする
+					}
+					ImGui::Text("%s", s.c_str());
+				}
+			}
+
+			ImGui_VSpace();
+			MJSet openset; // 鳴き面子
+			if (MJGui_PongButton(u8"ポン", mRawTiles, &openset)) {
+				MJID tk, p0, p1;
+				openset.get_open_tiles(&tk, &p0, &p1);
+				// 手牌から p0 と p1 を削除する
+				_RemoveTile(mRawTiles, p0);
+				_RemoveTile(mRawTiles, p1);
+				mOpenSets.push_back(openset);
+				mRawTiles.pop_back(); // 適当に一枚捨てる
+				mShouldEval = true;
+			}
+			if (MJGui_ChowButton(u8"チー", mRawTiles, &openset)) {
+				MJID tk, p0, p1;
+				openset.get_open_tiles(&tk, &p0, &p1);
+				// 手牌から p0 と p1 を削除する
+				_RemoveTile(mRawTiles, p0);
+				_RemoveTile(mRawTiles, p1);
+				mOpenSets.push_back(openset);
+				mRawTiles.pop_back(); // 適当に一枚捨てる
+				mShouldEval = true;
 			}
 
 			// 情報更新
@@ -129,9 +318,21 @@ public:
 				mShouldEval = false;
 				
 				MJHandTiles hand;
-				memcpy(hand.tiles, mRawTiles.data(), sizeof(MJID)*mRawTiles.size());
+				// 手牌の配列
+				for (int i=0; i<mRawTiles.size(); i++) {
+					hand.tiles[i] = mRawTiles[i];
+				}
 				hand.num_tiles = mRawTiles.size();
+
+				// 鳴いた面子
+				for (int i=0; i<mOpenSets.size(); i++) {
+					hand.opensets[i] = mOpenSets[i];
+				}
+				hand.num_opensets = mOpenSets.size();
+
+				// ツモった牌
 				hand.tsumo = mTsumo;
+
 
 				MJGameInfo info;
 				info.dora[0] = mDora;
@@ -232,107 +433,6 @@ public:
 		}
 		ImGui::End();
 		//ImGui::ShowDemoWindow();
-	}
-	bool guiKazeButton(MJID *tile) {
-		bool changed = false;
-		assert(tile);
-		ImGui::SetNextItemWidth(16);
-		if (ImGui::Button(MJ_ToString(*tile).c_str())) {
-			ImGui::OpenPopup("change_kaze");
-		}
-		if (ImGui::BeginPopup("change_kaze")) {
-			if (guiKazeListButton(tile)) {
-				changed = true;
-			}
-			if (changed) ImGui::CloseCurrentPopup();
-			ImGui::EndPopup();
-		}
-		return changed;
-	}
-	bool guiTileButton(MJID *tile) {
-		bool changed = false;
-		assert(tile);
-		ImGui::SetNextItemWidth(16);
-		if (ImGui::Button(MJ_ToString(*tile).c_str())) {
-			ImGui::OpenPopup("change_tile");
-		}
-		if (ImGui::BeginPopup("change_tile")) {
-			if (guiTileListButton(tile)) {
-				changed = true;
-			}
-			ImGui_VSpace();
-			ImGui::Separator();
-			ImGui::Text(u8"牌を選んでください\n※牌数の整合性はチェックしません。\n同一牌を５個以上使わないよう気を付けてください");
-			if (changed) ImGui::CloseCurrentPopup();
-			ImGui::EndPopup();
-		}
-		return changed;
-	}
-	bool guiKazeListButton(MJID *tile) {
-		assert(tile);
-		bool clicked = false;
-		if (ImGui::Button(u8"東")) { *tile=MJ_TON; clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"南")) { *tile=MJ_NAN; clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"西")) { *tile=MJ_SHA; clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"北")) { *tile=MJ_PEI; clicked=true; }
-		return clicked;
-	}
-	bool guiTileListButton(MJID *tile) {
-		assert(tile);
-		bool clicked = false;
-		if (ImGui::Button(u8"一")) { *tile=MJ_MAN(1); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"二")) { *tile=MJ_MAN(2); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"三")) { *tile=MJ_MAN(3); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"四")) { *tile=MJ_MAN(4); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"五")) { *tile=MJ_MAN(5); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"六")) { *tile=MJ_MAN(6); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"七")) { *tile=MJ_MAN(7); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"八")) { *tile=MJ_MAN(8); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"九")) { *tile=MJ_MAN(9); clicked=true; } 
-		if (ImGui::Button(u8"①")) { *tile=MJ_PIN(1); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"②")) { *tile=MJ_PIN(2); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"③")) { *tile=MJ_PIN(3); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"④")) { *tile=MJ_PIN(4); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"⑤")) { *tile=MJ_PIN(5); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"⑥")) { *tile=MJ_PIN(6); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"⑦")) { *tile=MJ_PIN(7); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"⑧")) { *tile=MJ_PIN(8); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"⑨")) { *tile=MJ_PIN(9); clicked=true; } 
-		if (ImGui::Button(u8"１")) { *tile=MJ_SOU(1); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"２")) { *tile=MJ_SOU(2); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"３")) { *tile=MJ_SOU(3); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"４")) { *tile=MJ_SOU(4); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"５")) { *tile=MJ_SOU(5); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"６")) { *tile=MJ_SOU(6); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"７")) { *tile=MJ_SOU(7); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"８")) { *tile=MJ_SOU(8); clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"９")) { *tile=MJ_SOU(9); clicked=true; }
-		if (ImGui::Button(u8"東")) { *tile=MJ_TON;    clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"南")) { *tile=MJ_NAN;    clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"西")) { *tile=MJ_SHA;    clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"北")) { *tile=MJ_PEI;    clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"白")) { *tile=MJ_HAK;    clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"發")) { *tile=MJ_HAZ;    clicked=true; } ImGui::SameLine();
-		if (ImGui::Button(u8"中")) { *tile=MJ_CHUN;   clicked=true; } 
-		return clicked;
-	}
-	bool guiPresetButton(std::vector<MJID> *tiles) {
-		bool result = false;
-		assert(tiles);
-		if (ImGui::Button(u8"プリセット")) {
-			ImGui::OpenPopup("preset");
-		}
-		if (ImGui::BeginPopup("preset")) {
-			for (int i=0; g_SampleTiles[i]!=NULL; i++) {
-				if (ImGui::MenuItem(g_SampleTiles[i])) {
-					tiles->clear();
-					MJ_ReadTiles(g_SampleTiles[i], *tiles);
-					result = true;
-				}
-			}
-			ImGui::EndPopup();
-		}
-		return result;
 	}
 };
 

@@ -49,12 +49,26 @@ enum MJWaitType {
 struct MJSet {
 	MJID tile; // first tile of meld (pong, chow, pair, kong)
 	MJSetType type;
-	bool isopen; // open or closed
+
+	// この面子の構成牌をどこから持ってきたか
+	// 0: 鳴いてない（面前）
+	// 1: 下家
+	// 2: 対面
+	// 3: 上家
+	int taken_from;
+
+	// 鳴いている場合、どの牌を鳴いたか
+	// -1: 鳴いてない（面前）
+	// 0: 面子構成牌[0]を鳴いた。MJID は tile と同じ
+	// 1: 面子構成牌[1]を鳴いた。MJID は tile+1 になる（チーのみ）
+	// 2: 面子構成牌[2]を鳴いた。MJID は tile+2 になる（チーのみ）
+	int taken_index;
 
 	MJSet() {
 		tile = MJ_NONE;
 		type = MJ_SET_NONE;
-		isopen = false;
+		taken_from = 0;
+		taken_index = -1;
 	}
 	bool operator < (const MJSet &a) const {
 		if (tile != a.tile) {
@@ -62,6 +76,42 @@ struct MJSet {
 		} else {
 			return type < a.type;
 		}
+	}
+
+	MJID tile0() const { return tile; } // 面子構成牌[0]
+	MJID tile1() const { return type==MJ_SET_CHOW ? tile+1 : tile; } // 面子構成牌[1]
+	MJID tile2() const { return type==MJ_SET_CHOW ? tile+2 : tile; } // 面子構成牌[2]
+
+	// 鳴いている場合、手牌から抜いた牌と鳴いた牌を得て true を返す。
+	// 鳴いていない場合は何もせずに false を返す
+	bool get_open_tiles(MJID *taken, MJID *pull0, MJID *pull1) const {
+		if (taken_index==0) { *taken=tile0(); *pull0=tile1(); *pull1=tile2(); return true; } // 牌0を取り、手牌から牌1,2を抜いた
+		if (taken_index==1) { *pull0=tile0(); *taken=tile1(); *pull1=tile2(); return true; } // 牌1を取り、手牌から牌0,2を抜いた
+		if (taken_index==2) { *pull0=tile0(); *pull1=tile1(); *taken=tile2(); return true; } // 牌2を取り、手牌から牌0,1を抜いた
+		return false;
+	}
+
+	// 鳴いた面子を置くときの順番を得る
+	// left   [out] 左に置く牌
+	// center [out] 中央に置く牌
+	// right  [out] 右に置く牌
+	// 
+	// 戻り値：横向きに置くべきインデックス
+	// 0 = 鳴いてない
+	// 1 = 左の牌を横向きにする
+	// 2 = 中央の牌を横向きにする
+	// 3 = 右の牌を横向きにする
+	int get_open_order(MJID *left, MJID *center, MJID *right) const {
+		if (taken_from==1 && taken_index==0) {*left=tile0(), *center=tile1(), *right=tile2(); return 1; } // 下家から牌0を鳴いた
+		if (taken_from==1 && taken_index==1) {*left=tile1(), *center=tile0(), *right=tile2(); return 1; } // 下家から牌1を鳴いた
+		if (taken_from==1 && taken_index==2) {*left=tile2(), *center=tile0(), *right=tile1(); return 1; } // 下家から牌2を鳴いた
+		if (taken_from==2 && taken_index==0) {*left=tile1(), *center=tile0(), *right=tile2(); return 2; } // 対面から牌0を鳴いた
+		if (taken_from==2 && taken_index==1) {*left=tile0(), *center=tile1(), *right=tile2(); return 2; } // 対面から牌1を鳴いた
+		if (taken_from==2 && taken_index==2) {*left=tile0(), *center=tile2(), *right=tile1(); return 2; } // 対面から牌2を鳴いた
+		if (taken_from==3 && taken_index==0) {*left=tile1(), *center=tile2(), *right=tile0(); return 3; } // 上家から牌0を鳴いた
+		if (taken_from==3 && taken_index==1) {*left=tile0(), *center=tile2(), *right=tile1(); return 3; } // 上家から牌1を鳴いた
+		if (taken_from==3 && taken_index==2) {*left=tile0(), *center=tile1(), *right=tile2(); return 3; } // 上家から牌2を鳴いた
+		return 0;
 	}
 };
 
@@ -88,16 +138,16 @@ struct MJFu {
 };
 
 struct MJHandTiles {
-	MJID tiles[13]; // 手牌。未使用部分は 0 にしておくこと
-	int num_tiles;  // 0 .. 13
-//	MJID open_pongs[4]; // ポン牌。未使用部分は 0 にしておくこと
-//	MJID open_chows[4]; // チー牌。未使用部分は 0 にしておくこと
-	MJID tsumo; // ツモまたは相手から出た牌。アガリをについてしらべないばあいは 0 のままで良い
+	MJID tiles[13];     // 手牌
+	MJSet opensets[4]; // 鳴いた面子
+	int num_tiles;      // 0 .. 13
+	int num_opensets;  // 0..4
+	MJID tsumo;         // ツモまたは相手から出た牌。アガリをについてしらべないばあいは 0 のままで良い
 
 	MJHandTiles() {
 		memset(tiles, 0, sizeof(tiles));
-//		memset(open_pongs, 0, sizeof(open_pongs));
-//		memset(open_chows, 0, sizeof(open_chows));
+		memset(opensets, 0, sizeof(opensets));
+		num_opensets = 0;
 		num_tiles = 0;
 		tsumo = 0;
 	}
@@ -186,6 +236,7 @@ struct MJEvalResult {
 	}
 };
 
+
 int MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vector<MJEvalResult> &result);
 
 // ドラ表示牌を指定して、実際のドラを返す
@@ -198,3 +249,9 @@ std::string MJ_ToString(MJWaitType wait);
 std::string MJ_ToString(const MJID *tiles, int size);
 std::string MJ_ToString(const MJSet &set);
 std::string MJ_ToString(const MJSet *sets, int size, bool sort=true, const char *separator="|");
+
+// 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る
+int MJ_EnumPong(const MJID *tiles, int size, std::vector<MJSet> &result);
+
+// 手牌を指定し、チー可能な２牌とチー牌の組み合わせを得る
+int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result);

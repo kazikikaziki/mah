@@ -72,7 +72,6 @@ inline bool MJ_IS_KOUTSU(MJID a, MJID b, MJID c)  { return a==b && b==c; } // �
 
 
 
-
 // 手牌
 class MJTiles {
 public:
@@ -106,6 +105,7 @@ public:
 	std::vector<MJID> mToitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
 	std::vector<MJID> mAmari;  // 面子として使えなかった余り牌。
 	std::vector<MJID> mWaits;  // テンパイ状態の場合、その待ち牌
+	std::vector<MJSet> mKoutsuSet;
 	MJWaitType mWaitType;
 	int mShanten;
 
@@ -168,6 +168,7 @@ void MJMelds::clear() {
 	mKoutsu.clear();
 	mJuntsu.clear();
 	mToitsu.clear();
+	mKoutsuSet.clear();
 	mAmari.clear();
 	mWaits.clear();
 	mWaitType = MJ_WAIT_NONE;
@@ -179,6 +180,7 @@ void MJMelds::sort() {
 	std::sort(mToitsu.begin(), mToitsu.end());
 	std::sort(mAmari.begin(), mAmari.end());
 	std::sort(mWaits.begin(), mWaits.end());
+	std::sort(mKoutsuSet.begin(), mKoutsuSet.end());
 }
 bool MJMelds::equals(const MJMelds &other) const {
 	MJMelds a = *this; // copy
@@ -1268,6 +1270,22 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 			result.addYaku(2, u8"三暗刻");
 			is_chitoi = false; // 七対子と複合しない
 		}
+		// 三連刻
+		if (kansei.mKoutsu.size() >= 3) {
+			MJID a = kansei.mKoutsu[0];
+			MJID b = kansei.mKoutsu[1];
+			MJID c = kansei.mKoutsu[2];
+			MJID d = kansei.mKoutsu.size()>3 ? kansei.mKoutsu[3] : 0;
+			bool ok = false;
+			if (MJ_IS_JUNTSU(a,b,c)) ok = true;
+			if (MJ_IS_JUNTSU(a,b,d)) ok = true;
+			if (MJ_IS_JUNTSU(a,c,d)) ok = true;
+			if (MJ_IS_JUNTSU(b,c,d)) ok = true;
+			if (ok) {
+				result.addYaku(2, u8"三連刻");
+				is_chitoi = false; // 七対子と複合しない
+			}
+		}
 		// 三色同刻
 		if (kansei.mKoutsu.size() >= 3) {
 			// 刻子が３または４組ある
@@ -1281,6 +1299,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 			if (MJ_SAMENUM3(a,b,c) && MJ_TRICOLOR(a,b,c)) ok = true;
 			if (MJ_SAMENUM3(a,b,d) && MJ_TRICOLOR(a,b,d)) ok = true;
 			if (MJ_SAMENUM3(a,c,d) && MJ_TRICOLOR(a,c,d)) ok = true;
+			if (MJ_SAMENUM3(b,c,d) && MJ_TRICOLOR(b,c,d)) ok = true;
 			if (ok) {
 				result.addYaku(2, u8"三色同刻");
 				is_chitoi = false; // 七対子と複合しない
@@ -1520,6 +1539,13 @@ int MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vecto
 	MJTiles tiles;
 	tiles.add(handtiles.tiles, handtiles.num_tiles);
 
+	for (int i=0; i<handtiles.num_opensets; i++) {
+		tiles.add(handtiles.opensets[i].tile0());
+		tiles.add(handtiles.opensets[i].tile1());
+		tiles.add(handtiles.opensets[i].tile2());
+	}
+	assert(tiles.size() == 13);
+
 	// 可能な面子構成のうち、最もテンパイに近いものを全て得る
 	std::vector<MJMelds> meldslist;
 	MJ_FindMelds(tiles, meldslist);
@@ -1756,4 +1782,94 @@ std::string MJ_ToString(const MJSet *sets, int size, bool sort, const char *sepa
 		s += MJ_ToString(*it);
 	}
 	return s;
+}
+
+// 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る
+int MJ_EnumPong(const MJID *tiles, int size, std::vector<MJSet> &result) {
+	std::vector<MJID> tmp;
+	for (int i=0; i<size; i++) {
+		tmp.push_back(tiles[i]);
+	}
+	int ret = 0;
+	int skip = 0;
+	std::sort(tmp.begin(), tmp.end());
+	for (int i=0; i+1<tmp.size(); i++) {
+		MJID a = tmp[i];
+		MJID b = tmp[i+1];
+		if (a == skip) continue;
+		if (a == b) {
+			// 対子がある
+			// [n][n] を持っていて[n]を鳴く
+			// 面子構成牌[0] = a
+			// 面子構成牌[1] = a
+			// 面子構成牌[2] = a
+			MJSet set;
+			set.tile = a;
+			set.type = MJ_SET_PONG;
+			set.taken_from = 1; // 取りあえず下家から鳴いたことにしておく
+			set.taken_index = 0; // どれも同じ牌なので、とりあえず面子構成牌[0] を鳴いたことにしておく
+			result.push_back(set);
+			ret = 1;
+			skip = a;
+		}
+	}
+	return ret;
+}
+
+// 手牌を指定し、チー可能な２牌とチー牌の組み合わせを得る
+int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result) {
+	std::vector<MJID> tmp;
+	for (int i=0; i<size; i++) {
+		tmp.push_back(tiles[i]);
+	}
+	int ret = 0;
+	int skip = 0;
+	std::sort(tmp.begin(), tmp.end());
+	for (int i=0; i+1<tmp.size(); i++) {
+		MJID a = tmp[i];
+		MJID b = tmp[i+1];
+		if (MJ_IS_NEXT(a, b)) {
+			// 両面・辺張塔子がある
+			int num = MJ_GETNUM(a);
+			if (num >= 2) {
+				// [n][n+1] を持っていて[n-1]を鳴く
+				// 面子構成牌[0] = a-1  <== 鳴いた牌
+				// 面子構成牌[1] = a
+				// 面子構成牌[2] = b
+				MJSet set;
+				set.tile = a-1; // a-1, a, a+1 の順子になる
+				set.type = MJ_SET_CHOW;
+				set.taken_from = 1; // 取りあえず下家から鳴いたことにしておく
+				set.taken_index = 0; // 面子構成牌[0]を鳴いた
+				result.push_back(set);
+			}
+			if (num <= 7) {
+				// [n][n+1] を持っていて[n+2]を鳴く
+				// 面子構成牌[0] = a
+				// 面子構成牌[1] = b
+				// 面子構成牌[2] = b+1 <== 鳴いた牌
+				MJSet set;
+				set.tile = a; // a, a+1, a+2 の順子になる
+				set.type = MJ_SET_CHOW;
+				set.taken_from = 1; // 取りあえず下家から鳴いたことにしておく
+				set.taken_index = 2; // 面子構成牌[2]を鳴いた
+				result.push_back(set);
+			}
+			ret = 1;
+		}
+		if (MJ_IS_NEXTNEXT(a, b)) {
+			// 嵌張塔子がある
+			// [n][n+2] を持っていて[n+1]を鳴く
+			// 面子構成牌[0] = a
+			// 面子構成牌[1] = b
+			// 面子構成牌[2] = b+1 <== 鳴いた牌
+			MJSet set;
+			set.tile = a; // a, a+1, a+2 の順子になる
+			set.type = MJ_SET_CHOW;
+			set.taken_index = 1; // 面子構成牌[1]を鳴いた
+			result.push_back(set);
+			ret = 1;
+		}
+	}
+	return ret;
 }
