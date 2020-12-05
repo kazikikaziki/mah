@@ -13,30 +13,47 @@
 #define ImGui_SameLineSpace() ImGui::SameLine(); ImGui::Dummy(ImVec2(4, 0)); ImGui::SameLine();
 #define ImGui_VSpace() ImGui::Dummy(ImVec2(0, 4));
 
+const char *g_SampleTiles[] = {
+	u8"一一二二三三７８８８中中中",
+	u8"一二三八九九九①②③１２３",
+	u8"二二三三四四五五六六七七八",
+	u8"一一二二三三四四五五六六七",
+	u8"一一一二三四五六七八九九九",
+	u8"一九①⑨１９東南西北白發中",
+	NULL // Sentinel
+};
+
+
+
+
+
+
+
 class CTest: public CSimpleApp {
-	std::vector<MJID> mRawTiles; // 理牌なしの配列。表示、操作用
-	std::vector<MJMelds> mMelds; // 面子の分解パターン
-	MJTiles mTiles;
-	MJYakuList mYakuList;
+	std::vector<MJEvalResult> mEval; // 評価結果
+	std::vector<MJID> mRawTiles;     // 理牌なしの配列。表示、操作用
+	std::vector<MJID> mWaitingTiles; // 待ち牌
 	MJID mTsumo;
 	MJID mBakaze;
 	MJID mJikaze;
 	MJID mDora;
 	bool mShouldEval;
+	bool mIsAgari;
+	bool mIsTempai;
 
 public:
 	void reset() {
 		mBakaze = MJ_TON;
 		mJikaze = MJ_NAN;
-		mDora  = MJ_GETDORA(MJ_MAN(1));
-		mTsumo = MJ_GETDORA(MJ_MAN(2));
+		mDora  = MJ_GetDora(MJ_MAN(1));
+		mTsumo = MJ_MAN(2);
 		mRawTiles.clear();
-		mMelds.clear();
-		mYakuList.clear();
-		mTiles.clear();
-		MJ_ReadTiles(u8"二二三三四四五五六六七七八", mRawTiles);
-		mTiles.add(mRawTiles.data(), mRawTiles.size());
+		mWaitingTiles.clear();
+		MJ_ReadTiles(g_SampleTiles[0], mRawTiles);
+		std::sort(mRawTiles.begin(), mRawTiles.end());
 		mShouldEval = true;
+		mIsAgari = false;
+		mIsTempai = false;
 	}
 	virtual void onStart() {
 		setlocale(LC_CTYPE, "");
@@ -63,6 +80,7 @@ public:
 			ImGui_VSpace();
 			{
 				// 手牌
+				ImGui::BeginGroup();
 				for (int i=0; i<mRawTiles.size(); i++) {
 					ImGui::PushID(i);
 					if (guiTileButton(&mRawTiles[i])) {
@@ -71,12 +89,19 @@ public:
 					ImGui::SameLine();
 					ImGui::PopID();
 				}
+				ImGui::EndGroup();
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip(u8"手牌");
+				}
 				// ツモ牌
 				{
 					ImGui_SameLineSpace();
 					ImGui::PushID("tsumo");
 					if (guiTileButton(&mTsumo)) {
 						mShouldEval = true;
+					}
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip(u8"ツモ牌");
 					}
 					ImGui::PopID();
 				}
@@ -85,6 +110,9 @@ public:
 					ImGui_SameLineSpace();
 					if (ImGui::Button(u8"理牌")) {
 						std::sort(mRawTiles.begin(), mRawTiles.end());
+					}
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip(u8"ソートする");
 					}
 				}
 				// プリセット
@@ -95,44 +123,104 @@ public:
 					}
 				}
 			}
-			ImGui_VSpace();
-			ImGui::Separator();
-			ImGui_VSpace();
 
 			// 情報更新
 			if (mShouldEval) {
 				mShouldEval = false;
-				mTiles.clear();
-				mTiles.add(mRawTiles.data(), mRawTiles.size());
+				
+				MJHandTiles hand;
+				memcpy(hand.tiles, mRawTiles.data(), sizeof(MJID)*mRawTiles.size());
+				hand.num_tiles = mRawTiles.size();
+				hand.tsumo = mTsumo;
 
-				mMelds.clear();
-				MJ_FindMelds(mTiles, mMelds);
+				MJGameInfo info;
+				info.dora[0] = mDora;
+				info.position_wind = mJikaze;
+				info.round_wind = mBakaze;
+
+				mEval.clear();
+				int x = MJ_Eval(hand, info, mEval);
+				mIsTempai = (x == 1);
+				mIsAgari = (x == 2);
+
+				// 重複のない待ち牌を得る
+				std::unordered_set<MJID> uq;
+				for (auto it=mEval.begin(); it!=mEval.end(); ++it) {
+					for (int i=0; i<it->num_waits; i++) {
+						uq.insert(it->waits[i]);
+					}
+				}
+				mWaitingTiles.assign(uq.begin(), uq.end());
+				std::sort(mWaitingTiles.begin(), mWaitingTiles.end());
 			}
+			// 待ち牌
+			if (mWaitingTiles.size() > 0) {
+				if (mIsAgari) {
+					ImGui::Text(u8"【アガリ！】【%s 待ち】【%s ツモ】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str(), MJ_ToString(mTsumo).c_str());
+				} else {
+					ImGui::Text(u8"【テンパイ】【%s 待ち】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str());
+				}
+			}
+			ImGui_VSpace();
+			ImGui::Separator();
+			ImGui_VSpace();
 
 			// 要素分割
-			ImGui::Text(u8"【面子】＜余り牌＞｜待ち牌");
-			for (int m=0; m<mMelds.size(); m++) {
-				const MJMelds &melds = mMelds[m];
-
-				MJYakuList yaku;
-				bool agari = MJ_EvalYaku(mTiles, melds, mTsumo, mJikaze, mBakaze, mDora, yaku);
+			for (auto it=mEval.begin(); it!=mEval.end(); ++it) {
+				const MJEvalResult &eval = *it;
+				
 				std::string s;
-				if (agari) {
-					s += MJ_GetMeldsString(melds);
-					s += u8" || " + MJ_GetAmariString(melds) + u8" 【ツモ】 " + MJ_ToString(mTsumo);
+
+				s += MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
+				s += " || ";
+				s += MJ_ToString(eval.amari, eval.num_amari); // 余剰牌
+
+				if (eval.num_yaku > 0) {
+					// 上がっている
+					s += "   ";
+					s += MJ_ToString(mTsumo); // ツモ
 					ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Appearing);
-					if (ImGui::TreeNode((void*)m, "%s", s.c_str())) {
-						if (agari) {
-							ImGui::Indent();
-							guiPrintYaku(yaku);
-							ImGui::Unindent();
-						} else {
+					if (ImGui::TreeNode(&eval/*ID*/, "%s", s.c_str())) {
+						// 役
+						for (int i=0; i<eval.num_yaku; i++) {
+							const MJYaku &yaku = eval.yaku[i];
+							if (yaku.yakuman > 0) {
+								ImGui::Text(u8"【%s】", yaku.name_u8);
+							} else if (yaku.han > 0) {
+								ImGui::Text(u8"【%s】 %d飜", yaku.name_u8, yaku.han);
+							}
 						}
+						// 符
+						ImGui::Separator();
+						for (int i=0; i<eval.num_fu; i++) {
+							const MJFu &fu = eval.fu[i];
+							ImGui::Text(u8"%d符 %s", fu.value, fu.name_u8);
+							if (i == eval.num_fu-1) {
+								if (eval.total_fu_raw == eval.total_fu) {
+									ImGui::Text(u8"合計 %d符", eval.total_fu_raw);
+								} else {
+									ImGui::Text(u8"合計 %d符 (繰り上がり %d)", eval.total_fu_raw, eval.total_fu);
+								}
+							}
+						}
+						// 合計
+						ImGui::Separator();
+						ImGui::Text(u8"%s %d点", eval.score_text_u8, eval.score);
+
 						ImGui::TreePop();
 					}
+
+				} else if (eval.shanten == 0) {
+					// テンパイ
+					s += u8"  【テンパイ】  " + MJ_ToString(eval.waits, eval.num_waits) + u8" " + MJ_ToString(eval.wait_type) + u8"待ち";
+					if (ImGui::TreeNodeEx(&eval/*ID*/, ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet, "%s", s.c_str())) {
+						ImGui::TreePop();
+					}
+
 				} else {
-					s += MJ_ToString(melds);
-					if (ImGui::TreeNodeEx((void*)m, ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet, "%s", s.c_str())) {
+					// テンパイならず
+					s += u8"  【" + std::to_string(eval.shanten) + u8"シャンテン】";
+					if (ImGui::TreeNodeEx(&eval/*ID*/, ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet, "%s", s.c_str())) {
 						ImGui::TreePop();
 					}
 				}
@@ -140,26 +228,6 @@ public:
 		}
 		ImGui::End();
 		//ImGui::ShowDemoWindow();
-	}
-	void guiPrintYaku(const MJYakuList &yakulist) {
-		for (auto it=yakulist.mList.begin(); it!=yakulist.mList.end(); ++it) {
-			if (it->yakuman > 0) {
-				ImGui::Text(u8"%s", it->name_u8.c_str());
-			} else if (it->han > 0) {
-				ImGui::Text(u8"%s %d飜", it->name_u8.c_str(), it->han);
-			}
-		}
-		if (ImGui::TreeNode("Score", u8"%s %d点", yakulist.mText.c_str(), yakulist.mScore)) {
-			if (yakulist.mHan < 4) {
-				ImGui::Indent();
-				for (auto it=yakulist.mFuList.begin(); it!=yakulist.mFuList.end(); ++it) {
-					ImGui::Text(u8"%d符 %s", it->value, it->name_u8.c_str());
-				}
-				ImGui::Text(u8"合計 %d符", yakulist.mRawFu);
-				ImGui::Unindent();
-			}
-			ImGui::TreePop();
-		}
 	}
 	bool guiKazeButton(MJID *tile) {
 		bool changed = false;
@@ -251,18 +319,10 @@ public:
 			ImGui::OpenPopup("preset");
 		}
 		if (ImGui::BeginPopup("preset")) {
-			const char *hai[] = {
-				u8"二二三三四四五五六六七七八",
-				u8"一一二二三三四四五五六六七",
-				u8"一一一二三四五六七八九九九",
-				u8"一九①⑨１９東南西北白發中",
-				u8"１２３①②③一二三八九九九",
-				NULL // Sentinel
-			};
-			for (int i=0; hai[i]!=NULL; i++) {
-				if (ImGui::MenuItem(hai[i])) {
+			for (int i=0; g_SampleTiles[i]!=NULL; i++) {
+				if (ImGui::MenuItem(g_SampleTiles[i])) {
 					tiles->clear();
-					MJ_ReadTiles(hai[i], *tiles);
+					MJ_ReadTiles(g_SampleTiles[i], *tiles);
 					result = true;
 				}
 			}

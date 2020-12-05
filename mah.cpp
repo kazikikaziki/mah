@@ -7,10 +7,159 @@
 // https://perceptualmahjong.blog.ss-blog.jp/2010-10-08
 // http://arcturus.su/wiki/List_of_terminology_by_alphabetical_order
 
+/// 牌の種類ビット（デバッガで16進数を見たときに分かりやすくしておきたいので 2 とか 4 とか使わない）
+enum MJBIT {
+	MJ_BIT_MAN       = 0x00000001, // 萬子
+	MJ_BIT_PIN       = 0x00000010, // 筒子
+	MJ_BIT_SOU       = 0x00000100, // 索子
+	MJ_BIT_CHR       = 0x00001000, // 字牌
+	MJ_BIT_NUM19     = 0x00010000, // 19牌
+	MJ_BIT_KAZE      = 0x00100000, // 風牌
+	MJ_BIT_SANGEN    = 0x01000000, // 三元牌
+	MJ_BIT_MANPINSOU = MJ_BIT_MAN|MJ_BIT_PIN|MJ_BIT_SOU,
+};
+typedef int MJBITS; 
+
+// 牌の種類を判定
+inline bool MJ_ISMAN(MJID id)    { return MJ_MAN(1) <= id && id <= MJ_MAN(9); } // 萬子か？
+inline bool MJ_ISPIN(MJID id)    { return MJ_PIN(1) <= id && id <= MJ_PIN(9); } // 筒子か？
+inline bool MJ_ISSOU(MJID id)    { return MJ_SOU(1) <= id && id <= MJ_SOU(9); } // 索子か？
+inline bool MJ_ISCHR(MJID id)    { return MJ_CHR(1) <= id && id <= MJ_CHR(7); } // 字牌か？
+inline bool MJ_ISVALID(MJID id)  { return MJ_ISMAN(id) || MJ_ISPIN(id) || MJ_ISSOU(id) || MJ_ISCHR(id); } // 有効な牌番号か？
+inline bool MJ_ISNUM(MJID id)    { return MJ_ISMAN(id) || MJ_ISPIN(id) || MJ_ISSOU(id); } // 数字牌か？
+inline bool MJ_IS19(MJID id)     { return id==MJ_MAN(1) || id==MJ_MAN(9) || id==MJ_PIN(1) || id==MJ_PIN(9) || id==MJ_SOU(1) || id==MJ_SOU(9); } // 1,9牌か？
+inline bool MJ_IS28(MJID id)     { return MJ_ISNUM(id) && !MJ_IS19(id); } // 2～8の数字牌か？
+inline bool MJ_ISKAZE(MJID id)   { return id==MJ_TON || id==MJ_NAN || id==MJ_SHA || id==MJ_PEI; } // 東西南北か？
+inline bool MJ_ISSANGEN(MJID id) { return id==MJ_HAK || id==MJ_HAZ || id==MJ_CHUN; } // 白發中か？
+inline bool MJ_ISYAOCHU(MJID id) { return MJ_IS19(id) || MJ_ISCHR(id); } // 1,9,字牌か？
+inline int  MJ_GETNUM(MJID id)   { return MJ_ISNUM(id) ? (id % 100) : 0; } // 牌の数字(1～9)を得る。数字牌でない場合は 0
+inline MJBITS MJ_GETBIT(MJID id) { return MJ_ISMAN(id) ? MJ_BIT_MAN : MJ_ISPIN(id) ? MJ_BIT_PIN : MJ_ISSOU(id) ? MJ_BIT_SOU : MJ_ISCHR(id) ? MJ_BIT_CHR : 0; } // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
+
+inline MJBITS MJ_GETBITS(MJID id) { // 牌 id の属性ビットフラグを得る
+	MJBITS ret = 0;
+	if (MJ_ISMAN(id))    ret |= MJ_BIT_MAN;
+	if (MJ_ISPIN(id))    ret |= MJ_BIT_PIN;
+	if (MJ_ISSOU(id))    ret |= MJ_BIT_SOU;
+	if (MJ_ISCHR(id))    ret |= MJ_BIT_CHR;
+	if (MJ_IS19(id))     ret |= MJ_BIT_NUM19;
+	if (MJ_ISKAZE(id))   ret |= MJ_BIT_KAZE;
+	if (MJ_ISSANGEN(id)) ret |= MJ_BIT_SANGEN;
+	return ret;
+}
+
+inline MJBITS MJ_GETJUNZBITS(MJID id) { // 牌 id から始まる順子のビットフラグを得る（順子が 123 または 789 ならば MJ_BIT_NUM19 を含む）
+	MJBITS ret = 0;
+	if (MJ_ISNUM(id)) {
+		if (MJ_ISMAN(id)) ret |= MJ_BIT_MAN;
+		if (MJ_ISPIN(id)) ret |= MJ_BIT_PIN;
+		if (MJ_ISSOU(id)) ret |= MJ_BIT_SOU;
+		if (MJ_GETNUM(id)==1 || MJ_GETNUM(id)==7) ret |= MJ_BIT_NUM19; // 19牌を含んでいる = 123 または 789
+	}
+	return ret;
+}
+
+// 牌の組み合わせを判定
+inline bool MJ_SAMEGROUP(MJID a, MJID b)          { return MJ_GETBIT(a) == MJ_GETBIT(b); } // 牌 a b が同じ種類（萬子、筒子、索子、字牌）か？
+inline bool MJ_SAMENUM(MJID a, MJID b)            { return MJ_ISNUM(a) && MJ_GETNUM(a)==MJ_GETNUM(b); } // 牌 a b が同じ種類かつ同じ数字か？
+inline bool MJ_SAMENUM3(MJID a, MJID b, MJID c)   { return MJ_SAMENUM(a, b) && MJ_SAMENUM(b, c); } // 牌 a b c が同じ種類かつ同じ数字か？
+inline bool MJ_TRICOLOR(MJID a, MJID b, MJID c)   { return ((MJ_GETBIT(a)|MJ_GETBIT(b)|MJ_GETBIT(c)) & MJ_BIT_MANPINSOU) == MJ_BIT_MANPINSOU; } // 牌 a b c が同じ数字かつ３色あるか？
+inline bool MJ_IS_NEXT(MJID a, MJID b)            { return MJ_SAMEGROUP(a, b) && MJ_ISNUM(a) && a+1==b; } // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
+inline bool MJ_IS_NEXTNEXT(MJID a, MJID b)        { return MJ_SAMEGROUP(a, b) && MJ_ISNUM(a) && a+2==b; } // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
+inline bool MJ_IS_JUNTSU(MJID a, MJID b, MJID c)  { return MJ_IS_NEXT(a, b) && MJ_IS_NEXT(b, c); } // 牌 a b c が順子になっているか？
+inline bool MJ_IS_KOUTSU(MJID a, MJID b, MJID c)  { return a==b && b==c; } // 牌 a b c が刻子になっているか？
+
+
+
+
+
+
+// 手牌
+class MJTiles {
+public:
+	std::vector<MJID> mTiles;
+
+	MJTiles();
+	void clear();
+	bool empty() const;
+	void add(MJID tile);
+	void add(const MJID *tiles, int count);
+	int size() const;
+	MJID get(int index) const;
+	MJID removeByIndex(int index);      // index 位置にある牌を取り除き、その牌番号を返す
+	MJID removeFirstPair();             // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
+	MJID removeFirstKoutsu();           // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す
+	MJID removeFirstJuntsu();           // 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
+	MJID removeFirstTaatsuRyanmen();    // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
+	MJID removeFirstTaatsuKanchan();    // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
+	int  findAndRemove(MJID tile);       // tile に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
+	int  findAndRemoveAll(MJID tile);    // tile に一致する牌があれば、全て取り除いて 1 を返す
+	int  findAndRemoveKoutsu(MJID tile); // tile が刻子を含んでいれば、その3牌を取り除いて 1 を返す
+	int  findAndRemoveJuntsu(MJID tile); // tile を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
+};
+
+
+// 手牌を構成面子 (Meld) に分解したときの形
+class MJMelds {
+public:
+	std::vector<MJID> mKoutsu; // 刻子（この形が刻子を含んでいる場合、それぞれの刻子構成牌の１つが入る。最大で４刻子）
+	std::vector<MJID> mJuntsu; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
+	std::vector<MJID> mToitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
+	std::vector<MJID> mAmari;  // 面子として使えなかった余り牌。
+	std::vector<MJID> mWaits;  // テンパイ状態の場合、その待ち牌
+	MJWaitType mWaitType;
+	int mShanten;
+
+	MJMelds();
+	void clear();
+	void sort();
+	bool equals(const MJMelds &other) const;
+	bool isTempai() const { return mShanten==0 && mWaitType!=MJ_WAIT_NONE; } // テンパイ＝シャンテン数０かつ待ちが指定されている
+	bool isKansei() const { return mShanten==0 && mWaitType==MJ_WAIT_NONE; } // 完成形＝シャンテン数０かつ待ちが解消されている
+};
+
+
+// 役とスコア
+class MJYakuList {
+public:
+	MJYakuList();
+	void clear();
+	void addYaku(int han, const char *name_u8);
+	void addYakuman(const char *name_u8); // 役満
+	void addYakuman2(const char *name_u8); // ダブル役満
+	void addFu(int fu, const char *name_u8);
+	bool empty() const;
+	void updateScore();
+
+	std::vector<MJYaku> mList;
+	std::vector<MJFu> mFuList;
+	std::string mText;
+	int mFu; // 繰り上げ後の符
+	int mRawFu; // 繰り上げ前の符
+	int mHan;
+	int mYakuman;
+	int mScore;
+	bool mOya;
+};
+
+
+
+// ドラ表示牌を指定して、実際のドラを返す
+MJID MJ_GetDora(MJID id) {
+	if (MJ_ISMAN(id))    { return id==MJ_MAN(9) ? MJ_MAN(1) : id+1; }
+	if (MJ_ISPIN(id))    { return id==MJ_PIN(9) ? MJ_PIN(1) : id+1; }
+	if (MJ_ISSOU(id))    { return id==MJ_SOU(9) ? MJ_SOU(1) : id+1; }
+	if (MJ_ISKAZE(id))   { return id==MJ_PEI    ? MJ_TON    : id+1; } // 東→南→西→北
+	if (MJ_ISSANGEN(id)) { return id==MJ_CHUN   ? MJ_HAK    : id+1; } // 白→發→中
+	return 0;
+}
+
+
+
+
 
 #pragma region MJMelds
 MJMelds::MJMelds() {
-	mMachiType = MJ_MACHI_NONE;
+	mWaitType = MJ_WAIT_NONE;
 	mShanten = -1;
 }
 void MJMelds::clear() {
@@ -18,8 +167,8 @@ void MJMelds::clear() {
 	mJuntsu.clear();
 	mToitsu.clear();
 	mAmari.clear();
-	mMachi.clear();
-	mMachiType = MJ_MACHI_NONE;
+	mWaits.clear();
+	mWaitType = MJ_WAIT_NONE;
 	mShanten = -1;
 }
 void MJMelds::sort() {
@@ -27,7 +176,7 @@ void MJMelds::sort() {
 	std::sort(mJuntsu.begin(), mJuntsu.end());
 	std::sort(mToitsu.begin(), mToitsu.end());
 	std::sort(mAmari.begin(), mAmari.end());
-	std::sort(mMachi.begin(), mMachi.end());
+	std::sort(mWaits.begin(), mWaits.end());
 }
 bool MJMelds::equals(const MJMelds &other) const {
 	MJMelds a = *this; // copy
@@ -39,7 +188,7 @@ bool MJMelds::equals(const MJMelds &other) const {
 		a.mJuntsu == b.mJuntsu &&
 		a.mToitsu == b.mToitsu &&
 		a.mAmari == b.mAmari &&
-		a.mMachi == b.mMachi;
+		a.mWaits == b.mWaits;
 }
 #pragma endregion // MJMelds
 
@@ -383,11 +532,11 @@ private:
 			// 全てのヤオチュウ牌の削除に成功した（＝全種類のヤオチュウ牌を１個ずつもっている）
 			// つまり13面待ちの状態になっている
 			melds.mShanten = 0;
-			melds.mMachi = std::vector<MJID>{
+			melds.mWaits = std::vector<MJID>{
 				MJ_MAN(1), MJ_MAN(9), MJ_PIN(1), MJ_PIN(9), MJ_SOU(1), MJ_SOU(9),
 				MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
 			};
-			melds.mMachiType = MJ_MACHI_KOKUSHI13;
+			melds.mWaitType = MJ_WAIT_KOKUSHI13;
 			return;
 		}
 
@@ -410,7 +559,7 @@ private:
 			} else {
 				// 手牌にヤオチュウ牌が1つ残っている。単騎待ちテンパイ
 				melds.mShanten = 0;
-				melds.mMachi.push_back(*required.begin());
+				melds.mWaits.push_back(*required.begin());
 				return;
 			}
 		}
@@ -453,8 +602,8 @@ private:
 			// 6対子ならテンパイ
 			assert(melds.mAmari.size() == 1);
 			melds.mShanten = 0;
-			melds.mMachi.push_back(melds.mAmari[0]);
-			melds.mMachiType = MJ_MACHI_CHITOI;
+			melds.mWaits.push_back(melds.mAmari[0]);
+			melds.mWaitType = MJ_WAIT_CHITOI;
 		} else {
 			// 5対子（余り3牌）ならイーシャンテン
 			// 4対子（余り5牌）なら2シャンテン
@@ -473,8 +622,8 @@ private:
 			// ４面子０雀頭の形になっている。単騎待ちテンパイ
 			assert(melds.mAmari.size() == 1); // 面子にできなかった牌が１個ある
 			melds.mShanten = 0;
-			melds.mMachi.push_back(melds.mAmari[0]);
-			melds.mMachiType = MJ_MACHI_TANKI;
+			melds.mWaits.push_back(melds.mAmari[0]);
+			melds.mWaitType = MJ_WAIT_TANKI;
 			return;
 		}
 		if (num_melds==3 && melds.mToitsu.size()==1) {
@@ -487,9 +636,9 @@ private:
 			if (a == b) {
 				// 対子＝頭は１組しか判定しないため、対子が２組ある場合は残りの対子が余り牌扱いになっている。
 				melds.mShanten = 0;
-				melds.mMachi.push_back(a); // 余り牌による対子
-				melds.mMachi.push_back(melds.mToitsu[0]); // 頭と判定された対子
-				melds.mMachiType = MJ_MACHI_SHABO;
+				melds.mWaits.push_back(a); // 余り牌による対子
+				melds.mWaits.push_back(melds.mToitsu[0]); // 頭と判定された対子
+				melds.mWaitType = MJ_WAIT_SHABO;
 				return;
 			}
 			// 隣り合った数字牌が余っているか
@@ -497,29 +646,29 @@ private:
 				// １２が余っているか
 				if (MJ_GETNUM(a) == 1) {
 					melds.mShanten = 0;
-					melds.mMachi.push_back(a+2);
-					melds.mMachiType = MJ_MACHI_PENCHAN; // 辺３待ち
+					melds.mWaits.push_back(a+2);
+					melds.mWaitType = MJ_WAIT_PENCHAN; // 辺３待ち
 					return;
 				}
 				// ８９が余っているか
 				if (MJ_GETNUM(a) == 8) {
 					melds.mShanten = 0;
-					melds.mMachi.push_back(a-1);
-					melds.mMachiType = MJ_MACHI_PENCHAN; // 辺７待ち
+					melds.mWaits.push_back(a-1);
+					melds.mWaitType = MJ_WAIT_PENCHAN; // 辺７待ち
 					return;
 				}
 				// 両面塔子が確定 (a+1=bの状態)
 				melds.mShanten = 0;
-				melds.mMachi.push_back(a-1); // 左外側
-				melds.mMachi.push_back(a+2); // 右外側
-				melds.mMachiType = MJ_MACHI_RYANMEN; // 両面待ち
+				melds.mWaits.push_back(a-1); // 左外側
+				melds.mWaits.push_back(a+2); // 右外側
+				melds.mWaitType = MJ_WAIT_RYANMEN; // 両面待ち
 				return;
 			}
 			// a と b が１つ飛ばしの数字牌になているか
 			if (MJ_IS_NEXTNEXT(a, b)) {
 				melds.mShanten = 0;
-				melds.mMachi.push_back(a+1);
-				melds.mMachiType = MJ_MACHI_KANCHAN; // 嵌張待ち
+				melds.mWaits.push_back(a+1);
+				melds.mWaitType = MJ_WAIT_KANCHAN; // 嵌張待ち
 				return;
 			}
 			// 余った２牌は塔子になっていない。イーシャンテン状態
@@ -635,264 +784,27 @@ void MJ_FindMelds(const MJTiles &tiles, std::vector<MJMelds> &result) {
 	result = parser.mResult;
 }
 
-static const char *g_ManStr[] = {u8"一", u8"二", u8"三", u8"四", u8"五", u8"六", u8"七", u8"八", u8"九", NULL};
-static const char *g_PinStr[] = {u8"①", u8"②", u8"③", u8"④", u8"⑤", u8"⑥", u8"⑦", u8"⑧", u8"⑨", NULL};
-static const char *g_SouStr[] = {u8"１", u8"２", u8"３", u8"４", u8"５", u8"６", u8"７", u8"８", u8"９", NULL};
-static const char *g_ChrStr[] = {u8"東", u8"南", u8"西", u8"北", u8"白", u8"發", u8"中", NULL};
-
-class MJPrint {
-public:
-
-	struct SMeld {
-		enum EType {
-			TOITSU,
-			KOUTSU,
-			JUNTSU,
-		};
-		MJID id;
-		EType type;
-		SMeld(EType ty, MJID _id) {
-			type = ty;
-			id = _id;
-		}
-		bool operator < (const SMeld &a) const {
-			if (id != a.id) {
-				return id < a.id;
-			} else {
-				return type < a.type;
-			}
-		}
-	};
-
-	static std::string toString(MJMachiType machi) {
-		switch (machi) {
-		case MJ_MACHI_TANKI:    return u8"単騎";
-		case MJ_MACHI_PENCHAN:  return u8"辺張";
-		case MJ_MACHI_KANCHAN:  return u8"間張";
-		case MJ_MACHI_RYANMEN:  return u8"両面";
-		case MJ_MACHI_SHABO:    return u8"シャボ";
-		case MJ_MACHI_KOKUSHI:  return u8"国士無双単騎";
-		case MJ_MACHI_KOKUSHI13:return u8"国士無双13面";
-		case MJ_MACHI_CHITOI:   return u8"七対子単騎";
-		}
-		return "";
-	}
-	static std::string toString(MJID id) {
-		if (MJ_ISMAN(id)) {
-			int i = id - MJ_MAN(1);
-			return g_ManStr[i];
-		}
-		if (MJ_ISPIN(id)) {
-			int i = id - MJ_PIN(1);
-			return g_PinStr[i];
-		}
-		if (MJ_ISSOU(id)) {
-			int i = id - MJ_SOU(1);
-			return g_SouStr[i];
-		}
-		if (MJ_ISCHR(id)) {
-			int i = id - MJ_TON;
-			return g_ChrStr[i];
-		}
-		return "";
-	}
-
-	static std::string getMeldsString(const MJMelds &melds) {
-		std::string s;
-		std::vector<SMeld> order;
-		for (auto it=melds.mToitsu.begin(); it!=melds.mToitsu.end(); ++it) {
-			order.push_back(SMeld(SMeld::TOITSU, *it));
-		}
-		for (auto it=melds.mKoutsu.begin(); it!=melds.mKoutsu.end(); ++it) {
-			order.push_back(SMeld(SMeld::KOUTSU, *it));
-		}
-		for (auto it=melds.mJuntsu.begin(); it!=melds.mJuntsu.end(); ++it) {
-			order.push_back(SMeld(SMeld::JUNTSU, *it));
-		}
-		std::sort(order.begin(), order.end());
-		for (auto it=order.begin(); it!=order.end(); ++it) {
-			if (it->type == SMeld::TOITSU) {
-				if (!s.empty()) s += u8" | ";
-				s += toString(it->id);
-				s += toString(it->id);
-			}
-			if (it->type == SMeld::KOUTSU) {
-				if (!s.empty()) s += u8" | ";
-				s += toString(it->id);
-				s += toString(it->id);
-				s += toString(it->id);
-			}
-			if (it->type == SMeld::JUNTSU) {
-				if (!s.empty()) s += u8" | ";
-				s += toString(it->id);
-				s += toString(it->id+1);
-				s += toString(it->id+2);
-			}
-		}
-		return s;
-	}
-	static std::string getAmariString(const MJMelds &melds) {
-		std::string s;
-		if (!melds.mAmari.empty()) {
-			std::vector<MJID> amari = melds.mAmari;
-			std::sort(amari.begin(), amari.end());
-			for (auto it=amari.begin(); it!=amari.end(); ++it) {
-				s += toString(*it);
-			}
-		}
-		return s;
-	}
-	static std::string getShantenString(const MJMelds &melds) {
-		std::string s;
-		if (melds.mShanten > 0) {
-			s += u8"（" + std::to_string(melds.mShanten) + u8"シャンテン）";
-		} else {
-			s += u8"（テンパイ）";
-		}
-		return s;
-	}
-	static std::string getMachiString(const MJMelds &melds, bool with_type) {
-		std::string s;
-		if (!melds.mMachi.empty()) {
-			std::vector<MJID> machi = melds.mMachi;
-			std::sort(machi.begin(), machi.end());
-			if (with_type) {
-				s += u8"   【" + toString(melds.mMachiType) + u8"】　";
-			}
-			for (auto it=machi.begin(); it!=machi.end(); ++it) {
-				s += toString(*it);
-			}
-		}
-		return s;
-	}
-	static std::string toString(const MJMelds &melds) {
-		std::string s;
-		s += getMeldsString(melds); // 面子
-		s += u8" || ";
-		s += getAmariString(melds); // 余り牌
-		s += getShantenString(melds); // シャンテン数
-		s += getMachiString(melds, true); // 待ち牌
-		return s;
-	}
-	static std::string toString(const MJTiles &tiles) {
-		std::string s;
-		std::vector<MJID> order = tiles.mTiles;
-		std::sort(order.begin(), order.end());
-		for (auto it=order.begin(); it!=order.end(); ++it) {
-			s += toString(*it);
-		}
-		return s;
-	}
-};
-
-std::string MJ_ToString(const MJTiles &tiles) {
-	return MJPrint::toString(tiles);
-}
-std::string MJ_ToString(const MJMelds &melds) {
-	return MJPrint::toString(melds);
-}
-std::string MJ_ToString(MJMachiType machi) {
-	return MJPrint::toString(machi);
-}
-std::string MJ_ToString(MJID tile) {
-	return MJPrint::toString(tile);
-}
-
-std::string MJ_GetMeldsString(const MJMelds &melds) {
-	return MJPrint::getMeldsString(melds);
-}
-std::string MJ_GetAmariString(const MJMelds &melds) {
-	return MJPrint::getAmariString(melds);
-}
-std::string MJ_GetShantenString(const MJMelds &melds) {
-	return MJPrint::getShantenString(melds);
-}
-std::string MJ_GetMachiString(const MJMelds &melds, bool with_type) {
-	return MJPrint::getMachiString(melds, with_type);
-}
-
-bool _ReadStr(const char *str, int *pos, const char *t) {
-	const char *s = str + (*pos);
-	size_t slen = strlen(s);
-	size_t tlen = strlen(t);
-	if (slen >= tlen && strncmp(s, t, tlen) == 0) {
-		*pos += tlen;
-		return true;
-	}
-	return false;
-}
-bool MJ_ReadTile(const char *s, int *pos, MJID *tile) {
-	assert(pos);
-	assert(tile);
-	for (int i=0; i<9; i++) {
-		if (_ReadStr(s, pos, g_ManStr[i])) {
-			*tile = MJ_MAN(1+i);
-			return true;
-		}
-	}
-	for (int i=0; i<9; i++) {
-		if (_ReadStr(s, pos, g_PinStr[i])) {
-			*tile = MJ_PIN(1+i);
-			return true;
-		}
-	}
-	for (int i=0; i<9; i++) {
-		if (_ReadStr(s, pos, g_SouStr[i])) {
-			*tile = MJ_SOU(1+i);
-			return true;
-		}
-	}
-	for (int i=0; i<7; i++) {
-		if (_ReadStr(s, pos, g_ChrStr[i])) {
-			*tile = MJ_CHR(1+i);
-			return true;
-		}
-	}
-	return false;
-}
-int MJ_ReadTiles(const char *s, std::vector<MJID> &out_tiles) {
-	out_tiles.clear();
-	int pos = 0;
-	while (s[pos]) {
-		MJID tile = 0;
-		if (MJ_ReadTile(s, &pos, &tile)) {
-			out_tiles.push_back(tile);
-		} else {
-			break;
-		}
-	}
-	return out_tiles.size();
-}
-int MJ_ReadTiles(const char *s, MJTiles &out_tiles) {
-	std::vector<MJID> tmp;
-	MJ_ReadTiles(s, tmp);
-	out_tiles.clear();
-	out_tiles.add(tmp.data(), tmp.size());
-	return tmp.size();
-}
-
-
 // テンパイ状態の tempai にツモった牌 tsumo を入れて、14牌すべてそろった状態の MJMelds を作成する 
 bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 	assert(out_kansei);
 	*out_kansei = tempai; // copy
 
 	bool ok = false;
-	switch (tempai.mMachiType) {
-	case MJ_MACHI_NONE:
+	switch (tempai.mWaitType) {
+	case MJ_WAIT_NONE:
 		break;
 
-	case MJ_MACHI_KOKUSHI:
-	case MJ_MACHI_TANKI:
-	case MJ_MACHI_CHITOI:
+	case MJ_WAIT_KOKUSHI:
+	case MJ_WAIT_TANKI:
+	case MJ_WAIT_CHITOI:
 		assert(out_kansei->mAmari.size() == 1);// 余り牌は1個のはず
-		if (tempai.mMachi.size()==1 && tempai.mMachi[0]==tsumo) {
+		if (tempai.mWaits.size()==1 && tempai.mWaits[0]==tsumo) {
 			out_kansei->mToitsu.push_back(tsumo); // ツモった牌が対子になった
 			ok = true;
 		}
 		break;
 
-	case MJ_MACHI_KANCHAN:
+	case MJ_WAIT_KANCHAN:
 		assert(out_kansei->mAmari.size() == 2);// 余り牌は2個のはず
 		assert(out_kansei->mAmari[0]+2 == out_kansei->mAmari[1]);
 		if (MJ_IS_JUNTSU(tempai.mAmari[0], tsumo, tempai.mAmari[1])) { // 嵌張塔子が順子化した
@@ -901,8 +813,8 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 		}
 		break;
 
-	case MJ_MACHI_PENCHAN:
-	case MJ_MACHI_RYANMEN:
+	case MJ_WAIT_PENCHAN:
+	case MJ_WAIT_RYANMEN:
 		// 両面・辺張塔子が順子化した
 		assert(out_kansei->mAmari.size() == 2); // 余り牌は2個のはず
 		assert(out_kansei->mAmari[0]+1 == out_kansei->mAmari[1]);
@@ -916,7 +828,7 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 		}
 		break;
 
-	case MJ_MACHI_SHABO: // シャボ待ち
+	case MJ_WAIT_SHABO: // シャボ待ち
 		assert(out_kansei->mAmari.size() == 2); // シャボ待ちの場合、余り牌は2個のはず（もう一つの対子は雀頭扱い（＝余っていない）になっている
 		assert(out_kansei->mAmari[0] == out_kansei->mAmari[1]);
 		if (tempai.mAmari[0] == tsumo) { // 塔子扱いだった対子に重なった
@@ -931,7 +843,7 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 		}
 		break;
 
-	case MJ_MACHI_KOKUSHI13: // 国士無双13面
+	case MJ_WAIT_KOKUSHI13: // 国士無双13面
 		if (MJ_ISYAOCHU(tsumo)) {
 			ok = true;
 		}
@@ -941,8 +853,8 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 	if (ok) {
 		out_kansei->sort();
 		out_kansei->mAmari.clear(); // 余り牌解消
-		out_kansei->mMachi.clear(); // 待ち解消
-		out_kansei->mMachiType = MJ_MACHI_NONE;
+		out_kansei->mWaits.clear(); // 待ち解消
+		out_kansei->mWaitType = MJ_WAIT_NONE;
 		return true;
 	}
 	return false;
@@ -1027,30 +939,30 @@ void MJYakuList::clear() {
 	mOya = false;
 }
 void MJYakuList::addYaku(int han, const char *name_u8) {
-	ITEM item;
-	item.name_u8 = name_u8;
+	MJYaku item;
+	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
 	item.han = han;
 	item.yakuman = 0;
 	mList.push_back(item);
 }
 void MJYakuList::addYakuman(const char *name_u8) {
-	ITEM item;
-	item.name_u8 = name_u8;
+	MJYaku item;
+	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
 	item.han = 0;
 	item.yakuman = 1;
 	mList.push_back(item);
 }
 void MJYakuList::addYakuman2(const char *name_u8) {
-	ITEM item;
-	item.name_u8 = name_u8;
+	MJYaku item;
+	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
 	item.han = 0;
 	item.yakuman = 2;
 	mList.push_back(item);
 }
 void MJYakuList::addFu(int fu, const char *name_u8) {
-	FU item;
+	MJFu item;
+	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
 	item.value = fu;
-	item.name_u8 = name_u8;
 	mFuList.push_back(item);
 }
 bool MJYakuList::empty() const {
@@ -1079,13 +991,19 @@ void MJYakuList::updateScore() {
 		mScore = mOya ? 36000 : 24000;
 		return;
 	}
-
-	for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
-		mRawFu += it->value;
-	}
-	mFu = mRawFu;
-	if (mRawFu % 10 != 0) {
-		mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
+	if (mHan >= 4) {
+		// 満貫以上は符計算しない
+		mFu = 0;
+		mRawFu = 0;
+		mFuList.clear();
+	} else {
+		for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
+			mRawFu += it->value;
+		}
+		mFu = mRawFu;
+		if (mRawFu % 10 != 0) {
+			mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
+		}
 	}
 	{
 		switch (mHan) {
@@ -1121,7 +1039,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 
 	bool is_chitoi = false; // 七対子の形になっている？
 	if (is_chitoi) {
-		if (tempai.mMachiType == MJ_MACHI_CHITOI && tempai.mMachi[0]==tsumo) {
+		if (tempai.mWaitType == MJ_WAIT_CHITOI && tempai.mWaits[0]==tsumo) {
 			is_chitoi = true;
 		}
 	}
@@ -1172,7 +1090,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 		}
 		// 四暗刻
 		if (kansei.mKoutsu.size() == 4) {
-			if (tempai.mMachiType == MJ_MACHI_TANKI) {
+			if (tempai.mWaitType == MJ_WAIT_TANKI) {
 				result.addYakuman2(u8"四暗刻単騎"); // ダブル役満
 			} else {
 				result.addYakuman(u8"四暗刻");
@@ -1405,7 +1323,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 	// １ハン役
 	if (1) {
 		// 平和
-		if (kansei.mJuntsu.size()==4 && tempai.mMachiType==MJ_MACHI_RYANMEN) { // 完成形で４順子あり、テンパイ形で両面待ちになっている
+		if (kansei.mJuntsu.size()==4 && tempai.mWaitType==MJ_WAIT_RYANMEN) { // 完成形で４順子あり、テンパイ形で両面待ちになっている
 			MJID id = kansei.mToitsu[0];
 			if (!MJ_ISSANGEN(id) && id!=jikaze && id!=bakaze) { // 頭が役牌ではない
 				result.addYaku(1, u8"平和");
@@ -1511,8 +1429,8 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 				result.addFu(4, u8"暗刻");
 			}
 		}
-		switch (tempai.mMachiType) {
-		case MJ_MACHI_KANCHAN:
+		switch (tempai.mWaitType) {
+		case MJ_WAIT_KANCHAN:
 			if (is_tsumo) {
 				result.addFu(4, u8"嵌張ツモ");
 			} else {
@@ -1520,7 +1438,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 			}
 			break;
 
-		case MJ_MACHI_PENCHAN:
+		case MJ_WAIT_PENCHAN:
 			if (is_tsumo) {
 				result.addFu(4, u8"辺張ツモ");
 			} else {
@@ -1528,19 +1446,19 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 			}
 			break;
 
-		case MJ_MACHI_RYANMEN:
+		case MJ_WAIT_RYANMEN:
 			if (is_tsumo) {
 				result.addFu(2, u8"両面ツモ");
 			}
 			break;
 
-		case MJ_MACHI_SHABO:
+		case MJ_WAIT_SHABO:
 			if (is_tsumo) {
 				result.addFu(2, u8"シャボツモ");
 			}
 			break;
 
-		case MJ_MACHI_TANKI:
+		case MJ_WAIT_TANKI:
 			if (is_tsumo) {
 				result.addFu(4, u8"単騎ツモ");
 			} else {
@@ -1551,4 +1469,246 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 	}
 	result.updateScore();
 	return true;
+}
+
+
+
+int MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vector<MJEvalResult> &result) {
+	MJTiles tiles;
+	tiles.add(handtiles.tiles, handtiles.num_tiles);
+
+	// 可能な面子構成のうち、最もテンパイに近いものを全て得る
+	std::vector<MJMelds> meldslist;
+	MJ_FindMelds(tiles, meldslist);
+
+	bool has_agari = false;
+	bool has_tempai = false;
+
+	// 結果をセットする
+	result.clear();
+	for (auto it=meldslist.begin(); it!=meldslist.end(); ++it) {
+		const MJMelds &melds = *it;
+		MJEvalResult res;
+		memcpy(res.tiles, tiles.mTiles.data(), tiles.mTiles.size()); // handtiles.tiles ではなく、ソート済みである tiles.mTiles を使う
+		res.num_tiles = tiles.mTiles.size();
+		res.tsumo = handtiles.tsumo;
+		for (int i=0; i<melds.mKoutsu.size(); i++) {
+			MJSet set;
+			set.tile = melds.mKoutsu[i];
+			set.type = MJ_SET_PONG;
+			res.sets[res.num_sets++] = set;
+			res.kongs[res.num_kongs++] = set;
+		}
+		for (int i=0; i<melds.mJuntsu.size(); i++) {
+			MJSet set;
+			set.tile = melds.mJuntsu[i];
+			set.type = MJ_SET_CHOW;
+			res.sets[res.num_sets++] = set;
+			res.chows[res.num_chows++] = set;
+		}
+		for (int i=0; i<melds.mToitsu.size(); i++) {
+			MJSet set;
+			set.tile = melds.mToitsu[i];
+			set.type = MJ_SET_PAIR;
+			res.sets[res.num_sets++] = set;
+			res.pairs[res.num_pairs++] = set;
+		}
+		for (int i=0; i<melds.mAmari.size(); i++) {
+			res.amari[res.num_amari++] = melds.mAmari[i];
+		}
+		for (int i=0; i<melds.mWaits.size(); i++) {
+			res.waits[res.num_waits++] = melds.mWaits[i];
+		}
+		res.shanten = melds.mShanten;
+		res.wait_type = melds.mWaitType;
+
+		if (res.shanten == 0) {
+			has_tempai = true;
+		}
+
+		// ツモ牌が指定されているなら、上がりかどうかも調べる
+		if (handtiles.tsumo && melds.mShanten==0) {
+			MJYakuList yakulist;
+			if (MJ_EvalYaku(tiles, melds, handtiles.tsumo, gameinfo.position_wind, gameinfo.round_wind, gameinfo.dora[0], yakulist)) {
+				// 上がっている
+				for (int i=0; i<yakulist.mList.size(); i++) {
+					res.yaku[res.num_yaku++] = yakulist.mList[i];
+				}
+				for (int i=0; i<yakulist.mFuList.size(); i++) {
+					res.fu[res.num_fu++] = yakulist.mFuList[i];
+				}
+				res.total_han = yakulist.mHan;
+				res.total_yakuman = yakulist.mYakuman;
+				res.total_fu = yakulist.mFu;
+				res.total_fu_raw = yakulist.mRawFu;
+				res.score = yakulist.mScore;
+				strcpy_s(res.score_text_u8, sizeof(res.score_text_u8), yakulist.mText.c_str());
+				has_agari = true;
+			}
+		}
+		result.push_back(res);
+	}
+
+	// ここまでで result にはすべてのテンパイ形（アガリ、非アガリ両方）が入っている。
+	// アガリ形が見つかっている場合は、非アガリ形を結果から除外する
+	if (has_agari) {
+		for (auto it=result.begin(); it!=result.end(); ) {
+			if (it->score == 0) {
+				it = result.erase(it);
+			} else {
+				it++;
+			}
+		}
+		return 2; // あがり
+	}
+	if (has_tempai) {
+		return 1;
+	}
+	return 0; // OK
+}
+
+
+
+
+
+
+
+static const char *g_ManStr[] = {u8"一", u8"二", u8"三", u8"四", u8"五", u8"六", u8"七", u8"八", u8"九", NULL};
+static const char *g_PinStr[] = {u8"①", u8"②", u8"③", u8"④", u8"⑤", u8"⑥", u8"⑦", u8"⑧", u8"⑨", NULL};
+static const char *g_SouStr[] = {u8"１", u8"２", u8"３", u8"４", u8"５", u8"６", u8"７", u8"８", u8"９", NULL};
+static const char *g_ChrStr[] = {u8"東", u8"南", u8"西", u8"北", u8"白", u8"發", u8"中", NULL};
+
+
+bool _ReadStr(const char *str, int *pos, const char *t) {
+	const char *s = str + (*pos);
+	size_t slen = strlen(s);
+	size_t tlen = strlen(t);
+	if (slen >= tlen && strncmp(s, t, tlen) == 0) {
+		*pos += tlen;
+		return true;
+	}
+	return false;
+}
+bool MJ_ReadTile(const char *s, int *pos, MJID *tile) {
+	assert(pos);
+	assert(tile);
+	for (int i=0; i<9; i++) {
+		if (_ReadStr(s, pos, g_ManStr[i])) {
+			*tile = MJ_MAN(1+i);
+			return true;
+		}
+	}
+	for (int i=0; i<9; i++) {
+		if (_ReadStr(s, pos, g_PinStr[i])) {
+			*tile = MJ_PIN(1+i);
+			return true;
+		}
+	}
+	for (int i=0; i<9; i++) {
+		if (_ReadStr(s, pos, g_SouStr[i])) {
+			*tile = MJ_SOU(1+i);
+			return true;
+		}
+	}
+	for (int i=0; i<7; i++) {
+		if (_ReadStr(s, pos, g_ChrStr[i])) {
+			*tile = MJ_CHR(1+i);
+			return true;
+		}
+	}
+	return false;
+}
+int MJ_ReadTiles(const char *s, std::vector<MJID> &out_tiles) {
+	out_tiles.clear();
+	int pos = 0;
+	while (s[pos]) {
+		MJID tile = 0;
+		if (MJ_ReadTile(s, &pos, &tile)) {
+			out_tiles.push_back(tile);
+		} else {
+			break;
+		}
+	}
+	return out_tiles.size();
+}
+int MJ_ReadTiles(const char *s, MJTiles &out_tiles) {
+	std::vector<MJID> tmp;
+	MJ_ReadTiles(s, tmp);
+	out_tiles.clear();
+	out_tiles.add(tmp.data(), tmp.size());
+	return tmp.size();
+}
+
+
+std::string MJ_ToString(MJWaitType wait) {
+	switch (wait) {
+	case MJ_WAIT_TANKI:    return u8"単騎";
+	case MJ_WAIT_PENCHAN:  return u8"辺張";
+	case MJ_WAIT_KANCHAN:  return u8"間張";
+	case MJ_WAIT_RYANMEN:  return u8"両面";
+	case MJ_WAIT_SHABO:    return u8"シャボ";
+	case MJ_WAIT_KOKUSHI:  return u8"国士無双単騎";
+	case MJ_WAIT_KOKUSHI13:return u8"国士無双13面";
+	case MJ_WAIT_CHITOI:   return u8"七対子単騎";
+	}
+	return "";
+}
+std::string MJ_ToString(MJID tile) {
+	if (MJ_ISMAN(tile)) {
+		int i = tile - MJ_MAN(1);
+		return g_ManStr[i];
+	}
+	if (MJ_ISPIN(tile)) {
+		int i = tile - MJ_PIN(1);
+		return g_PinStr[i];
+	}
+	if (MJ_ISSOU(tile)) {
+		int i = tile - MJ_SOU(1);
+		return g_SouStr[i];
+	}
+	if (MJ_ISCHR(tile)) {
+		int i = tile - MJ_TON;
+		return g_ChrStr[i];
+	}
+	return "";
+}
+std::string MJ_ToString(const MJID *tiles, int size) {
+	std::string s;
+	for (int i=0; i<size; i++) {
+		s += MJ_ToString(tiles[i]);
+	}
+	return s;
+}
+std::string MJ_ToString(const MJSet &set) {
+	std::string s;
+	switch (set.type) {
+	case MJ_SET_PAIR:
+		s += MJ_ToString(set.tile);
+		s += MJ_ToString(set.tile);
+		break;
+	case MJ_SET_PONG:
+		s += MJ_ToString(set.tile);
+		s += MJ_ToString(set.tile);
+		s += MJ_ToString(set.tile);
+		break;
+	case MJ_SET_CHOW:
+		s += MJ_ToString(set.tile);
+		s += MJ_ToString(set.tile+1);
+		s += MJ_ToString(set.tile+2);
+		break;
+	}
+	return s;
+}
+std::string MJ_ToString(const MJSet *sets, int size, bool sort, const char *separator) {
+	std::string s;
+	std::vector<MJSet> tmp;
+	for (int i=0; i<size; i++) {
+		tmp.push_back(sets[i]);
+	}
+	std::sort(tmp.begin(), tmp.end());
+	for (auto it=tmp.begin(); it!=tmp.end(); ++it) {
+		if (!s.empty()) s += separator;
+		s += MJ_ToString(*it);
+	}
+	return s;
 }
