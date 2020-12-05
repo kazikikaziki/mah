@@ -77,7 +77,14 @@ struct MJSet {
 			return type < a.type;
 		}
 	}
+	bool operator == (const MJSet &a) const {
+		return tile==a.tile && type==a.type && taken_from==a.taken_from && taken_index==a.taken_index;
+	}
 
+	bool isopen() const { return taken_from > 0; }
+	bool ismenzen() const { return !isopen(); }
+	bool ispong() const { return type == MJ_SET_PONG; }
+	bool ischow() const { return type == MJ_SET_CHOW; }
 	MJID tile0() const { return tile; } // 面子構成牌[0]
 	MJID tile1() const { return type==MJ_SET_CHOW ? tile+1 : tile; } // 面子構成牌[1]
 	MJID tile2() const { return type==MJ_SET_CHOW ? tile+2 : tile; } // 面子構成牌[2]
@@ -138,11 +145,11 @@ struct MJFu {
 };
 
 struct MJHandTiles {
-	MJID tiles[13];     // 手牌
+	MJID tiles[13];    // 手牌
 	MJSet opensets[4]; // 鳴いた面子
-	int num_tiles;      // 0 .. 13
+	int num_tiles;     // 0 .. 13
 	int num_opensets;  // 0..4
-	MJID tsumo;         // ツモまたは相手から出た牌。アガリをについてしらべないばあいは 0 のままで良い
+	MJID tsumo;        // ツモまたは相手から出た牌。アガリをについてしらべないばあいは 0 のままで良い
 
 	MJHandTiles() {
 		memset(tiles, 0, sizeof(tiles));
@@ -237,7 +244,13 @@ struct MJEvalResult {
 };
 
 
-int MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vector<MJEvalResult> &result);
+enum MJStat {
+	MJ_STAT_NOTEN,    // ノーテン
+	MJ_STAT_TEMPAI,   // テンパイ
+	MJ_STAT_YAKUNASI, // 役無し (handtiles.tsumo が指定されている場合のみ。4面子１雀頭あるが役が無い）
+	MJ_STAT_AGARI,    // アガリ可能 (handtiles.tsumo が指定されている場合のみ。役がある）
+};
+MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vector<MJEvalResult> &result);
 
 // ドラ表示牌を指定して、実際のドラを返す
 MJID MJ_GetDora(MJID id);

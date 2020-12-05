@@ -10,7 +10,7 @@
 
 #define APPFONT_FILE      "c:\\windows\\fonts\\meiryo.ttc"
 #define APPFONT_TTC        2 // (0=Regular, 1=Italic, 2=Bold, 3=BoldItalic)
-#define APPFONT_SIZE       14
+#define APPFONT_SIZE       16
 #define APPWINDOWCLASSNAME L"MyWindowClass"
 
 // ImGUI は一部の漢字しか対応していない。
@@ -33,7 +33,7 @@ static const wchar_t *EXTRA_CHARS =
 	L"勃昧枕蜜冥麺冶弥闇喩湧妖瘍沃拉辣藍璃慄侶瞭瑠呂賂弄籠麓脇"
 	// それ以外の文字
 	L"※牢礫贄杖碧蒼橙鞘←→↑↓綾堰憑"
-	L"①②③④⑤⑥⑦⑧⑨發牌蓮么盃飜"
+	L"①②③④⑤⑥⑦⑧⑨發牌蓮么盃飜雀"
 	;
 
 
@@ -90,10 +90,11 @@ void CSimpleApp::run(int cw, int ch) {
 	g_WC.lpszClassName = APPWINDOWCLASSNAME;
 	g_WC.lpfnWndProc = _WndProc;
 	RegisterClassExW(&g_WC);
-	g_hWnd = CreateWindowExW(0, g_WC.lpszClassName, NULL, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, cw, ch, NULL, NULL, NULL, NULL);
+	g_hWnd = CreateWindowExW(0, g_WC.lpszClassName, NULL, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, NULL, NULL, NULL, NULL);
 	if (g_hWnd == NULL) goto END;
 	ShowWindow(g_hWnd, SW_SHOW);
-	if (0) {
+	if (1) {
+		// クライアント領域のサイズが cw * ch になるように調整する
 		BOOL has_menu = GetMenu(g_hWnd) != NULL;
 		LONG_PTR style = GetWindowLongPtrW(g_hWnd, GWL_STYLE);
 		LONG_PTR exstyle = GetWindowLongPtrW(g_hWnd, GWL_EXSTYLE);
