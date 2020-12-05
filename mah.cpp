@@ -584,6 +584,7 @@ private:
 				// 手牌にヤオチュウ牌が1つ残っている。単騎待ちテンパイ
 				melds.mShanten = 0;
 				melds.mWaits.push_back(*required.begin());
+				melds.mWaitType = MJ_WAIT_KOKUSHI;
 				return;
 			}
 		}
@@ -809,10 +810,18 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 		break;
 
 	case MJ_WAIT_KOKUSHI:
+		assert(tempai.mWaits.size() == 1); // 待ち牌は１個のはず
+		if (tempai.mWaits[0] == tsumo) {
+			out_kansei->mToitsu.push_back(tsumo); // ツモった牌が対子になった
+			ok = true;
+		}
+		break;
+
 	case MJ_WAIT_TANKI:
 	case MJ_WAIT_CHITOI:
 		assert(out_kansei->mAmari.size() == 1);// 余り牌は1個のはず
-		if (tempai.mWaits.size()==1 && tempai.mWaits[0]==tsumo) {
+		assert(tempai.mWaits.size() == 1); // 待ち牌は１個のはず
+		if (tempai.mWaits[0] == tsumo) {
 			out_kansei->mToitsu.push_back(tsumo); // ツモった牌が対子になった
 			ok = true;
 		}
@@ -1008,13 +1017,23 @@ void MJYakuList::updateScore() {
 		mHan += it->han;
 	}
 	if (mYakuman > 0) {
-		mScore = mYakuman * (mOya ? 48000 : 32000);
+		// 役満
 		if (mYakuman == 1) mText = u8"役満";
 		if (mYakuman == 2) mText = u8"ダブル役満";
 		if (mYakuman == 3) mText = u8"トリプル役満";
+		if (mOya) {
+			mScore    = mYakuman * 48000;
+			mScoreOya = 0;
+			mScoreKo  = mScore / 3;
+		} else {
+			mScore    = mYakuman * 32000;
+			mScoreOya = mScore / 2;
+			mScoreKo  = mScore / 4;
+		}
 		return;
 	}
 	if (mHan >= 13) {
+		// 数え役満
 		mYakuman = 1;
 		mText = std::to_string(mHan) + u8"飜 数え役満";
 		mScore = mOya ? 48000 : 32000;
@@ -1022,65 +1041,90 @@ void MJYakuList::updateScore() {
 	}
 
 	// 符を数える
-	for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
-		mRawFu += it->value;
+	{
+		mRawFu = 0;
+		mFu = 0;
+		for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
+			mRawFu += it->value;
+		}
+		mFu = mRawFu;
+		if (mRawFu % 10 != 0) {
+			mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
+		}
 	}
-	mFu = mRawFu;
-	if (mRawFu % 10 != 0) {
-		mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
-	}
+
+	// ４翻以下の場合は符を参照して点数を決める
 	struct SCO {
-		int score;
+		int ten;
 		int oya;
 		int ko;
 	};
-	const SCO table_ko[] = {
-		// 1翻 2翻 3翻 4翻
-		// 1翻 -------- 2翻 --------- 3翻 -----------4翻
-		{  -1, -1,  -1}, {1300, 400, 700}, {2600, 700,1300}, {5200,1300,2600}, // 20符
-		{1000,300, 500}, {2000, 500,1000}, {3900,1000,2000}, {7700,2000,3900}, // 30符
-		{1300,400, 700}, {2600, 700,1300}, {5200,1300,2600}, {8000,2000,4000}, // 40符
-		{1600,400, 800}, {3200, 800,1600}, {6400,1600,3200}, {8000,2000,4000}, // 50符
-		{2000,500,1000}, {3900,1000,2000}, {7700,2000,3900}, {8000,2000,4000}, // 60符
-		{2300,600,1200}, {4500,1200,2300}, {8000,2000,4000}, {8000,2000,4000}, // 70符
-	};
-	const SCO table_oya[] = {
-		// 1翻 -------- 2翻 --------- 3翻 -----------4翻
-		{  -1,0,  -1}, {2000,0, 700}, { 3900,0,1300}, { 7700,0,2600}, // 20符
-		{1500,0, 500}, {2900,0,1000}, { 5800,0,2000}, {11600,0,3900}, // 30符
-		{2000,0, 700}, {3900,0,1300}, { 7700,0,2600}, {12000,0,4000}, // 40符
-		{2400,0, 800}, {4800,0,1600}, { 9600,0,3200}, {12000,0,4000}, // 50符
-		{2900,0,1000}, {5800,0,2000}, {11600,0,3900}, {12000,0,4000}, // 60符
-		{3400,0,1200}, {6800,0,2300}, {12000,0,4000}, {12000,0,4000}, // 70符
-	};
+	SCO sco = {0, 0, 0};
 	if (0 < mHan && mHan <= 4) {
+		const SCO table_ko[] = {
+			// 1翻 -------- 2翻 --------- 3翻 -----------4翻
+			{  -1, -1,  -1}, {1300, 400, 700}, {2600, 700,1300}, {5200,1300,2600}, // 20符
+			{1000,300, 500}, {2000, 500,1000}, {3900,1000,2000}, {7700,2000,3900}, // 30符
+			{1300,400, 700}, {2600, 700,1300}, {5200,1300,2600}, {8000,2000,4000}, // 40符
+			{1600,400, 800}, {3200, 800,1600}, {6400,1600,3200}, {8000,2000,4000}, // 50符
+			{2000,500,1000}, {3900,1000,2000}, {7700,2000,3900}, {8000,2000,4000}, // 60符
+			{2300,600,1200}, {4500,1200,2300}, {8000,2000,4000}, {8000,2000,4000}, // 70符
+		};
+		const SCO table_oya[] = {
+			// 1翻 -------- 2翻 --------- 3翻 -----------4翻
+			{  -1,0,  -1}, {2000,0, 700}, { 3900,0,1300}, { 7700,0,2600}, // 20符
+			{1500,0, 500}, {2900,0,1000}, { 5800,0,2000}, {11600,0,3900}, // 30符
+			{2000,0, 700}, {3900,0,1300}, { 7700,0,2600}, {12000,0,4000}, // 40符
+			{2400,0, 800}, {4800,0,1600}, { 9600,0,3200}, {12000,0,4000}, // 50符
+			{2900,0,1000}, {5800,0,2000}, {11600,0,3900}, {12000,0,4000}, // 60符
+			{3400,0,1200}, {6800,0,2300}, {12000,0,4000}, {12000,0,4000}, // 70符
+		};
 		int i = 4 * (mFu / 10 - 2) + (mHan - 1);
 		assert(i >= 0);
-		SCO sco;
 		if (mOya) {
 			sco = table_oya[i];
 		} else {
 			sco = table_ko[i];
 		}
-		mScore = sco.score;
+		mScore    = sco.ten;
 		mScoreOya = sco.oya;
-		mScoreKo = sco.ko;
+		mScoreKo  = sco.ko;
 	}
 	{
-		switch (mHan) {
-		case 0:  /*mScore = 0;   計算済み*/  mText = std::to_string(mFu) + u8"符 0飜"; break;
-		case 1:  /*mScore = 1000;計算済み*/  mText = std::to_string(mFu) + u8"符 1飜"; break;
-		case 2:  /*mScore = 2000;計算済み*/  mText = std::to_string(mFu) + u8"符 2飜"; break;
-		case 3:  /*mScore = 4000;計算済み*/  mText = std::to_string(mFu) + u8"符 3飜"; break;
-		case 4:  /*mScore = 8000;計算済み*/  mText = (mScore<8000) ? (std::to_string(mFu) + u8"符 4飜") : u8"4飜 満貫"; break;
-		case 5:  mScore=mOya? 8000:12000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"5飜 満貫"; break;
-		case 6:  mScore=mOya?12000:18000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"6飜 跳満"; break;
-		case 7:  mScore=mOya?12000:18000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"7飜 跳満"; break;
-		case 8:  mScore=mOya?16000:24000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"8飜 倍満"; break;
-		case 9:  mScore=mOya?16000:24000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"9飜 倍満"; break;
-		case 10: mScore=mOya?16000:24000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"10飜 倍満"; break;
-		case 11: mScore=mOya?24000:36000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"11飜 三倍満"; break;
-		case 12: mScore=mOya?24000:36000; mScoreOya=mOya?0:mScore/2; mScoreKo=mScore/4; mText = u8"12飜 三倍満"; break;
+		if (mOya) {
+			// 親
+			switch (mHan) {
+			case 0:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 0飜"; break;
+			case 1:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 1飜"; break;
+			case 2:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 2飜"; break;
+			case 3:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 3飜"; break;
+			case 4:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = (mScore<8000) ? (std::to_string(mFu) + u8"符 4飜") : u8"4飜 満貫"; break;
+			case 5:  mScore= 8000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"5飜 満貫"; break;
+			case 6:  mScore=12000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"6飜 跳満"; break;
+			case 7:  mScore=12000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"7飜 跳満"; break;
+			case 8:  mScore=16000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"8飜 倍満"; break;
+			case 9:  mScore=16000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"9飜 倍満"; break;
+			case 10: mScore=16000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"10飜 倍満"; break;
+			case 11: mScore=24000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"11飜 三倍満"; break;
+			case 12: mScore=24000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"12飜 三倍満"; break;
+			}
+		} else {
+			// 子
+			switch (mHan) {
+			case 0:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 0飜"; break;
+			case 1:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 1飜"; break;
+			case 2:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 2飜"; break;
+			case 3:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 3飜"; break;
+			case 4:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = (mScore<8000) ? (std::to_string(mFu) + u8"符 4飜") : u8"4飜 満貫"; break;
+			case 5:  mScore=12000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"5飜 満貫"; break;
+			case 6:  mScore=18000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"6飜 跳満"; break;
+			case 7:  mScore=18000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"7飜 跳満"; break;
+			case 8:  mScore=24000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"8飜 倍満"; break;
+			case 9:  mScore=24000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"9飜 倍満"; break;
+			case 10: mScore=24000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"10飜 倍満"; break;
+			case 11: mScore=36000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"11飜 三倍満"; break;
+			case 12: mScore=36000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"12飜 三倍満"; break;
+			}
 		}
 		if (mScore >= 8000) {
 			// 満貫以上は符計算しない
@@ -1105,7 +1149,27 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 
 	if (tempai.mShanten != 0) return false;
 
-	bool is_chitoi = false; // 七対子の形になっている？
+	// 純正国士無双
+	if (tempai.mWaitType == MJ_WAIT_KOKUSHI13) {
+		assert(tempai.mWaits.size() == 13);
+		if (MJ_ISYAOCHU(tsumo)) {
+			result.addYakuman2(u8"純正国士無双"); // ダブル役満
+			result.updateScore();
+			return true; // 他の役と複合しないのでここで判定を終了する
+		}
+	}
+	// 国士無双
+	if (tempai.mWaitType == MJ_WAIT_KOKUSHI) {
+		assert(tempai.mWaits.size() == 1);
+		if (tempai.mWaits[0] == tsumo) {
+			result.addYakuman(u8"国士無双"); // 役満
+			result.updateScore();
+			return true; // 他の役と複合しないのでここで判定を終了する
+		}
+	}
+
+	// 七対子の形になっている？
+	bool is_chitoi = false;
 	if (is_chitoi) {
 		if (tempai.mWaitType == MJ_WAIT_CHITOI && tempai.mWaits[0]==tsumo) {
 			is_chitoi = true;

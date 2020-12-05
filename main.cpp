@@ -479,8 +479,8 @@ public:
 					}
 					// 符
 					if (eval.num_fu > 0) {
-						ImGui_VSpace();
-						ImGui_VSpace();
+						ImGui::Indent();
+						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f,1.0f,1.0f,0.5f));
 						for (int i=0; i<eval.num_fu; i++) {
 							const MJFu &fu = eval.fu[i];
 							ImGui::Text(u8"%d符 %s", fu.value, fu.name_u8);
@@ -492,13 +492,15 @@ public:
 								}
 							}
 						}
+						ImGui::PopStyleColor();
+						ImGui::Unindent();
 					}
 					// 合計
-				//	ImGui_VSpace();
-				//	ImGui_VSpace();
 					if (eval.score_oya) {
-						ImGui::Text(u8"%s %d点 (%d/%d)", eval.score_text_u8, eval.score, eval.score_oya, eval.score_ko);
+						// 親の得点がある＝子のアガリ
+						ImGui::Text(u8"%s %d点 (親%d / 子%d)", eval.score_text_u8, eval.score, eval.score_oya, eval.score_ko);
 					} else {
+						// 親の得点がない＝親のアガリ
 						ImGui::Text(u8"%s %d点 (%dオール)", eval.score_text_u8, eval.score, eval.score_ko);
 					}
 					ImGui_VSpace();
