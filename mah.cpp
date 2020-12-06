@@ -21,21 +21,21 @@ enum MJBit {
 typedef int MJBits; 
 
 // 牌の種類を判定
-inline bool MJ_IsMan(MJID id)    { return MJ_MAN(1) <= id && id <= MJ_MAN(9); } // 萬子か？
-inline bool MJ_IsPin(MJID id)    { return MJ_PIN(1) <= id && id <= MJ_PIN(9); } // 筒子か？
-inline bool MJ_IsSou(MJID id)    { return MJ_SOU(1) <= id && id <= MJ_SOU(9); } // 索子か？
-inline bool MJ_IsChr(MJID id)    { return MJ_CHR(1) <= id && id <= MJ_CHR(7); } // 字牌か？
-inline bool MJ_IsValid(MJID id)  { return MJ_IsMan(id) || MJ_IsPin(id) || MJ_IsSou(id) || MJ_IsChr(id); } // 有効な牌番号か？
-inline bool MJ_IsNum(MJID id)    { return MJ_IsMan(id) || MJ_IsPin(id) || MJ_IsSou(id); } // 数字牌か？
-inline bool MJ_Is19(MJID id)     { return id==MJ_MAN(1) || id==MJ_MAN(9) || id==MJ_PIN(1) || id==MJ_PIN(9) || id==MJ_SOU(1) || id==MJ_SOU(9); } // 1,9牌か？
-inline bool MJ_Is28(MJID id)     { return MJ_IsNum(id) && !MJ_Is19(id); } // 2～8の数字牌か？
-inline bool MJ_IsKaze(MJID id)   { return id==MJ_TON || id==MJ_NAN || id==MJ_SHA || id==MJ_PEI; } // 東西南北か？
-inline bool MJ_IsSangen(MJID id) { return id==MJ_HAK || id==MJ_HAZ || id==MJ_CHUN; } // 白發中か？
-inline bool MJ_IsYaochu(MJID id) { return MJ_Is19(id) || MJ_IsChr(id); } // 1,9,字牌か？
-inline int  MJ_GetNum(MJID id)   { return MJ_IsNum(id) ? (id % 100) : 0; } // 牌の数字(1～9)を得る。数字牌でない場合は 0
-inline MJBits MJ_GetSuit(MJID id) { return MJ_IsMan(id) ? MJ_BIT_MAN : MJ_IsPin(id) ? MJ_BIT_PIN : MJ_IsSou(id) ? MJ_BIT_SOU : MJ_IsChr(id) ? MJ_BIT_CHR : 0; } // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
+bool MJ_IsMan(MJID id)    { return MJ_MAN(1) <= id && id <= MJ_MAN(9); } // 萬子か？
+bool MJ_IsPin(MJID id)    { return MJ_PIN(1) <= id && id <= MJ_PIN(9); } // 筒子か？
+bool MJ_IsSou(MJID id)    { return MJ_SOU(1) <= id && id <= MJ_SOU(9); } // 索子か？
+bool MJ_IsChr(MJID id)    { return MJ_CHR(1) <= id && id <= MJ_CHR(7); } // 字牌か？
+bool MJ_IsValid(MJID id)  { return MJ_IsMan(id) || MJ_IsPin(id) || MJ_IsSou(id) || MJ_IsChr(id); } // 有効な牌番号か？
+bool MJ_IsNum(MJID id)    { return MJ_IsMan(id) || MJ_IsPin(id) || MJ_IsSou(id); } // 数字牌か？
+bool MJ_Is19(MJID id)     { return id==MJ_MAN(1) || id==MJ_MAN(9) || id==MJ_PIN(1) || id==MJ_PIN(9) || id==MJ_SOU(1) || id==MJ_SOU(9); } // 1,9牌か？
+bool MJ_Is28(MJID id)     { return MJ_IsNum(id) && !MJ_Is19(id); } // 2～8の数字牌か？
+bool MJ_IsKaze(MJID id)   { return id==MJ_TON || id==MJ_NAN || id==MJ_SHA || id==MJ_PEI; } // 東西南北か？
+bool MJ_IsSangen(MJID id) { return id==MJ_HAK || id==MJ_HAZ || id==MJ_CHUN; } // 白發中か？
+bool MJ_IsYaochu(MJID id) { return MJ_Is19(id) || MJ_IsChr(id); } // 1,9,字牌か？
+int  MJ_GetNum(MJID id)   { return MJ_IsNum(id) ? (id % 100) : 0; } // 牌の数字(1～9)を得る。数字牌でない場合は 0
+MJBits MJ_GetSuit(MJID id) { return MJ_IsMan(id) ? MJ_BIT_MAN : MJ_IsPin(id) ? MJ_BIT_PIN : MJ_IsSou(id) ? MJ_BIT_SOU : MJ_IsChr(id) ? MJ_BIT_CHR : 0; } // 牌の種類ビットを得る (MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)
 
-inline MJBits MJ_GetBits(MJID id) { // 牌 id の属性ビットフラグを得る
+MJBits MJ_GetBits(MJID id) { // 牌 id の属性ビットフラグを得る
 	MJBits ret = 0;
 	if (MJ_IsMan(id))    ret |= MJ_BIT_MAN;
 	if (MJ_IsPin(id))    ret |= MJ_BIT_PIN;
@@ -47,7 +47,7 @@ inline MJBits MJ_GetBits(MJID id) { // 牌 id の属性ビットフラグを得�
 	return ret;
 }
 
-inline MJBits MJ_GetChowBits(MJID id) { // 牌 id から始まる順子のビットフラグを得る（順子が 123 または 789 ならば MJ_BIT_NUM19 を含む）
+MJBits MJ_GetChowBits(MJID id) { // 牌 id から始まる順子のビットフラグを得る（順子が 123 または 789 ならば MJ_BIT_NUM19 を含む）
 	MJBits ret = 0;
 	if (MJ_IsNum(id)) {
 		if (MJ_IsMan(id)) ret |= MJ_BIT_MAN;
@@ -59,14 +59,14 @@ inline MJBits MJ_GetChowBits(MJID id) { // 牌 id から始まる順子のビッ
 }
 
 // 牌の組み合わせを判定
-inline bool MJ_SameSuit(MJID a, MJID b)          { return MJ_GetSuit(a) == MJ_GetSuit(b); } // 牌 a b が同じ種類（萬子、筒子、索子、字牌）か？
-inline bool MJ_SameNum(MJID a, MJID b)           { return MJ_IsNum(a) && MJ_GetNum(a)==MJ_GetNum(b); } // 牌 a b が同じ種類かつ同じ数字か？
-inline bool MJ_SameNum3(MJID a, MJID b, MJID c)  { return MJ_SameNum(a, b) && MJ_SameNum(b, c); } // 牌 a b c が同じ種類かつ同じ数字か？
-inline bool MJ_TreeSuits(MJID a, MJID b, MJID c) { return ((MJ_GetSuit(a)|MJ_GetSuit(b)|MJ_GetSuit(c)) & MJ_BIT_MANPINSOU) == MJ_BIT_MANPINSOU; } // 牌 a b c が同じ数字かつ３色あるか？
-inline bool MJ_IsNext(MJID a, MJID b)            { return MJ_SameSuit(a, b) && MJ_IsNum(a) && a+1==b; } // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
-inline bool MJ_IsNextNext(MJID a, MJID b)        { return MJ_SameSuit(a, b) && MJ_IsNum(a) && a+2==b; } // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
-inline bool MJ_IsChow(MJID a, MJID b, MJID c)    { return MJ_IsNext(a, b) && MJ_IsNext(b, c); } // 牌 a b c が順子になっているか？
-inline bool MJ_IsPong(MJID a, MJID b, MJID c)    { return a==b && b==c; } // 牌 a b c が刻子になっているか？
+bool MJ_SameSuit(MJID a, MJID b)          { return MJ_GetSuit(a) == MJ_GetSuit(b); } // 牌 a b が同じ種類（萬子、筒子、索子、字牌）か？
+bool MJ_SameNum(MJID a, MJID b)           { return MJ_IsNum(a) && MJ_GetNum(a)==MJ_GetNum(b); } // 牌 a b が同じ種類かつ同じ数字か？
+bool MJ_SameNum3(MJID a, MJID b, MJID c)  { return MJ_SameNum(a, b) && MJ_SameNum(b, c); } // 牌 a b c が同じ種類かつ同じ数字か？
+bool MJ_TreeSuits(MJID a, MJID b, MJID c) { return ((MJ_GetSuit(a)|MJ_GetSuit(b)|MJ_GetSuit(c)) & MJ_BIT_MANPINSOU) == MJ_BIT_MANPINSOU; } // 牌 a b c が同じ数字かつ３色あるか？
+bool MJ_IsNext(MJID a, MJID b)            { return MJ_SameSuit(a, b) && MJ_IsNum(a) && a+1==b; } // 牌 a b が数字牌かつ隣同士(a+1 == b)か？
+bool MJ_IsNextNext(MJID a, MJID b)        { return MJ_SameSuit(a, b) && MJ_IsNum(a) && a+2==b; } // 牌 a b が数字牌かつ飛んで隣同士(a+2 == b)か？
+bool MJ_IsChow(MJID a, MJID b, MJID c)    { return MJ_IsNext(a, b) && MJ_IsNext(b, c); } // 牌 a b c が順子になっているか？
+bool MJ_IsPong(MJID a, MJID b, MJID c)    { return a==b && b==c; } // 牌 a b c が刻子になっているか？
 
 // ドラ表示牌を指定して、実際のドラを返す
 MJID MJ_GetDora(MJID id) {
@@ -78,6 +78,109 @@ MJID MJ_GetDora(MJID id) {
 	return 0;
 }
 
+enum MJMangan {
+	MJM_NONE,
+	MJM_MANGAN,
+	MJM_HANE,
+	MJM_BAI,
+	MJM_SANBAI
+};
+
+// ハン数と符を指定して、得点、親の支払点い、子の支払点を得る
+// 点数が計算できた場合、満貫未満（符を考慮する）なら 1 を返し、満貫以上（符を考慮しない）なら 2 を返す
+int MJ_GetScore(bool oya, int han, int fu, int *result_score, int *result_oya, int *result_ko, MJMangan *result_mangan, std::string &result_text) {
+	struct SCOREITEM {
+		int value;
+		int oya;
+		int ko;
+		char mangan;
+	};
+	const SCOREITEM table_oya[] = {
+		// 1翻 --------- 2翻 ---------- 3翻 ------------4翻
+		{  -1,0,  -1,'X'}, {2000,0, 700,'X'}, { 3900,0,1300,'X'}, { 7700,0,2600,'X'}, // 20符
+		{1500,0, 500,'X'}, {2900,0,1000,'X'}, { 5800,0,2000,'X'}, {11600,0,3900,'X'}, // 30符
+		{2000,0, 700,'X'}, {3900,0,1300,'X'}, { 7700,0,2600,'X'}, {12000,0,4000,'M'}, // 40符
+		{2400,0, 800,'X'}, {4800,0,1600,'X'}, { 9600,0,3200,'X'}, {12000,0,4000,'M'}, // 50符
+		{2900,0,1000,'X'}, {5800,0,2000,'X'}, {11600,0,3900,'X'}, {12000,0,4000,'M'}, // 60符
+		{3400,0,1200,'X'}, {6800,0,2300,'X'}, {12000,0,4000,'M'}, {12000,0,4000,'M'}, // 70符
+	};
+	const SCOREITEM table_ko[] = {
+		// 1翻 ---------- 2翻 ------------- 3翻 ---------------4翻
+		{  -1, -1,  -1,'X'}, {1300, 400, 700,'X'}, {2600, 700,1300,'X'}, {5200,1300,2600,'X'}, // 20符
+		{1000,300, 500,'X'}, {2000, 500,1000,'X'}, {3900,1000,2000,'X'}, {7700,2000,3900,'X'}, // 30符
+		{1300,400, 700,'X'}, {2600, 700,1300,'X'}, {5200,1300,2600,'X'}, {8000,2000,4000,'M'}, // 40符
+		{1600,400, 800,'X'}, {3200, 800,1600,'X'}, {6400,1600,3200,'X'}, {8000,2000,4000,'M'}, // 50符
+		{2000,500,1000,'X'}, {3900,1000,2000,'X'}, {7700,2000,3900,'X'}, {8000,2000,4000,'M'}, // 60符
+		{2300,600,1200,'X'}, {4500,1200,2300,'X'}, {8000,2000,4000,'M'}, {8000,2000,4000,'M'}, // 70符
+	};
+	const SCOREITEM table_mangan_oya[] = { // 満貫以上の点
+		{12000, 0, 4000, 'M'}, // 5ハン
+		{18000, 0, 6000, 'H'}, // 6ハン
+		{18000, 0, 6000, 'H'}, // 7ハン
+		{24000, 0, 8000, 'B'}, // 8ハン
+		{24000, 0, 8000, 'B'}, // 9ハン
+		{24000, 0, 8000, 'B'}, // 10ハン
+		{36000, 0,12000, 'S'}, // 11ハン
+		{36000, 0,12000, 'S'}, // 12ハン
+	};
+	const SCOREITEM table_mangan_ko[] = { // 満貫以上の点
+		{ 8000, 4000, 2000, 'M'}, // 5ハン
+		{12000, 6000, 3000, 'H'}, // 6ハン
+		{12000, 6000, 3000, 'H'}, // 7ハン
+		{16000, 8000, 4000, 'B'}, // 8ハン
+		{16000, 8000, 4000, 'B'}, // 9ハン
+		{16000, 8000, 4000, 'B'}, // 10ハン
+		{24000,12000, 6000, 'S'}, // 11ハン
+		{24000,12000, 6000, 'S'}, // 12ハン
+	};
+	SCOREITEM scor = {0, 0, 0};
+	if (han <= 0 || fu <= 0) return 0;
+	if (han < 5) {
+		assert(han >= 1);
+		int i = 4 * (fu / 10 - 2) + (han - 1);
+		assert(i >= 0);
+		if (oya) {
+			scor = table_oya[i];
+		} else {
+			scor = table_ko[i];
+		}
+	} else {
+		assert(han <= 12);
+		if (oya) {
+			scor = table_mangan_oya[han-5];
+		} else {
+			scor = table_mangan_ko[han-5];
+		}
+	}
+
+	*result_score = scor.value;
+	*result_oya   = scor.oya;
+	*result_ko    = scor.ko;
+	switch (scor.mangan) {
+	case 'X': // 満貫未満
+		*result_mangan = MJM_NONE;
+		result_text = std::to_string(fu) + u8"符 " + std::to_string(han) + u8"飜";
+		return 1;
+	case 'M': // 満貫
+		*result_mangan = MJM_MANGAN;
+		result_text = std::to_string(han) + u8"飜 満貫";
+		return 2;
+	case 'H': // 跳満
+		*result_mangan = MJM_HANE;
+		result_text = std::to_string(han) + u8"飜 跳満";
+		return 2;
+	case 'B': // 倍満
+		*result_mangan = MJM_BAI;
+		result_text = std::to_string(han) + u8"飜 倍満";
+		return 2;
+	case 'S': // 三倍満
+		*result_mangan = MJM_SANBAI;
+		result_text = std::to_string(han) + u8"飜 三倍満";
+		return 2;
+	default:
+		return 0; // error
+	}
+}
 
 
 
@@ -87,43 +190,242 @@ public:
 	std::vector<MJID> mTiles;
 	std::vector<MJSet> mOpenSets;
 
-	MJTiles();
-	void clear();
-	bool empty() const;
-	void add(MJID tile);
-	void add(const MJID *tiles, int count);
-	int size() const;
-	MJID get(int index) const;
-	MJID removeByIndex(int index);      // index 位置にある牌を取り除き、その牌番号を返す
-	MJID removeFirstPair();             // 先頭にある牌（牌は常にソートされている）が対子になっていればそれを除き、その牌番号を返す
-	MJID removeFirstKoutsu();           // 先頭にある牌（牌は常にソートされている）が刻子になっていればそれを除き、その牌番号を返す
-	MJID removeFirstJuntsu();           // 先頭にある牌（牌は常にソートされている）を起点とする順子が存在すればそれを除き、その牌番号を返す
-	MJID removeFirstTaatsuRyanmen();    // 先頭にある牌（牌は常にソートされている）を起点とする両面塔子が存在すればそれを除き、その牌番号を返す
-	MJID removeFirstTaatsuKanchan();    // 先頭にある牌（牌は常にソートされている）を起点とする間張塔子が存在すればそれを除き、その牌番号を返す
-	int  findAndRemove(MJID tile);       // tile に一致する牌があれば、最初に見つかった1牌だけを取り除いて 1 を返す
-	int  findAndRemoveAll(MJID tile);    // tile に一致する牌があれば、全て取り除いて 1 を返す
-	int  findAndRemoveKoutsu(MJID tile); // tile が刻子を含んでいれば、その3牌を取り除いて 1 を返す
-	int  findAndRemoveJuntsu(MJID tile); // tile を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
-};
+	MJTiles() {
+	}
+	void clear() {
+		mTiles.clear();
+		mOpenSets.clear();
+	}
+	bool empty() const {
+		return mTiles.empty();
+	}
+	int size() const {
+		return mTiles.size();
+	}
+	MJID get(int index) const {
+		return mTiles[index];
+	}
+	void add(MJID tile) {
+		if (mTiles.size() < 14) {
+			mTiles.push_back(tile);
+			std::sort(mTiles.begin(), mTiles.end());
+		}
+	}
+	void add(const MJID *tiles, int count) {
+		if (tiles && count > 0) {
+			int i = 0;
+			while (mTiles.size() < 14 && tiles[i] > 0) {
+				if (count > 0) {
+					if (i >= count) break; // count が指定されているなら、その個数を超えないようにする。-1だった場合は末尾まで調べる
+				}
+				mTiles.push_back(tiles[i]);
+				i++;
+			}
+			std::sort(mTiles.begin(), mTiles.end());
+		}
+	}
+	MJID removeByIndex(int index) {
+		// index 位置にある牌を削除してその牌番号を返す
+		// 削除できない場合は 0 を返す
+		// ※ mTiles はソート済みである
+		if (index < mTiles.size()) {
+			MJID a = mTiles[index];
+			mTiles.erase(mTiles.begin() + index);
+			return a;
+		}
+		return 0;
+	}
+	MJID removeFirstPair() {
+		// 先頭にある牌（牌はソート済みとする）が対子ならば、その牌（２個）を削除して牌番号を返す
+		// 削除できない場合は 0 を返す
+		// ※ mTiles はソート済みである
+		if (mTiles.size() >= 2) {
+			MJID a = mTiles[0];
+			MJID b = mTiles[1];
+			if (a > 0 && a == b) {
+				mTiles.erase(mTiles.begin());
+				mTiles.erase(mTiles.begin());
+				return a;
+			}
+		}
+		return 0;
+	}
+	MJID removeFirstPong() {
+		// 先頭にある牌（牌はソート済みとする）が刻子ならば、その牌（３個）を削除する。
+		// 削除した刻子の牌番号を返す
+		// 削除できない場合は 0 を返す
+		// ※ mTiles はソート済みである
+		if (mTiles.size() >= 3) {
+			MJID a = mTiles[0];
+			MJID b = mTiles[1];
+			MJID c = mTiles[2];
+			if (a > 0 && a == b && b == c) {
+				mTiles.erase(mTiles.begin());
+				mTiles.erase(mTiles.begin());
+				mTiles.erase(mTiles.begin());
+				return a;
+			}
+		}
+		return 0;
+	}
+	MJID removeFirstChow() {
+		// 先頭にある牌（牌はソート済みとする）を起点とした順子を含んでいるなら、順子を構成する牌（３個）を削除しする。
+		// 削除した順子の先頭牌番号を返す。たとえば萬子の順子２３４を削除したなら MJ_MAN(2) を返す
+		// ※ mTiles はソート済みである
+		if (mTiles.size() >= 3) {
+			MJID a = mTiles[0];
+			for (int i=1; i+1<(int)mTiles.size(); i++) {
+				MJID b = mTiles[i];
+				if (MJ_IsNext(a, b)) {
+					for (int j=i+1; j<(int)mTiles.size(); j++) {
+						MJID c = mTiles[j];
+						if (MJ_IsNext(b, c)) {
+							mTiles.erase(mTiles.begin() + j);
+							mTiles.erase(mTiles.begin() + i);
+							mTiles.erase(mTiles.begin());
+							return a;
+						}
+					}
+				}
+			}
+		}
+		return 0;
+	}
+	MJID removeFirstTaatsuRyanmen() {
+		// 先頭にある牌（牌はソート済みとする）を起点とした両面塔子を含んでいるなら、塔子（２個）を削除する。
+		// 削除した塔子の先頭牌番号を返す。例えば萬子23を削除したなら戻り値は MJ_MAN(2) になる
+		// ※ mTiles はソート済みである
+		if (mTiles.size() >= 2) {
+			MJID a = mTiles[0];
+			for (int i=1; i<(int)mTiles.size(); i++) {
+				MJID b = mTiles[i];
+				if (MJ_IsNext(a, b)) {
+					mTiles.erase(mTiles.begin() + i);
+					mTiles.erase(mTiles.begin());
+					return a;
+				}
+			}
+		}
+		return 0;
+	}
+	MJID removeFirstTaatsuKanchan() {
+		// 先頭にある牌（牌はソート済みとする）を起点とした嵌張塔子を含んでいるなら、塔子（２個）を削除する。
+		// 削除した塔子の先頭牌番号を返す。例えば萬子24を削除したなら戻り値は MJ_MAN(2) になる
+		// ※ mTiles はソート済みである
+		if (mTiles.size() >= 2) {
+			MJID a = mTiles[0];
+			for (int i=1; i<(int)mTiles.size(); i++) {
+				MJID b = mTiles[i];
+				if (MJ_IsNextNext(a, b)) {
+					mTiles.erase(mTiles.begin() + i);
+					mTiles.erase(mTiles.begin());
+					return a;
+				}
+			}
+		}
+		return 0;
+	}
+	void findAndRemove(MJID tile) {
+		// tile に一致する牌があれば、最初に見つかった1牌だけを取り除く
+		for (size_t i=0; i<mTiles.size(); i++) {
+			if (mTiles[i] == tile) {
+				mTiles.erase(mTiles.begin() + i);
+				return;
+			}
+		}
+	}
+	void findAndRemoveAll(MJID tile) {
+		// tile に一致する牌を全て取り除く
+		for (int i=(int)mTiles.size()-1; i>=0; i--) {
+			if (mTiles[i] == tile) {
+				mTiles.erase(mTiles.begin() + i);
+			}
+		}
+	}
+	void findAndRemovePong(MJID tile) {
+		// tile から成る刻子があれば、その3牌を取り除く
+		for (size_t i=0; i+2<mTiles.size(); i++) {
+			if (mTiles[i]==tile && mTiles[i+1]==tile && mTiles[i+2]==tile) {
+				mTiles.erase(mTiles.begin() + i);
+				mTiles.erase(mTiles.begin() + i);
+				mTiles.erase(mTiles.begin() + i);
+				return;
+			}
+		}
+	}
+	void findAndRemoveChow(MJID tile) {
+		// tile を最小牌とする順子があれば、その3牌を取り除く
+		// 例えば萬子の123を取り除きたい場合は tile に MJ_MAN(1) を指定する
+		for (size_t i=0; i+2<mTiles.size(); i++) {
+			for (size_t j=i+1; j+1<mTiles.size(); j++) {
+				for (size_t k=j+1; k<mTiles.size(); k++) {
+					if (mTiles[i]==tile && mTiles[j]==tile+1 && mTiles[k]==tile+2) {
+						// 常に i<j<k なので k から順番に削除する
+						mTiles.erase(mTiles.begin() + k);
+						mTiles.erase(mTiles.begin() + j);
+						mTiles.erase(mTiles.begin() + i);
+						return;
+					}
+				}
+			}
+		}
+	}
+}; // MJTiles
+
 
 
 // 手牌を構成面子 (Meld) に分解したときの形
+// https://dictionary.goo.ne.jp/word/en/meld/
 class MJMelds {
 public:
 	std::vector<MJSet> mKoutsu; // 刻子（この形が刻子を含んでいる場合、それぞれの刻子構成牌の１つが入る。最大で４刻子）
 	std::vector<MJSet> mJuntsu; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
-	std::vector<MJID> mToitsu; // 対子（雀頭）がある場合、その構成牌。なければ 0
-	std::vector<MJID> mAmari;  // 面子として使えなかった余り牌。
-	std::vector<MJID> mWaits;  // テンパイ状態の場合、その待ち牌
+	std::vector<MJID> mToitsu;  // 対子（雀頭）がある場合、その構成牌。なければ 0
+	std::vector<MJID> mAmari;   // 面子として使えなかった余り牌。
+	std::vector<MJID> mWaits;   // テンパイ状態の場合、その待ち牌
 	MJWaitType mWaitType;
 	int mShanten;
 
-	MJMelds();
-	void clear();
-	void sort();
-	bool equals(const MJMelds &other) const;
-	bool isTempai() const { return mShanten==0 && mWaitType!=MJ_WAIT_NONE; } // テンパイ＝シャンテン数０かつ待ちが指定されている
-	bool isKansei() const { return mShanten==0 && mWaitType==MJ_WAIT_NONE; } // 完成形＝シャンテン数０かつ待ちが解消されている
+	MJMelds() {
+		mWaitType = MJ_WAIT_NONE;
+		mShanten = -1;
+	}
+	void clear() {
+		mKoutsu.clear();
+		mJuntsu.clear();
+		mToitsu.clear();
+		mAmari.clear();
+		mWaits.clear();
+		mWaitType = MJ_WAIT_NONE;
+		mShanten = -1;
+	}
+	void sort() {
+		std::sort(mKoutsu.begin(), mKoutsu.end());
+		std::sort(mJuntsu.begin(), mJuntsu.end());
+		std::sort(mToitsu.begin(), mToitsu.end());
+		std::sort(mAmari.begin(), mAmari.end());
+		std::sort(mWaits.begin(), mWaits.end());
+	}
+	bool equals(const MJMelds &other) const {
+		MJMelds a = *this; // copy
+		MJMelds b = other; // copy
+		a.sort();
+		b.sort();
+		return
+			a.mKoutsu == b.mKoutsu &&
+			a.mJuntsu == b.mJuntsu &&
+			a.mToitsu == b.mToitsu &&
+			a.mAmari == b.mAmari &&
+			a.mWaits == b.mWaits;
+	}
+	bool isTempai() const {
+		// テンパイしているか？
+		return mShanten==0 && mWaitType!=MJ_WAIT_NONE; // シャンテン数０かつ待ちが指定されている
+	}
+	bool isKansei() const {
+		// 完成形か？
+		return mShanten==0 && mWaitType==MJ_WAIT_NONE; // シャンテン数０かつ待ちが存在しない
+	}
 	bool hasOpenSet() const {
 		for (auto it=mKoutsu.begin(); it!=mKoutsu.end(); ++it) {
 			if (it->isopen()) return true;
@@ -133,265 +435,153 @@ public:
 		}
 		return false;
 	}
-	bool isMenzen() const { return !hasOpenSet(); }
-};
-
+	bool isMenzen() const {
+		return !hasOpenSet();
+	}
+}; // MJMelds
 
 // 役とスコア
-class MJYakuList {
+class MJEvalScore {
 public:
-	MJYakuList();
-	void clear();
-	void addYaku(int han, const char *name_u8);
-	void addYakuman(const char *name_u8); // 役満
-	void addYakuman2(const char *name_u8); // ダブル役満
-	void addFu(int fu, const char *name_u8);
-	bool empty() const;
-	void updateScore();
-
-	std::vector<MJYaku> mList;
+	std::vector<MJYaku> mYakuList;
 	std::vector<MJFu> mFuList;
 	std::string mText;
-	int mFu; // 繰り上げ後の符
-	int mRawFu; // 繰り上げ前の符
+	int mTotalFu; // 繰り上げ後の符
+	int mTotalFuRaw; // 繰り上げ前の符
 	int mHan;
 	int mYakuman;
 	int mScore;
 	int mScoreOya;
 	int mScoreKo;
 	bool mOya;
-};
 
-
-
-
-
-
-
-
-#pragma region MJMelds
-MJMelds::MJMelds() {
-	mWaitType = MJ_WAIT_NONE;
-	mShanten = -1;
-}
-void MJMelds::clear() {
-	mKoutsu.clear();
-	mJuntsu.clear();
-	mToitsu.clear();
-	mAmari.clear();
-	mWaits.clear();
-	mWaitType = MJ_WAIT_NONE;
-	mShanten = -1;
-}
-void MJMelds::sort() {
-	std::sort(mKoutsu.begin(), mKoutsu.end());
-	std::sort(mJuntsu.begin(), mJuntsu.end());
-	std::sort(mToitsu.begin(), mToitsu.end());
-	std::sort(mAmari.begin(), mAmari.end());
-	std::sort(mWaits.begin(), mWaits.end());
-}
-bool MJMelds::equals(const MJMelds &other) const {
-	MJMelds a = *this; // copy
-	MJMelds b = other; // copy
-	a.sort();
-	b.sort();
-	return
-		a.mKoutsu == b.mKoutsu &&
-		a.mJuntsu == b.mJuntsu &&
-		a.mToitsu == b.mToitsu &&
-		a.mAmari == b.mAmari &&
-		a.mWaits == b.mWaits;
-}
-#pragma endregion // MJMelds
-
-
-#pragma region MJTiles
-MJTiles::MJTiles() {
-}
-void MJTiles::clear() {
-	mTiles.clear();
-	mOpenSets.clear();
-}
-bool MJTiles::empty() const {
-	return mTiles.empty();
-}
-void MJTiles::add(MJID tile) {
-	if (mTiles.size() < 14) {
-		mTiles.push_back(tile);
-		std::sort(mTiles.begin(), mTiles.end());
+	MJEvalScore() {
+		clear();
 	}
-}
-void MJTiles::add(const MJID *tiles, int count) {
-	if (tiles && count > 0) {
-		int i = 0;
-		while (mTiles.size() < 14 && tiles[i] > 0) {
-			if (count > 0) {
-				if (i >= count) break; // count が指定されているなら、その個数を超えないようにする。-1だった場合は末尾まで調べる
+	void clear() {
+		mYakuList.clear();
+		mText.clear();
+		mFuList.clear();
+		mTotalFu = 0;
+		mTotalFuRaw = 0;
+		mHan = 0;
+		mYakuman = 0;
+		mScore = 0;
+		mScoreOya = 0;
+		mScoreKo = 0;
+		mOya = false;
+	}
+	bool empty() const {
+		return mYakuList.empty();
+	}
+	void addYaku(int han, const char *name_u8) {
+		MJYaku item;
+		strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
+		item.han = han;
+		item.yakuman = 0;
+		mYakuList.push_back(item);
+	}
+	void addYakuman(const char *name_u8) {
+		MJYaku item;
+		strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
+		item.han = 0;
+		item.yakuman = 1;
+		mYakuList.push_back(item);
+	}
+	void addYakuman2(const char *name_u8) {
+		MJYaku item;
+		strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
+		item.han = 0;
+		item.yakuman = 2;
+		mYakuList.push_back(item);
+	}
+	void addFu(int fu, const char *name_u8) {
+		MJFu item;
+		strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
+		item.value = fu;
+		mFuList.push_back(item);
+	}
+	void updateScore() {
+		mTotalFu = 0;
+		mTotalFuRaw = 0;
+		mHan = 0;
+		mYakuman = 0;
+		mScore = 0;
+
+		// 全ての役満数 or ハン数を足す
+		for (auto it=mYakuList.begin(); it!=mYakuList.end(); ++it) {
+			mYakuman += it->yakuman;
+			mHan += it->han;
+		}
+
+		if (mYakuman > 0) {
+			// 役満
+			if (mYakuman == 1) mText = u8"役満";
+			if (mYakuman == 2) mText = u8"ダブル役満";
+			if (mYakuman == 3) mText = u8"トリプル役満";
+			if (mOya) {
+				mScore    = mYakuman * 48000;
+				mScoreOya = 0;
+				mScoreKo  = mScore / 3;
+			} else {
+				mScore    = mYakuman * 32000;
+				mScoreOya = mScore / 2;
+				mScoreKo  = mScore / 4;
 			}
-			mTiles.push_back(tiles[i]);
-			i++;
+			return;
 		}
-		std::sort(mTiles.begin(), mTiles.end());
-	}
-}
-int MJTiles::size() const {
-	return mTiles.size();
-}
-MJID MJTiles::get(int index) const {
-	return mTiles[index];
-}
-MJID MJTiles::removeByIndex(int index) {
-	// インデックス番目にある牌を削除して牌番号を返す
-	// 削除できない場合は 0 を返す
-	// ※ mTiles はソート済みである
-	if (index < mTiles.size()) {
-		MJID a = mTiles[index];
-		mTiles.erase(mTiles.begin() + index);
-		return a;
-	}
-	return 0;
-}
-MJID MJTiles::removeFirstPair() {
-	// 先頭にある牌が対子ならば、その牌（２個）を削除して牌番号を返す
-	// 削除できない場合は 0 を返す
-	// ※ mTiles はソート済みである
-	if (mTiles.size() >= 2) {
-		MJID a = mTiles[0];
-		MJID b = mTiles[1];
-		if (a > 0 && a == b) {
-			mTiles.erase(mTiles.begin());
-			mTiles.erase(mTiles.begin());
-			return a;
+		if (mHan >= 13) {
+			// 数え役満
+			mYakuman = 1;
+			mText = std::to_string(mHan) + u8"飜 数え役満";
+			mScore = mOya ? 48000 : 32000;
+			return;
 		}
-	}
-	return 0;
-}
-MJID MJTiles::removeFirstKoutsu() {
-	// 先頭にある牌が刻子ならば、その牌（３個）を削除する。
-	// 削除した刻子の牌番号を返す
-	// 削除できない場合は 0 を返す
-	// ※ mTiles はソート済みである
-	if (mTiles.size() >= 3) {
-		MJID a = mTiles[0];
-		MJID b = mTiles[1];
-		MJID c = mTiles[2];
-		if (a > 0 && a == b && b == c) {
-			mTiles.erase(mTiles.begin());
-			mTiles.erase(mTiles.begin());
-			mTiles.erase(mTiles.begin());
-			return a;
-		}
-	}
-	return 0;
-}
-MJID MJTiles::removeFirstJuntsu() {
-	// 先頭にある牌を起点とした順子を含んでいるなら、順子を構成する牌（３個）を削除しする。
-	// 削除した順子の先頭牌番号を返す。たとえば萬子の順子２３４を削除したなら MJ_MAN(2) を返す
-	// ※ mTiles はソート済みである
-	if (mTiles.size() >= 3) {
-		MJID a = mTiles[0];
-		for (int i=1; i+1<(int)mTiles.size(); i++) {
-			MJID b = mTiles[i];
-			if (MJ_IsNext(a, b)) {
-				for (int j=i+1; j<(int)mTiles.size(); j++) {
-					MJID c = mTiles[j];
-					if (MJ_IsNext(b, c)) {
-						mTiles.erase(mTiles.begin() + j);
-						mTiles.erase(mTiles.begin() + i);
-						mTiles.erase(mTiles.begin());
-						return a;
-					}
-				}
+
+		// 符を数える
+		{
+			mTotalFuRaw = 0;
+			for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
+				mTotalFuRaw += it->value;
+			}
+			mTotalFu = mTotalFuRaw;
+			if (mTotalFu % 10 != 0) {
+				mTotalFu = (mTotalFu / 10 * 10) + 10; // １０単位で端数切り上げ
 			}
 		}
-	}
-	return 0;
-}
-MJID MJTiles::removeFirstTaatsuRyanmen() {
-	// 先頭にある牌を起点とした両面塔子を含んでいるなら、塔子（２個）を削除する。
-	// 削除した塔子の先頭牌番号を返す。例えば萬子23を削除したなら戻り値は MJ_MAN(2) になる
-	// ※ mTiles はソート済みである
-	if (mTiles.size() >= 2) {
-		MJID a = mTiles[0];
-		for (int i=1; i<(int)mTiles.size(); i++) {
-			MJID b = mTiles[i];
-			if (MJ_IsNext(a, b)) {
-				mTiles.erase(mTiles.begin() + i);
-				mTiles.erase(mTiles.begin());
-				return a;
+		// 点数を得る
+		{
+			int score=0, oya=0, ko=0;
+			MJMangan man=MJM_NONE;
+			std::string text;
+			MJ_GetScore(mOya, mHan, mTotalFu, &score, &oya, &ko, &man, text);
+			if (man == MJM_NONE) {
+				mScore = score;
+				mScoreOya = oya;
+				mScoreKo = ko;
+				mText = text;
+			} else {
+				// 満貫以上ある。符計算しないのでゼロ符にしておく
+				mTotalFu = 0;
+				mTotalFuRaw = 0;
+				mFuList.clear();
 			}
+			return;
 		}
 	}
-	return 0;
-}
-MJID MJTiles::removeFirstTaatsuKanchan() {
-	// 先頭にある牌を起点とした嵌張塔子を含んでいるなら、塔子（２個）を削除する。
-	// 削除した塔子の先頭牌番号を返す。例えば萬子24を削除したなら戻り値は MJ_MAN(2) になる
-	// ※ mTiles はソート済みである
-	if (mTiles.size() >= 2) {
-		MJID a = mTiles[0];
-		for (int i=1; i<(int)mTiles.size(); i++) {
-			MJID b = mTiles[i];
-			if (MJ_IsNextNext(a, b)) {
-				mTiles.erase(mTiles.begin() + i);
-				mTiles.erase(mTiles.begin());
-				return a;
-			}
-		}
-	}
-	return 0;
-}
-int MJTiles::findAndRemove(MJID id) {
-	// id に一致する牌があれば、ひとつだけ取り除く
-	for (size_t i=0; i<mTiles.size(); i++) {
-		if (mTiles[i] == id) {
-			mTiles.erase(mTiles.begin() + i);
-			return 1;
-		}
-	}
-	return false;
-}
-int MJTiles::findAndRemoveAll(MJID id) {
-	// id に一致する牌を全て取り除く
-	int ret = 0;
-	for (int i=(int)mTiles.size()-1; i>=0; i--) {
-		if (mTiles[i] == id) {
-			mTiles.erase(mTiles.begin() + i);
-			ret = 1;
-		}
-	}
-	return ret;
-}
-int MJTiles::findAndRemoveKoutsu(MJID id) {
-	// id が刻子を含んでいれば、その3牌を取り除いて 1 を返す
-	for (size_t i=0; i+2<mTiles.size(); i++) {
-		if (mTiles[i]==id && mTiles[i+1]==id && mTiles[i+2]==id) {
-			mTiles.erase(mTiles.begin() + i);
-			mTiles.erase(mTiles.begin() + i);
-			mTiles.erase(mTiles.begin() + i);
-			return 1;
-		}
-	}
-	return 0;
-}
-int MJTiles::findAndRemoveJuntsu(MJID id) {
-	// id を起点とする順子を含んでいれば、その3牌を取り除いて 1 を返す
-	for (size_t i=0; i+2<mTiles.size(); i++) {
-		for (size_t j=i+1; j+1<mTiles.size(); j++) {
-			for (size_t k=j+1; k<mTiles.size(); k++) {
-				if (mTiles[i]==id && mTiles[j]==id+1 && mTiles[k]==id+2) {
-					// 常に i<j<k なので k から順番に削除する
-					mTiles.erase(mTiles.begin() + k);
-					mTiles.erase(mTiles.begin() + j);
-					mTiles.erase(mTiles.begin() + i);
-					return 1;
-				}
-			}
-		}
-	}
-	return 0;
-}
-#pragma endregion // MJTiles
+
+}; // MJEvalScore
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -754,7 +944,7 @@ private:
 		{
 			// 先頭の牌を含む刻子があるならそれを取り除き、残りの部分の形を再帰的に調べる
 			FINDDATA tmp(data);
-			MJID tile = tmp.tiles.removeFirstKoutsu();
+			MJID tile = tmp.tiles.removeFirstPong();
 			if (tile) {
 				MJSet set;
 				set.tile = tile;
@@ -766,7 +956,7 @@ private:
 		{
 			// 先頭の牌を含む順子があるならそれを取り除き、残りの部分の形を再帰的に調べる
 			FINDDATA tmp(data);
-			MJID tile = tmp.tiles.removeFirstJuntsu();
+			MJID tile = tmp.tiles.removeFirstChow();
 			if (tile) {
 				MJSet set;
 				set.tile = tile;
@@ -959,191 +1149,7 @@ bool MJ_HasJihai(const MJTiles &tiles) {
 }
 
 
-
-#pragma region MJYakuList
-MJYakuList::MJYakuList() {
-	clear();
-}
-void MJYakuList::clear() {
-	mList.clear();
-	mText.clear();
-	mFuList.clear();
-	mFu = 0;
-	mHan = 0;
-	mYakuman = 0;
-	mScore = 0;
-	mScoreOya = 0;
-	mScoreKo = 0;
-	mOya = false;
-}
-void MJYakuList::addYaku(int han, const char *name_u8) {
-	MJYaku item;
-	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
-	item.han = han;
-	item.yakuman = 0;
-	mList.push_back(item);
-}
-void MJYakuList::addYakuman(const char *name_u8) {
-	MJYaku item;
-	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
-	item.han = 0;
-	item.yakuman = 1;
-	mList.push_back(item);
-}
-void MJYakuList::addYakuman2(const char *name_u8) {
-	MJYaku item;
-	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
-	item.han = 0;
-	item.yakuman = 2;
-	mList.push_back(item);
-}
-void MJYakuList::addFu(int fu, const char *name_u8) {
-	MJFu item;
-	strcpy_s(item.name_u8, sizeof(item.name_u8), name_u8);
-	item.value = fu;
-	mFuList.push_back(item);
-}
-bool MJYakuList::empty() const {
-	return mList.empty();
-}
-void MJYakuList::updateScore() {
-	mFu = 0;
-	mRawFu = 0;
-	mHan = 0;
-	mYakuman = 0;
-	mScore = 0;
-	for (auto it=mList.begin(); it!=mList.end(); ++it) {
-		mYakuman += it->yakuman;
-		mHan += it->han;
-	}
-	if (mYakuman > 0) {
-		// 役満
-		if (mYakuman == 1) mText = u8"役満";
-		if (mYakuman == 2) mText = u8"ダブル役満";
-		if (mYakuman == 3) mText = u8"トリプル役満";
-		if (mOya) {
-			mScore    = mYakuman * 48000;
-			mScoreOya = 0;
-			mScoreKo  = mScore / 3;
-		} else {
-			mScore    = mYakuman * 32000;
-			mScoreOya = mScore / 2;
-			mScoreKo  = mScore / 4;
-		}
-		return;
-	}
-	if (mHan >= 13) {
-		// 数え役満
-		mYakuman = 1;
-		mText = std::to_string(mHan) + u8"飜 数え役満";
-		mScore = mOya ? 48000 : 32000;
-		return;
-	}
-
-	// 符を数える
-	{
-		mRawFu = 0;
-		mFu = 0;
-		for (auto it=mFuList.begin(); it!=mFuList.end(); ++it) {
-			mRawFu += it->value;
-		}
-		mFu = mRawFu;
-		if (mRawFu % 10 != 0) {
-			mFu = (mFu / 10 * 10) + 10; // １０単位で端数切り上げ
-		}
-	}
-
-	// ４翻以下の場合は符を参照して点数を決める
-	struct SCO {
-		int ten;
-		int oya;
-		int ko;
-	};
-	SCO sco = {0, 0, 0};
-	if (0 < mHan && mHan <= 4) {
-		const SCO table_ko[] = {
-			// 1翻 -------- 2翻 --------- 3翻 -----------4翻
-			{  -1, -1,  -1}, {1300, 400, 700}, {2600, 700,1300}, {5200,1300,2600}, // 20符
-			{1000,300, 500}, {2000, 500,1000}, {3900,1000,2000}, {7700,2000,3900}, // 30符
-			{1300,400, 700}, {2600, 700,1300}, {5200,1300,2600}, {8000,2000,4000}, // 40符
-			{1600,400, 800}, {3200, 800,1600}, {6400,1600,3200}, {8000,2000,4000}, // 50符
-			{2000,500,1000}, {3900,1000,2000}, {7700,2000,3900}, {8000,2000,4000}, // 60符
-			{2300,600,1200}, {4500,1200,2300}, {8000,2000,4000}, {8000,2000,4000}, // 70符
-		};
-		const SCO table_oya[] = {
-			// 1翻 -------- 2翻 --------- 3翻 -----------4翻
-			{  -1,0,  -1}, {2000,0, 700}, { 3900,0,1300}, { 7700,0,2600}, // 20符
-			{1500,0, 500}, {2900,0,1000}, { 5800,0,2000}, {11600,0,3900}, // 30符
-			{2000,0, 700}, {3900,0,1300}, { 7700,0,2600}, {12000,0,4000}, // 40符
-			{2400,0, 800}, {4800,0,1600}, { 9600,0,3200}, {12000,0,4000}, // 50符
-			{2900,0,1000}, {5800,0,2000}, {11600,0,3900}, {12000,0,4000}, // 60符
-			{3400,0,1200}, {6800,0,2300}, {12000,0,4000}, {12000,0,4000}, // 70符
-		};
-		int i = 4 * (mFu / 10 - 2) + (mHan - 1);
-		assert(i >= 0);
-		if (mOya) {
-			sco = table_oya[i];
-		} else {
-			sco = table_ko[i];
-		}
-		mScore    = sco.ten;
-		mScoreOya = sco.oya;
-		mScoreKo  = sco.ko;
-	}
-	{
-		if (mOya) {
-			// 親
-			switch (mHan) {
-			case 0:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 0飜"; break;
-			case 1:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 1飜"; break;
-			case 2:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 2飜"; break;
-			case 3:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 3飜"; break;
-			case 4:  mScore=sco.ten; mScoreOya=sco.oya; mScoreKo=sco.ko;   mText = (mScore<8000) ? (std::to_string(mFu) + u8"符 4飜") : u8"4飜 満貫"; break;
-			case 5:  mScore= 8000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"5飜 満貫"; break;
-			case 6:  mScore=12000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"6飜 跳満"; break;
-			case 7:  mScore=12000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"7飜 跳満"; break;
-			case 8:  mScore=16000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"8飜 倍満"; break;
-			case 9:  mScore=16000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"9飜 倍満"; break;
-			case 10: mScore=16000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"10飜 倍満"; break;
-			case 11: mScore=24000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"11飜 三倍満"; break;
-			case 12: mScore=24000;   mScoreOya=0;       mScoreKo=mScore/4; mText = u8"12飜 三倍満"; break;
-			}
-		} else {
-			// 子
-			switch (mHan) {
-			case 0:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 0飜"; break;
-			case 1:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 1飜"; break;
-			case 2:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 2飜"; break;
-			case 3:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = std::to_string(mFu) + u8"符 3飜"; break;
-			case 4:  mScore=sco.ten; mScoreOya=sco.oya;  mScoreKo=sco.ko;   mText = (mScore<8000) ? (std::to_string(mFu) + u8"符 4飜") : u8"4飜 満貫"; break;
-			case 5:  mScore=12000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"5飜 満貫"; break;
-			case 6:  mScore=18000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"6飜 跳満"; break;
-			case 7:  mScore=18000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"7飜 跳満"; break;
-			case 8:  mScore=24000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"8飜 倍満"; break;
-			case 9:  mScore=24000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"9飜 倍満"; break;
-			case 10: mScore=24000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"10飜 倍満"; break;
-			case 11: mScore=36000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"11飜 三倍満"; break;
-			case 12: mScore=36000;   mScoreOya=mScore/2; mScoreKo=mScore/4; mText = u8"12飜 三倍満"; break;
-			}
-		}
-		if (mScore >= 8000) {
-			// 満貫以上は符計算しない
-			mFu = 0;
-			mRawFu = 0;
-			mFuList.clear();
-		}
-		return;
-	}
-}
-#pragma endregion // MJYakuList
-
-
-
-
-
-
-
-bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, MJYakuList &result) {
+bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID jikaze, MJID bakaze, MJID dora, MJEvalScore &result) {
 	result.clear();
 	result.mOya = (jikaze == MJ_TON);
 
@@ -1585,7 +1591,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 	}
 
 	// ドラ
-	if (result.mList.size() > 0) { // 役が見つかった場合のみ。役無しの場合はドラも数えない
+	if (result.mYakuList.size() > 0) { // 役が見つかった場合のみ。役無しの場合はドラも数えない
 		int numdora = 0;
 		for (auto it=kansei_tiles.mTiles.begin(); it!=kansei_tiles.mTiles.end(); ++it) {
 			if (*it == dora) {
@@ -1722,19 +1728,19 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 
 		// ツモ牌が指定されているなら、上がりかどうかも調べる
 		if (handtiles.tsumo && melds.mShanten==0) {
-			MJYakuList yakulist;
+			MJEvalScore yakulist;
 			if (MJ_EvalYaku(tiles, melds, handtiles.tsumo, gameinfo.position_wind, gameinfo.round_wind, gameinfo.dora[0], yakulist)) {
 				// 上がっている
-				for (int i=0; i<yakulist.mList.size(); i++) {
-					res.yaku[res.num_yaku++] = yakulist.mList[i];
+				for (int i=0; i<yakulist.mYakuList.size(); i++) {
+					res.yaku[res.num_yaku++] = yakulist.mYakuList[i];
 				}
 				for (int i=0; i<yakulist.mFuList.size(); i++) {
 					res.fu[res.num_fu++] = yakulist.mFuList[i];
 				}
 				res.total_han = yakulist.mHan;
 				res.total_yakuman = yakulist.mYakuman;
-				res.total_fu = yakulist.mFu;
-				res.total_fu_raw = yakulist.mRawFu;
+				res.total_fu = yakulist.mTotalFu;
+				res.total_fu_raw = yakulist.mTotalFuRaw;
 				res.score     = yakulist.mScore;
 				res.score_oya = yakulist.mScoreOya;
 				res.score_ko  = yakulist.mScoreKo;
@@ -1916,10 +1922,12 @@ std::string MJ_ToString(const MJSet *sets, int size, bool sort, const char *sepa
 }
 
 // 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る
-int MJ_EnumPong(const MJID *tiles, int size, std::vector<MJSet> &result) {
+// filter を指定した場合、その牌をポン出来るような組み合わせだけを得る。すべての組み合わせを得たい場合は 0 にしておく
+int MJ_EnumPong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result) {
 	std::vector<MJID> tmp;
+	tmp.resize(size);
 	for (int i=0; i<size; i++) {
-		tmp.push_back(tiles[i]);
+		tmp[i] = tiles[i];
 	}
 	int ret = 0;
 	int skip = 0;
@@ -1934,6 +1942,7 @@ int MJ_EnumPong(const MJID *tiles, int size, std::vector<MJSet> &result) {
 			// 面子構成牌[0] = a
 			// 面子構成牌[1] = a
 			// 面子構成牌[2] = a
+			if (filter && a!=filter) continue; // filter が指定されている場合、その牌が絡むパターンだけを得る
 			MJSet set;
 			set.tile = a;
 			set.type = MJ_SET_PONG;
@@ -1948,10 +1957,12 @@ int MJ_EnumPong(const MJID *tiles, int size, std::vector<MJSet> &result) {
 }
 
 // 手牌を指定し、チー可能な２牌とチー牌の組み合わせを得る
-int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result) {
+// filter を指定した場合、その牌をチー出来るような組み合わせだけを得る。すべての組み合わせを得たい場合は 0 にしておく
+int MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result) {
 	std::vector<MJID> tmp;
+	tmp.resize(size);
 	for (int i=0; i<size; i++) {
-		tmp.push_back(tiles[i]);
+		tmp[i] = tiles[i];
 	}
 	int ret = 0;
 	int skip = 0;
@@ -1967,6 +1978,8 @@ int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result) {
 				// 面子構成牌[0] = a-1  <== 鳴いた牌
 				// 面子構成牌[1] = a
 				// 面子構成牌[2] = b
+				if (filter && a-1!=filter) continue; // filter が指定されている場合、その牌が絡むパターンだけを得る
+
 				MJSet set;
 				set.tile = a-1; // a-1, a, a+1 の順子になる
 				set.type = MJ_SET_CHOW;
@@ -1979,6 +1992,7 @@ int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result) {
 				// 面子構成牌[0] = a
 				// 面子構成牌[1] = b
 				// 面子構成牌[2] = b+1 <== 鳴いた牌
+				if (filter && b+1!=filter) continue; // filter が指定されている場合、その牌が絡むパターンだけを得る
 				MJSet set;
 				set.tile = a; // a, a+1, a+2 の順子になる
 				set.type = MJ_SET_CHOW;
@@ -1994,6 +2008,7 @@ int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result) {
 			// 面子構成牌[0] = a
 			// 面子構成牌[1] = b
 			// 面子構成牌[2] = b+1 <== 鳴いた牌
+			if (filter && b!=filter) continue; // filter が指定されている場合、その牌が絡むパターンだけを得る
 			MJSet set;
 			set.tile = a; // a, a+1, a+2 の順子になる
 			set.type = MJ_SET_CHOW;

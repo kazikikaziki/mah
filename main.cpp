@@ -138,7 +138,7 @@ bool MJGui_PongButton(const char *label, const std::vector<MJID> &tiles, MJSet *
 	if (ImGui::BeginPopup("##pong")){
 		std::vector<MJID> hand = tiles;
 		std::vector<MJSet> list;
-		MJ_EnumPong(tiles.data(), tiles.size(), list);
+		MJ_EnumPong(tiles.data(), tiles.size(), MJ_NONE, list);
 		for (auto it=list.begin(); it!=list.end(); ++it) {
 			const MJSet &set = *it;
 			std::string s = u8"【" + MJ_ToString(set.tile) + u8"】をポン";
@@ -162,7 +162,7 @@ bool MJGui_ChowButton(const char *label, const std::vector<MJID> &tiles, MJSet *
 	if (ImGui::BeginPopup("##chow")){
 		std::vector<MJID> hand = tiles;
 		std::vector<MJSet> list;
-		MJ_EnumChow(tiles.data(), tiles.size(), list);
+		MJ_EnumChow(tiles.data(), tiles.size(), MJ_NONE, list);
 		for (auto it=list.begin(); it!=list.end(); ++it) {
 			const MJSet &set = *it;
 			MJID taken=0, pull0=0, pull1=0; // 鳴いた牌、手牌から抜いた牌x2 を得る

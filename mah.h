@@ -264,7 +264,11 @@ std::string MJ_ToString(const MJSet &set);
 std::string MJ_ToString(const MJSet *sets, int size, bool sort=true, const char *separator="|");
 
 // 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る
-int MJ_EnumPong(const MJID *tiles, int size, std::vector<MJSet> &result);
+// filter に牌をを指定した場合、その牌をポン出来るような組み合わせだけを得る。
+// すべての組み合わせを得たい場合は filter=0 にしておく
+int MJ_EnumPong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
 
 // 手牌を指定し、チー可能な２牌とチー牌の組み合わせを得る
-int MJ_EnumChow(const MJID *tiles, int size, std::vector<MJSet> &result);
+// filter を牌を指定した場合、その牌をチー出来るような組み合わせだけを得る。
+// すべての組み合わせを得たい場合は filter=0 にしておく
+int MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
