@@ -507,6 +507,8 @@ public:
 		mHan = 0;
 		mYakuman = 0;
 		mScore = 0;
+		mScoreOya = 0;
+		mScoreKo = 0;
 
 		// 全ての役満数 or ハン数を足す
 		for (auto it=mYakuList.begin(); it!=mYakuList.end(); ++it) {
@@ -555,12 +557,11 @@ public:
 			MJMangan man=MJM_NONE;
 			std::string text;
 			MJ_GetScore(mOya, mHan, mTotalFu, &score, &oya, &ko, &man, text);
-			if (man == MJM_NONE) {
-				mScore = score;
-				mScoreOya = oya;
-				mScoreKo = ko;
-				mText = text;
-			} else {
+			mScore = score;
+			mScoreOya = oya;
+			mScoreKo = ko;
+			mText = text;
+			if (man != MJM_NONE) {
 				// 満貫以上ある。符計算しないのでゼロ符にしておく
 				mTotalFu = 0;
 				mTotalFuRaw = 0;

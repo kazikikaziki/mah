@@ -2,36 +2,35 @@
 #include <vector>
 #include <string>
 
-#define MJ_OFFSET_MAN            100
-#define MJ_OFFSET_PIN            200
-#define MJ_OFFSET_SOU            300
-#define MJ_OFFSET_CHR            400
+// 牌の表現方法
+// 萬子 : 101～109 : MJ_MAN(1)～MJ_MAN(9)
+// 筒子 : 201～209 : MJ_PIN(1)～MJ_PIN(9)
+// 索子 : 301～309 : MJ_SOU(1)～MJ_SOU(9)
+// 字牌 : 401～407 : MJ_CHR(1)～MJ_CHR(7) : MJ_TON, MJ_NAN, MJ_SHA, MJ_PEI, MJ_HAK, MJ_HAZ, MJ_CHUN
 
-#define MJ_NONE                 0
+#define MJ_NONE     0
 
-#define MJ_MAN(n)               (MJ_OFFSET_MAN + (n)) // 萬子の MJID を得る (1<=n<=9)
-#define MJ_PIN(n)               (MJ_OFFSET_PIN + (n)) // 筒子の MJID を得る (1<=n<=9)
-#define MJ_SOU(n)               (MJ_OFFSET_SOU + (n)) // 索子の MJID を得る (1<=n<=9)
-#define MJ_CHR(n)               (MJ_OFFSET_CHR + (n)) // 字牌の MJID を得る (1<=n<=7)
+#define MJ_OFFSET_MAN  100 // 萬子
+#define MJ_OFFSET_PIN  200 // 筒子
+#define MJ_OFFSET_SOU  300 // 索子
+#define MJ_OFFSET_CHR  400 // 字牌
 
-#define MJ_TON                  MJ_CHR(1) // MJID (東)
-#define MJ_NAN                  MJ_CHR(2) // MJID (南)
-#define MJ_SHA                  MJ_CHR(3) // MJID (西)
-#define MJ_PEI                  MJ_CHR(4) // MJID (北)
-#define MJ_HAK                  MJ_CHR(5) // MJID (白)
-#define MJ_HAZ                  MJ_CHR(6) // MJID (發)
-#define MJ_CHUN                 MJ_CHR(7) // MJID (中)
+#define MJ_MAN(n)   (MJ_OFFSET_MAN + (n)) // 萬子の MJID を得る (1<=n<=9)
+#define MJ_PIN(n)   (MJ_OFFSET_PIN + (n)) // 筒子の MJID を得る (1<=n<=9)
+#define MJ_SOU(n)   (MJ_OFFSET_SOU + (n)) // 索子の MJID を得る (1<=n<=9)
+#define MJ_CHR(n)   (MJ_OFFSET_CHR + (n)) // 字牌の MJID を得る (1<=n<=7)
+
+#define MJ_TON      MJ_CHR(1) // MJID (東)
+#define MJ_NAN      MJ_CHR(2) // MJID (南)
+#define MJ_SHA      MJ_CHR(3) // MJID (西)
+#define MJ_PEI      MJ_CHR(4) // MJID (北)
+#define MJ_HAK      MJ_CHR(5) // MJID (白)
+#define MJ_HAZ      MJ_CHR(6) // MJID (發)
+#define MJ_CHUN     MJ_CHR(7) // MJID (中)
 
 
 typedef int MJID;
 
-
-enum MJSetType {
-	MJ_SET_NONE,
-	MJ_SET_PAIR,
-	MJ_SET_PONG,
-	MJ_SET_CHOW,
-};
 
 // 待ちの形
 enum MJWaitType {
@@ -46,6 +45,16 @@ enum MJWaitType {
 	MJ_WAIT_CHITOI,    // 七対子単騎
 };
 
+// 面子の種類
+enum MJSetType {
+	MJ_SET_NONE, // なし
+	MJ_SET_PAIR, // 対子
+	MJ_SET_PONG, // 刻子
+	MJ_SET_CHOW, // 順子
+};
+
+
+// 面子
 struct MJSet {
 	MJID tile; // first tile of meld (pong, chow, pair, kong)
 	MJSetType type;
@@ -122,10 +131,11 @@ struct MJSet {
 	}
 };
 
+// 役
 struct MJYaku {
-	char name_u8[32];
-	int han;
-	int yakuman;
+	char name_u8[32]; // 役名 (utf8)
+	int han;          // ハン数（役満の場合は 0 が入るが、数え役満の場合のみ 13 などのハン数が入る）
+	int yakuman;      // 役満数 0=役満ではない 1=役満 2=ダブル役満 3=トリプル役満
 
 	MJYaku() {
 		name_u8[0] = 0;
@@ -135,8 +145,8 @@ struct MJYaku {
 };
 
 struct MJFu {
-	char name_u8[32];
-	int value;
+	char name_u8[32]; // 符の説明 (utf8)
+	int value;        // 符の値
 
 	MJFu() {
 		name_u8[0] = 0;
@@ -250,18 +260,17 @@ enum MJStat {
 	MJ_STAT_YAKUNASI, // 役無し (handtiles.tsumo が指定されている場合のみ。4面子１雀頭あるが役が無い）
 	MJ_STAT_AGARI,    // アガリ可能 (handtiles.tsumo が指定されている場合のみ。役がある）
 };
+
+// 手牌 handtiles を評価して、その結果を result にセットする
+// ドラや場風などの情報は gameinfo にセットする
 MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vector<MJEvalResult> &result);
 
 // ドラ表示牌を指定して、実際のドラを返す
 MJID MJ_GetDora(MJID id);
 
+// 牌の文字列表現から牌配列を作る
+// utf8 で入力し、萬子は「一～九」、筒子は「①～⑨」、索子は「１～９」、字牌は「東西南北白發中」で表す
 int MJ_ReadTiles(const char *s, std::vector<MJID> &out_tiles);
-
-std::string MJ_ToString(MJID tile);
-std::string MJ_ToString(MJWaitType wait);
-std::string MJ_ToString(const MJID *tiles, int size);
-std::string MJ_ToString(const MJSet &set);
-std::string MJ_ToString(const MJSet *sets, int size, bool sort=true, const char *separator="|");
 
 // 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る
 // filter に牌をを指定した場合、その牌をポン出来るような組み合わせだけを得る。
@@ -272,3 +281,10 @@ int MJ_EnumPong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &re
 // filter を牌を指定した場合、その牌をチー出来るような組み合わせだけを得る。
 // すべての組み合わせを得たい場合は filter=0 にしておく
 int MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
+
+std::string MJ_ToString(MJID tile);
+std::string MJ_ToString(MJWaitType wait);
+std::string MJ_ToString(const MJID *tiles, int size);
+std::string MJ_ToString(const MJSet &set);
+std::string MJ_ToString(const MJSet *sets, int size, bool sort=true, const char *separator="|");
+
