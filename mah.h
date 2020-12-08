@@ -51,6 +51,7 @@ enum MJSetType {
 	MJ_SET_PAIR, // 対子
 	MJ_SET_PONG, // 刻子
 	MJ_SET_CHOW, // 順子
+	MJ_SET_KONG, // 槓子
 };
 
 
@@ -94,6 +95,8 @@ struct MJSet {
 	bool ismenzen() const { return !isopen(); }
 	bool ispong() const { return type == MJ_SET_PONG; }
 	bool ischow() const { return type == MJ_SET_CHOW; }
+	bool iskong() const { return type == MJ_SET_KONG; }
+	bool iskong_closed() const { return iskong() && taken_from<0; } // 暗槓？
 	MJID tile0() const { return tile; } // 面子構成牌[0]
 	MJID tile1() const { return type==MJ_SET_CHOW ? tile+1 : tile; } // 面子構成牌[1]
 	MJID tile2() const { return type==MJ_SET_CHOW ? tile+2 : tile; } // 面子構成牌[2]
@@ -275,12 +278,16 @@ int MJ_ReadTiles(const char *s, std::vector<MJID> &out_tiles);
 // 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る
 // filter に牌をを指定した場合、その牌をポン出来るような組み合わせだけを得る。
 // すべての組み合わせを得たい場合は filter=0 にしておく
-int MJ_EnumPong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
+bool MJ_EnumPong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
 
 // 手牌を指定し、チー可能な２牌とチー牌の組み合わせを得る
 // filter を牌を指定した場合、その牌をチー出来るような組み合わせだけを得る。
 // すべての組み合わせを得たい場合は filter=0 にしておく
-int MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
+bool MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
+
+// 手牌を指定し、カン可能な３牌とカン牌の組み合わせを得る
+// filter を指定した場合、その牌をカン出来るような組み合わせだけを得る。すべての組み合わせを得たい場合は 0 にしておく
+bool MJ_EnumKong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
 
 std::string MJ_ToString(MJID tile);
 std::string MJ_ToString(MJWaitType wait);
