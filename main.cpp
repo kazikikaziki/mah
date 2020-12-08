@@ -18,13 +18,14 @@
 #define ImGui_VSpace() ImGui::Dummy(ImVec2(0, 4));
 
 const char *g_SampleTiles[] = {
-	u8"二三四２３４②③６７８南南", // 役無しテンパイ or 三色
-	u8"一一二二三三７８８８中中中", // 普通の形
-	u8"一二三八九九九①②③１２３", // ジュンチャン
-	u8"二二三三四四５５６６７７８", // 二盃口＋タンヤオ複合
-	u8"一一二二三三四四五五六六七", // 二盃口＋チンイツ複合
-	u8"一一一二三四五六七八九九九", // 九連
-	u8"一九①⑨１９東南西北白發中", // 国士
+	u8"一一二二三三７８８８中中中 | 一盃口",
+	u8"二三四四四１２３①②③北北 | 変則三面待ち 高目三色",
+	u8"二三四２３４②③６７８南南 | 高目三色",
+	u8"一二三八九九九①②③１２３ | ジュンチャン",
+	u8"二二三三四四５５６６７７８ | 二盃口＋タンヤオ複合",
+	u8"一一二二三三四四五五六六七 | 二盃口＋チンイツ複合",
+	u8"一一一二三四五六七八九九九 | 九連",
+	u8"一九①⑨１９東南西北白發中 | 国士",
 	NULL // Sentinel
 };
 
@@ -470,11 +471,15 @@ public:
 								_RemoveTile(mRawTiles, openset.tile);
 								_RemoveTile(mRawTiles, openset.tile);
 								mRawTiles.push_back(getNextTsumo()); // 嶺上牌を持ってくる
+								// 暗カン。ツモった状態で４枚さらし、嶺上牌１枚を足して１枚捨てる。
+								// mRawTiles にはツモ牌は含まれていないので注意
 							} else {
 								// 明槓している。// 手牌から刻子を削除する
 								_RemoveTile(mRawTiles, openset.tile);
 								_RemoveTile(mRawTiles, openset.tile);
 								_RemoveTile(mRawTiles, openset.tile);
+								// ミンカン。手牌を３枚さらして１枚もらい、さらに嶺上１枚を取って１枚捨てるので、
+								// 最終的には手牌から３枚消えるだけになる
 							}
 							mOpenSets.push_back(openset);
 							mShouldEval = true;
