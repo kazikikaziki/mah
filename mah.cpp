@@ -852,7 +852,7 @@ private:
 			return;
 		}
 		if (num_melds==3 && melds.mPairs.size()==2) {
-			// ３面子２対子の形になっている。シャボ町テンパイ
+			// ３面子２対子の形になっている。シャボ待ちテンパイ
 			assert(melds.mAmari.size() == 0); // 余り牌なし
 			melds.mShanten = 0;
 			melds.mWaits.push_back(melds.mPairs[0]);
@@ -2076,11 +2076,14 @@ bool MJ_EnumPong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &r
 
 // 手牌を指定し、カン可能な３牌とカン牌の組み合わせを得る
 // filter を指定した場合、その牌をカン出来るような組み合わせだけを得る。すべての組み合わせを得たい場合は 0 にしておく
-bool MJ_EnumKong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result) {
+bool MJ_EnumKong(const MJID *tiles, int size, MJID filter, MJID tsumo, std::vector<MJSet> &result) {
 	std::vector<MJID> tmp;
 	tmp.resize(size);
 	for (int i=0; i<size; i++) {
 		tmp[i] = tiles[i];
+	}
+	if (tsumo) {
+		tmp.push_back(tsumo);
 	}
 	bool ret = false;
 	int skip = 0;

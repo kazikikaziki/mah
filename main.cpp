@@ -186,7 +186,7 @@ bool MJGui_ChowButton(const char *label, const std::vector<MJID> &tiles, MJSet *
 	}
 	return retval;
 }
-bool MJGui_KongButton(const char *label, const std::vector<MJID> &tiles, MJSet *openset) {
+bool MJGui_KongButton(const char *label, const std::vector<MJID> &tiles, MJID tsumo, MJSet *openset, bool *tsumo_used) {
 	assert(openset);
 	if (ImGui::Button(label)) {
 		ImGui::OpenPopup("##kong");
@@ -195,11 +195,12 @@ bool MJGui_KongButton(const char *label, const std::vector<MJID> &tiles, MJSet *
 	if (ImGui::BeginPopup("##kong")){
 		std::vector<MJID> hand = tiles;
 		std::vector<MJSet> list;
-		if (MJ_EnumKong(tiles.data(), tiles.size(), MJ_NONE, list)) {
+		if (MJ_EnumKong(tiles.data(), tiles.size(), MJ_NONE, tsumo, list)) {
 			for (auto it=list.begin(); it!=list.end(); ++it) {
 				const MJSet &set = *it;
 				std::string s = u8"【" + MJ_ToString(set.tile) + u8"】をカン";
 				if (ImGui::MenuItem(s.c_str())) {
+					if (set.tile == tsumo) *tsumo_used = true; // ツモ牌を含んだカンをした？
 					*openset = set;
 					retval = true;
 				}
@@ -304,15 +305,31 @@ public:
 		mEval.clear();
 		mStat = MJ_Eval(hand, info, mEval);
 
-		// 重複のない待ち牌を得る
-		std::unordered_set<MJID> uq;
-		for (auto it=mEval.begin(); it!=mEval.end(); ++it) {
-			for (int i=0; i<it->num_waits; i++) {
-				uq.insert(it->waits[i]);
+		// アガってしまった場合、ツモった牌にかかわる待ちしか結果がでてこないが、
+		// 実際にはテンパイ状態の待ちをすべて表示しておきたい。
+		// ゆえに、アガっている場合は待ち牌を更新しないでテンパイ時の待ち牌をそのまま継続して表示する
+		// 例えば １１２２２３３　の場合待ちは１３シャボ or ２のカンチャン待ちだが、
+		// １をツモった場合には１３シャボのパターンしか結果に出なくなってしまう。そうではなくて、
+		// 何をツモってきても全ての待ち牌を表示しておきたい。
+		bool is_agari = false;
+		for (int i=0; i<mEval.size(); i++) {
+			if (mEval[i].score > 0) {
+				is_agari = true;
+				break;
 			}
 		}
-		mWaitingTiles.assign(uq.begin(), uq.end());
-		std::sort(mWaitingTiles.begin(), mWaitingTiles.end());
+		if (!is_agari) {
+			// 上がっていない場合のみ、待ち牌を更新する
+			// 重複のない待ち牌を得る
+			std::unordered_set<MJID> uq;
+			for (auto it=mEval.begin(); it!=mEval.end(); ++it) {
+				for (int i=0; i<it->num_waits; i++) {
+					uq.insert(it->waits[i]);
+				}
+			}
+			mWaitingTiles.assign(uq.begin(), uq.end());
+			std::sort(mWaitingTiles.begin(), mWaitingTiles.end());
+		}
 	}
 
 	virtual void onGUI() {
@@ -468,16 +485,24 @@ public:
 					// カン
 					{
 						MJSet openset; // 鳴き面子
-						if (MJGui_KongButton(u8"カン", mRawTiles, &openset)) {
+						bool tusmo_used = false;
+						if (MJGui_KongButton(u8"カン", mRawTiles, mTsumo, &openset, &tusmo_used)) {
 							if (openset.iskong_closed()) {
-								// 暗槓している。手牌から刻子を削除する
-								_RemoveTile(mRawTiles, openset.tile);
-								_RemoveTile(mRawTiles, openset.tile);
-								_RemoveTile(mRawTiles, openset.tile);
-								_RemoveTile(mRawTiles, openset.tile);
-								mRawTiles.push_back(getNextTsumo()); // 嶺上牌を持ってくる
+								// 暗槓している。手牌から槓子を削除する
 								// 暗カン。ツモった状態で４枚さらし、嶺上牌１枚を足して１枚捨てる。
-								// mRawTiles にはツモ牌は含まれていないので注意
+								_RemoveTile(mRawTiles, openset.tile);
+								_RemoveTile(mRawTiles, openset.tile);
+								_RemoveTile(mRawTiles, openset.tile);
+								if (tusmo_used) {
+									// ツモ牌を含んでいる。手牌からは３個だけ削除する
+									// ツモ牌を適当に変更する
+									mTsumo = getNextTsumo();
+								} else {
+									// mRawTiles にはツモ牌は含まれていないので注意
+									_RemoveTile(mRawTiles, openset.tile);
+									mRawTiles.push_back(getNextTsumo()); // 嶺上牌を持ってくる
+								}
+							
 							} else {
 								// 明槓している。// 手牌から刻子を削除する
 								_RemoveTile(mRawTiles, openset.tile);

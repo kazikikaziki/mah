@@ -321,7 +321,8 @@ bool MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &r
 
 // 手牌を指定し、カン可能な３牌とカン牌の組み合わせを得る
 // filter を指定した場合、その牌をカン出来るような組み合わせだけを得る。すべての組み合わせを得たい場合は 0 にしておく
-bool MJ_EnumKong(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &result);
+// tusmo を指定した場合、ツモった状態からカンしたものとする（＝暗カン）
+bool MJ_EnumKong(const MJID *tiles, int size, MJID filter, MJID tsumo, std::vector<MJSet> &result);
 
 std::string MJ_ToString(MJID tile);
 std::string MJ_ToString(MJWaitType wait);
