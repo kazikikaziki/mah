@@ -219,6 +219,11 @@ static void _RemoveTile(std::vector<MJID> &tiles, MJID id) {
 	if (it != tiles.end()) tiles.erase(it);
 }
 
+const ImVec4 WHITE(1.0f, 1.0f, 1.0f, 1.0f);
+const ImVec4 GRAY(0.3f, 0.3f, 0.3f, 1.0f);
+const ImVec4 RED(1.0f, 0.5f, 0.5f, 1.0f);
+
+
 class CTest: public CSimpleApp {
 	std::vector<MJEvalResult> mEval; // 評価結果
 	std::vector<MJID> mRawTiles;     // 理牌なしの配列。表示、操作用
@@ -530,93 +535,20 @@ public:
 			if (mEval.size() > 0) ImGui::Text(u8"【%d シャンテン】", mEval[0].shanten);
 			break;
 		case MJ_STAT_TEMPAI:
-			ImGui::Text(u8"【テンパイ】【%s 待ち】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str());
+			ImGui::Text(u8"【テンパイ】【"); ImGui::SameLine();
+			ImGui::TextColored(RED, u8"%s 待ち", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str()); ImGui::SameLine();
+			ImGui::Text(u8"】");
 			break;
 		case MJ_STAT_YAKUNASI:
-			ImGui::Text(u8"【役無し/上がれません】【%s 待ち】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str());
+			ImGui::TextColored(RED, u8"【役無し/上がれません】【%s 待ち】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str());
 			break;
 		case MJ_STAT_AGARI:
-			ImGui::Text(u8"【アガリ！】【%s 待ち】【%s ツモ】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str(), MJ_ToString(mTsumo).c_str());
+			ImGui::TextColored(RED, u8"【アガリ！】【%s 待ち】【%s ツモ】", MJ_ToString(mWaitingTiles.data(), mWaitingTiles.size()).c_str(), MJ_ToString(mTsumo).c_str());
 			break;
 		}
 	}
 
-	struct Group {
-		int tiles[4];
-		int num_tiles;
-		MJSetType type;
 
-		Group() {
-			tiles[0] = tiles[1] = tiles[2] = tiles[3] = 0;
-			num_tiles = 0;
-			type = MJ_SET_NONE;
-		}
-		bool operator < (const Group &h) const {
-			const Group &g = *this;
-			if (g.num_tiles != h.num_tiles && g.tiles[0] == h.tiles[0]) return g.num_tiles < h.num_tiles;
-			if (g.num_tiles > 0 && h.num_tiles > 0 && g.tiles[0] != h.tiles[0]) return g.tiles[0] < h.tiles[0];
-			if (g.num_tiles > 1 && h.num_tiles > 1 && g.tiles[1] != h.tiles[1]) return g.tiles[1] < h.tiles[1];
-			if (g.num_tiles > 2 && h.num_tiles > 2 && g.tiles[2] != h.tiles[2]) return g.tiles[2] < h.tiles[2];
-			if (g.num_tiles > 3 && h.num_tiles > 3 && g.tiles[3] != h.tiles[3]) return g.tiles[3] < h.tiles[3];
-			return false;
-		}
-	};
-
-	// 画面に表示するための情報
-	void getGroup(const MJEvalResult &eval, std::vector<Group> &groups) {
-		for (int i=0; i<eval.num_sets; i++) {
-			const MJSet &set = eval.sets[i];
-			Group g;
-			switch (set.type) {
-			case MJ_SET_PAIR:
-				if (eval.wait_type == MJ_WAIT_SHABO) {
-					// シャボ待ちでテンパイしている場合、対子は雀頭ではなく待ち牌にかかわる部分の扱いとする
-					g.type = MJ_SET_NONE;
-				} else {
-					g.type = MJ_SET_PAIR;
-				}
-				g.tiles[0] = set.tile;
-				g.tiles[1] = set.tile;
-				g.num_tiles = 2;
-				groups.push_back(g);
-				break;
-			case MJ_SET_PONG:
-				g.type = MJ_SET_PONG;
-				g.tiles[0] = set.tile;
-				g.tiles[1] = set.tile;
-				g.tiles[2] = set.tile;
-				g.num_tiles = 3;
-				groups.push_back(g);
-				break;
-			case MJ_SET_CHOW:
-				g.type = MJ_SET_CHOW;
-				g.tiles[0] = set.tile;
-				g.tiles[1] = set.tile+1;
-				g.tiles[2] = set.tile+2;
-				g.num_tiles = 3;
-				groups.push_back(g);
-				break;
-			case MJ_SET_KONG:
-				g.type = MJ_SET_KONG;
-				g.tiles[0] = set.tile;
-				g.tiles[1] = set.tile+1;
-				g.tiles[2] = set.tile+2;
-				g.tiles[3] = set.tile+3;
-				g.num_tiles = 4;
-				groups.push_back(g);
-				break;
-			}
-		}
-		if (0 < eval.num_amari && eval.num_amari <= 2) {
-			Group g;
-			g.type = MJ_SET_NONE; // 余り牌
-			g.tiles[0] = (eval.num_amari > 0) ? eval.amari[0] : 0;
-			g.tiles[1] = (eval.num_amari > 1) ? eval.amari[1] : 0;
-			g.num_tiles = eval.num_amari;
-			groups.push_back(g);
-		}
-		std::sort(groups.begin(), groups.end());
-	}
 
 	void guiPrintPatterns() {
 		ImGui::Text(u8"面子分けのパターン一覧");
@@ -629,86 +561,101 @@ public:
 		//	std::string melds = MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
 			std::string amari = MJ_ToString(eval.amari, eval.num_amari); // 余剰牌
 			
-			const ImVec4 white(1.0f, 1.0f, 1.0f, 1.0f);
-			const ImVec4 gray(0.3f, 0.3f, 0.3f, 1.0f);
-			const ImVec4 red(1.0f, 0.5f, 0.5f, 1.0f);
+			if (eval.shanten == 0) {
+				//
+				// テンパイ
+				//
+				// 面子ごとに分けて表示する。待ちにかかわる部分は色を変える
+				// ただし国士無双テンパイの場合はグループ化できない
+				if (eval.wait_type == MJ_WAIT_KOKUSHI || eval.wait_type == MJ_WAIT_KOKUSHI13) {
+					std::string s = MJ_ToString(eval.tiles, eval.num_tiles);
+					ImGui::Text(s.c_str());
+					ImGui::SameLine();
 
-			if (eval.num_yaku > 0) {
-				// 上がっている
-				std::string s;
-				s += MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
-				if (!amari.empty()) { // 余り牌なしの場合もある（シャンポン待ちの場合は対子が２組あるので余り牌扱いにならない）
-					s += " || ";
-					s += amari;
-				}
-				s += u8" 【" + MJ_ToString(mTsumo) + u8" ツモ】"; // ツモ
-				ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Appearing);
-				if (ImGui::TreeNode(&eval/*ID*/, "%s", s.c_str())) {
-					// 役
-					for (int i=0; i<eval.num_yaku; i++) {
-						const MJYaku &yaku = eval.yaku[i];
-						if (yaku.yakuman > 0) {
-							ImGui::Text(u8"【%s】", yaku.name_u8);
-						} else if (yaku.han > 0) {
-							ImGui::Text(u8"【%s】 %d飜", yaku.name_u8, yaku.han);
+				} else {
+					for (int i=0; i<eval.num_groups; i++) {
+						const MJGroup &g = eval.groups[i];
+						if (i > 0) { ImGui::TextColored(GRAY, "|"); ImGui::SameLine(); }
+						if (g.type == MJ_SET_NONE) {
+							ImGui::PushStyleColor(ImGuiCol_Text, RED);
+						}
+						for (int t=0; t<g.num_tiles; t++) {
+							std::string s = MJ_ToString(g.tiles[t]);
+							ImGui::Text(s.c_str());
+							ImGui::SameLine();
+						}
+						if (g.type == MJ_SET_NONE) {
+							ImGui::PopStyleColor();
 						}
 					}
-					// 符
-					if (eval.num_fu > 0) {
-						ImGui::Indent();
-						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f,1.0f,1.0f,0.5f));
-						for (int i=0; i<eval.num_fu; i++) {
-							const MJFu &fu = eval.fu[i];
-							ImGui::Text(u8"%d符 %s", fu.value, fu.name_u8);
-							if (i == eval.num_fu-1) {
-								if (eval.total_fu_raw == eval.total_fu) {
-									ImGui::Text(u8"合計 %d符", eval.total_fu_raw);
-								} else {
-									ImGui::Text(u8"合計 %d符 (繰り上がり %d)", eval.total_fu_raw, eval.total_fu);
-								}
+				}
+
+				ImGui::Text(u8"  【テンパイ】  ");
+				ImGui::SameLine();
+				{
+					ImGui::Text(u8" 【");
+					ImGui::SameLine();
+					std::string s = MJ_ToString(eval.waits, eval.num_waits) + u8"・" + MJ_ToString(eval.wait_type) + u8"待ち";
+					ImGui::TextColored(RED, s.c_str());
+					ImGui::SameLine();
+					ImGui::Text(u8"】");
+					ImGui::SameLine();
+				}
+
+				// ツモって来た牌がアガリ牌であれば、あがり状態。それによってできた役を表示する
+				if (eval.num_yaku > 0) {
+					// 上がっている
+					ImGui::Text(u8" 【");
+					ImGui::SameLine();
+					std::string s = MJ_ToString(mTsumo) + u8"ツモ";
+					ImGui::TextColored(RED, s.c_str());
+					ImGui::SameLine();
+					ImGui::Text(u8"】");
+					ImGui::Indent();
+					{
+						// 役
+						for (int i=0; i<eval.num_yaku; i++) {
+							const MJYaku &yaku = eval.yaku[i];
+							if (yaku.yakuman > 0) {
+								ImGui::Text(u8"【%s】", yaku.name_u8);
+							} else if (yaku.han > 0) {
+								ImGui::Text(u8"【%s】 %d飜", yaku.name_u8, yaku.han);
 							}
 						}
-						ImGui::PopStyleColor();
-						ImGui::Unindent();
+						// 符
+						if (eval.num_fu > 0) {
+							ImGui::Indent();
+							ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f,1.0f,1.0f,0.5f));
+							for (int i=0; i<eval.num_fu; i++) {
+								const MJFu &fu = eval.fu[i];
+								ImGui::Text(u8"%d符 %s", fu.value, fu.name_u8);
+								if (i == eval.num_fu-1) {
+									if (eval.total_fu_raw == eval.total_fu) {
+										ImGui::Text(u8"合計 %d符", eval.total_fu_raw);
+									} else {
+										ImGui::Text(u8"合計 %d符 (繰り上がり %d)", eval.total_fu_raw, eval.total_fu);
+									}
+								}
+							}
+							ImGui::PopStyleColor();
+							ImGui::Unindent();
+						}
+						// 合計
+						if (eval.score_oya) {
+							// 親の得点がある＝子のアガリ
+							ImGui::Text(u8"%s %d点 (親%d / 子%d)", eval.score_text_u8, eval.score, eval.score_oya, eval.score_ko);
+						} else {
+							// 親の得点がない＝親のアガリ
+							ImGui::Text(u8"%s %d点 (%dオール)", eval.score_text_u8, eval.score, eval.score_ko);
+						}
+						ImGui_VSpace();
 					}
-					// 合計
-					if (eval.score_oya) {
-						// 親の得点がある＝子のアガリ
-						ImGui::Text(u8"%s %d点 (親%d / 子%d)", eval.score_text_u8, eval.score, eval.score_oya, eval.score_ko);
-					} else {
-						// 親の得点がない＝親のアガリ
-						ImGui::Text(u8"%s %d点 (%dオール)", eval.score_text_u8, eval.score, eval.score_ko);
-					}
-					ImGui_VSpace();
-					ImGui::TreePop();
+					ImGui::Unindent();
 				}
 
-			} else if (eval.shanten == 0) {
-				// テンパイ
 
-				// 面子ごとに分けて表示する。待ちにかかわる部分は色を変える
-				std::vector<Group> groups;
-				getGroup(eval, groups);
-				for (int i=0; i<groups.size(); i++) {
-					const Group &g = groups[i];
-					if (i > 0) { ImGui::TextColored(gray, "|"); ImGui::SameLine(); }
-					if (g.type == MJ_SET_NONE) {
-						ImGui::PushStyleColor(ImGuiCol_Text, red);
-					}
-					for (int t=0; t<g.num_tiles; t++) {
-						ImGui::Text(MJ_ToString(g.tiles[t]).c_str());
-						ImGui::SameLine();
-					}
-					if (g.type == MJ_SET_NONE) {
-						ImGui::PopStyleColor();
-					}
-				}
 
-				std::string s;
-				s += u8"  【テンパイ】  " + MJ_ToString(eval.waits, eval.num_waits) + u8" 【" + MJ_ToString(eval.wait_type) + u8"待ち】";
-				if (ImGui::TreeNodeEx(&eval/*ID*/, ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet, "%s", s.c_str())) {
-					ImGui::TreePop();
-				}
+				
 
 			} else {
 				// テンパイしていない

@@ -1069,7 +1069,7 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 			set.tile = tsumo;
 			set.type = MJ_SET_PONG;
 			out_kansei->mPongs.push_back(set);
-			out_kansei->mPairs.erase(tempai.mPairs.begin() + 0); // 対子[0]が刻子化したので、対子[0]を削除する
+			out_kansei->mPairs.erase(out_kansei->mPairs.begin() + 0); // 対子[0]が刻子化したので、対子[0]を削除する
 			ok = true;
 		}
 		if (tempai.mPairs[1] == tsumo) {
@@ -1077,7 +1077,7 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 			set.tile = tsumo;
 			set.type = MJ_SET_PONG;
 			out_kansei->mPongs.push_back(set);
-			out_kansei->mPairs.erase(tempai.mPairs.begin() + 1); // 対子[1]が刻子化したので、対子[1]を削除する
+			out_kansei->mPairs.erase(out_kansei->mPairs.begin() + 1); // 対子[1]が刻子化したので、対子[1]を削除する
 			ok = true;
 		}
 		break;
@@ -1680,6 +1680,65 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 }
 
 
+// テンパイしている場合、面子ごとに分けた状態で表示するときのグループ分けとソートをおこなう
+// 例えば面子が 111 333 456 666 で余り牌が 45 だった場合は
+// [111] [333] [45] [456] [666] のグループを返す
+void MJ_MakeGroup(const MJEvalResult &eval, std::vector<MJGroup> &groups) {
+	for (int i=0; i<eval.num_sets; i++) {
+		const MJSet &set = eval.sets[i];
+		MJGroup g;
+		switch (set.type) {
+		case MJ_SET_PAIR:
+			if (eval.wait_type == MJ_WAIT_SHABO) {
+				// シャボ待ちでテンパイしている場合、対子は雀頭ではなく待ち牌にかかわる部分の扱いとする
+				g.type = MJ_SET_NONE;
+			} else {
+				g.type = MJ_SET_PAIR;
+			}
+			g.tiles[0] = set.tile;
+			g.tiles[1] = set.tile;
+			g.num_tiles = 2;
+			groups.push_back(g);
+			break;
+		case MJ_SET_PONG:
+			g.type = MJ_SET_PONG;
+			g.tiles[0] = set.tile;
+			g.tiles[1] = set.tile;
+			g.tiles[2] = set.tile;
+			g.num_tiles = 3;
+			groups.push_back(g);
+			break;
+		case MJ_SET_CHOW:
+			g.type = MJ_SET_CHOW;
+			g.tiles[0] = set.tile;
+			g.tiles[1] = set.tile+1;
+			g.tiles[2] = set.tile+2;
+			g.num_tiles = 3;
+			groups.push_back(g);
+			break;
+		case MJ_SET_KONG:
+			g.type = MJ_SET_KONG;
+			g.tiles[0] = set.tile;
+			g.tiles[1] = set.tile+1;
+			g.tiles[2] = set.tile+2;
+			g.tiles[3] = set.tile+3;
+			g.num_tiles = 4;
+			groups.push_back(g);
+			break;
+		}
+	}
+	if (0 < eval.num_amari && eval.num_amari <= 2) {
+		MJGroup g;
+		g.type = MJ_SET_NONE; // 余り牌
+		g.tiles[0] = (eval.num_amari > 0) ? eval.amari[0] : 0;
+		g.tiles[1] = (eval.num_amari > 1) ? eval.amari[1] : 0;
+		g.num_tiles = eval.num_amari;
+		groups.push_back(g);
+	}
+	std::sort(groups.begin(), groups.end());
+}
+
+
 MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::vector<MJEvalResult> &result) {
 	MJTiles tiles;
 	tiles.add(handtiles.tiles, handtiles.num_tiles);
@@ -1701,7 +1760,9 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 	for (auto it=meldslist.begin(); it!=meldslist.end(); ++it) {
 		const MJMelds &melds = *it;
 		MJEvalResult res;
-		memcpy(res.tiles, tiles.mTiles.data(), tiles.mTiles.size()); // handtiles.tiles ではなく、ソート済みである tiles.mTiles を使う
+		for (int i=0; i<tiles.mTiles.size(); i++) {
+			res.tiles[i] = tiles.mTiles[i]; // handtiles.tiles ではなく、ソート済みである tiles.mTiles を使う
+		}
 		res.num_tiles = tiles.mTiles.size();
 		res.tsumo = handtiles.tsumo; // ツモ牌
 		res.shanten = melds.mShanten; // シャンテン数
@@ -1745,6 +1806,15 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 		// 待ち牌
 		for (int i=0; i<melds.mWaits.size(); i++) {
 			res.waits[res.num_waits++] = melds.mWaits[i];
+		}
+		// テンパイ形の場合はグループ分けの結果も入れておく
+		if (res.shanten == 0) {
+			std::vector<MJGroup> tmp;
+			MJ_MakeGroup(res, tmp);
+			res.num_groups = tmp.size();
+			for (int i=0; i<res.num_groups; i++) {
+				res.groups[i] = tmp[i];
+			}
 		}
 		
 		if (res.shanten == 0) {
@@ -2080,3 +2150,5 @@ bool MJ_EnumChow(const MJID *tiles, int size, MJID filter, std::vector<MJSet> &r
 	}
 	return ret;
 }
+
+

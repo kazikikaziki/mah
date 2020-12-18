@@ -186,6 +186,30 @@ struct MJGameInfo {
 	}
 };
 
+
+// テンパイしている場合、できた面子と待ちにかかわる部分でグループ分けしたもの
+// MJSet とは違い、面子になっていない部分も含む
+struct MJGroup {
+	int tiles[4];
+	int num_tiles;
+	MJSetType type;
+
+	MJGroup() {
+		tiles[0] = tiles[1] = tiles[2] = tiles[3] = 0;
+		num_tiles = 0;
+		type = MJ_SET_NONE;
+	}
+	bool operator < (const MJGroup &h) const {
+		const MJGroup &g = *this;
+		if (g.num_tiles != h.num_tiles && g.tiles[0] == h.tiles[0]) return g.num_tiles < h.num_tiles;
+		if (g.num_tiles > 0 && h.num_tiles > 0 && g.tiles[0] != h.tiles[0]) return g.tiles[0] < h.tiles[0];
+		if (g.num_tiles > 1 && h.num_tiles > 1 && g.tiles[1] != h.tiles[1]) return g.tiles[1] < h.tiles[1];
+		if (g.num_tiles > 2 && h.num_tiles > 2 && g.tiles[2] != h.tiles[2]) return g.tiles[2] < h.tiles[2];
+		if (g.num_tiles > 3 && h.num_tiles > 3 && g.tiles[3] != h.tiles[3]) return g.tiles[3] < h.tiles[3];
+		return false;
+	}
+};
+
 struct MJEvalResult {
 	// 入力情報
 	MJID tiles[13];         // 手牌
@@ -209,6 +233,8 @@ struct MJEvalResult {
 	MJID waits[2];          // 待ち牌
 	int num_waits;          // 0..2
 	MJWaitType wait_type;   // 待ちの形
+	MJGroup groups[7];      // グループ分け（七対子テンパイ時の[６対子]＋[１余り牌]＝７グループが最大）
+	int num_groups;         // グループ数 0..7
 
 	// アガリ情報
 	MJYaku yaku[16];        // 複合する役
@@ -224,6 +250,7 @@ struct MJEvalResult {
 	int score_ko;           // 子の点数
 	char score_text_u8[64]; // アガリ情報の文字列表現
 
+
 	MJEvalResult() {
 		memset(tiles, 0, sizeof(tiles));
 		memset(sets, 0, sizeof(sets));
@@ -234,6 +261,7 @@ struct MJEvalResult {
 		memset(waits, 0, sizeof(waits));
 		memset(yaku, 0, sizeof(yaku));
 		memset(fu, 0, sizeof(fu));
+		memset(groups, 0, sizeof(groups));
 		num_tiles = 0;
 		num_sets = 0;
 		num_kongs = 0;
@@ -243,6 +271,7 @@ struct MJEvalResult {
 		num_waits = 0;
 		num_yaku = 0;
 		num_fu = 0;
+		num_groups = 0;
 		shanten = 0;
 		tsumo = 0;
 		wait_type = MJ_WAIT_NONE;
@@ -296,3 +325,9 @@ std::string MJ_ToString(const MJID *tiles, int size);
 std::string MJ_ToString(const MJSet &set);
 std::string MJ_ToString(const MJSet *sets, int size, bool sort=true, const char *separator="|");
 
+
+
+
+
+// テンパイしている場合、面子ごとに分けた状態で表示するときのグループ分けと順番
+void getGroup(const MJEvalResult &eval, std::vector<MJGroup> &groups);
