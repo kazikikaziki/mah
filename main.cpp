@@ -542,25 +542,25 @@ public:
 	}
 
 	struct Group {
-		int tile[4];
+		int tiles[4];
 		int num_tiles;
 		MJSetType type;
 
 		Group() {
-			tile[0] = tile[1] = tile[2] = tile[3] = 0;
+			tiles[0] = tiles[1] = tiles[2] = tiles[3] = 0;
 			num_tiles = 0;
 			type = MJ_SET_NONE;
 		}
 		bool operator < (const Group &h) const {
 			const Group &g = *this;
-			if (g.num_tiles > 0 && h.num_tiles > 0 && g.tile[0] != g.tile[0]) return g.tile[0] < g.tile[0];
-			if (g.num_tiles > 1 && h.num_tiles > 1 && g.tile[1] != g.tile[1]) return g.tile[1] < g.tile[1];
-			if (g.num_tiles > 2 && h.num_tiles > 2 && g.tile[2] != g.tile[2]) return g.tile[2] < g.tile[2];
-			if (g.num_tiles > 3 && h.num_tiles > 3 && g.tile[3] != g.tile[3]) return g.tile[3] < g.tile[3];
-			return true;
+			if (g.num_tiles != h.num_tiles && g.tiles[0] == h.tiles[0]) return g.num_tiles < h.num_tiles;
+			if (g.num_tiles > 0 && h.num_tiles > 0 && g.tiles[0] != h.tiles[0]) return g.tiles[0] < h.tiles[0];
+			if (g.num_tiles > 1 && h.num_tiles > 1 && g.tiles[1] != h.tiles[1]) return g.tiles[1] < h.tiles[1];
+			if (g.num_tiles > 2 && h.num_tiles > 2 && g.tiles[2] != h.tiles[2]) return g.tiles[2] < h.tiles[2];
+			if (g.num_tiles > 3 && h.num_tiles > 3 && g.tiles[3] != h.tiles[3]) return g.tiles[3] < h.tiles[3];
+			return false;
 		}
 	};
-	std::vector<Group> groups;
 
 	// 画面に表示するための情報
 	void getGroup(const MJEvalResult &eval, std::vector<Group> &groups) {
@@ -569,34 +569,39 @@ public:
 			Group g;
 			switch (set.type) {
 			case MJ_SET_PAIR:
-				g.type = MJ_SET_PAIR;
-				g.tile[0] = set.tile;
-				g.tile[1] = set.tile;
+				if (eval.wait_type == MJ_WAIT_SHABO) {
+					// シャボ待ちでテンパイしている場合、対子は雀頭ではなく待ち牌にかかわる部分の扱いとする
+					g.type = MJ_SET_NONE;
+				} else {
+					g.type = MJ_SET_PAIR;
+				}
+				g.tiles[0] = set.tile;
+				g.tiles[1] = set.tile;
 				g.num_tiles = 2;
 				groups.push_back(g);
 				break;
 			case MJ_SET_PONG:
 				g.type = MJ_SET_PONG;
-				g.tile[0] = set.tile;
-				g.tile[1] = set.tile;
-				g.tile[2] = set.tile;
+				g.tiles[0] = set.tile;
+				g.tiles[1] = set.tile;
+				g.tiles[2] = set.tile;
 				g.num_tiles = 3;
 				groups.push_back(g);
 				break;
 			case MJ_SET_CHOW:
 				g.type = MJ_SET_CHOW;
-				g.tile[0] = set.tile;
-				g.tile[1] = set.tile+1;
-				g.tile[2] = set.tile+2;
+				g.tiles[0] = set.tile;
+				g.tiles[1] = set.tile+1;
+				g.tiles[2] = set.tile+2;
 				g.num_tiles = 3;
 				groups.push_back(g);
 				break;
 			case MJ_SET_KONG:
 				g.type = MJ_SET_KONG;
-				g.tile[0] = set.tile;
-				g.tile[1] = set.tile+1;
-				g.tile[2] = set.tile+2;
-				g.tile[3] = set.tile+3;
+				g.tiles[0] = set.tile;
+				g.tiles[1] = set.tile+1;
+				g.tiles[2] = set.tile+2;
+				g.tiles[3] = set.tile+3;
 				g.num_tiles = 4;
 				groups.push_back(g);
 				break;
@@ -605,8 +610,8 @@ public:
 		if (0 < eval.num_amari && eval.num_amari <= 2) {
 			Group g;
 			g.type = MJ_SET_NONE; // 余り牌
-			g.tile[0] = (eval.num_amari > 0) ? eval.amari[0] : 0;
-			g.tile[1] = (eval.num_amari > 1) ? eval.amari[1] : 0;
+			g.tiles[0] = (eval.num_amari > 0) ? eval.amari[0] : 0;
+			g.tiles[1] = (eval.num_amari > 1) ? eval.amari[1] : 0;
 			g.num_tiles = eval.num_amari;
 			groups.push_back(g);
 		}
@@ -682,34 +687,20 @@ public:
 				// テンパイ
 
 				// 面子ごとに分けて表示する。待ちにかかわる部分は色を変える
-				if (eval.wait_type == MJ_WAIT_SHABO) {
-					// シャボ待ち
-					// ２組ある対子がどちらも待ち牌にかかわっている
-					for (int i=0; i<eval.num_sets; i++) {
-						const MJSet &set = eval.sets[i];
-						if (i > 0) { ImGui::TextColored(gray, "|"); ImGui::SameLine(); }
-						if (set.ispair()) {
-							ImGui::TextColored(red, MJ_ToString(set).c_str());
-						} else {
-							ImGui::TextColored(white, MJ_ToString(set).c_str());
-						}
+				std::vector<Group> groups;
+				getGroup(eval, groups);
+				for (int i=0; i<groups.size(); i++) {
+					const Group &g = groups[i];
+					if (i > 0) { ImGui::TextColored(gray, "|"); ImGui::SameLine(); }
+					if (g.type == MJ_SET_NONE) {
+						ImGui::PushStyleColor(ImGuiCol_Text, red);
+					}
+					for (int t=0; t<g.num_tiles; t++) {
+						ImGui::Text(MJ_ToString(g.tiles[t]).c_str());
 						ImGui::SameLine();
 					}
-					// 余り牌なし
-				} else {
-					// シャボ待ち以外
-					for (int i=0; i<eval.num_sets; i++) {
-						const MJSet &set = eval.sets[i];
-						if (i > 0) { ImGui::TextColored(gray, "|"); ImGui::SameLine(); }
-						ImGui::TextColored(white, MJ_ToString(set).c_str());
-						ImGui::SameLine();
-					}
-					// 余り牌
-					ImGui::TextColored(gray, " || ");
-					ImGui::SameLine();
-					for (int i=0; i<eval.num_amari; i++) {
-						ImGui::TextColored(red, MJ_ToString(eval.amari[i]).c_str());
-						ImGui::SameLine();
+					if (g.type == MJ_SET_NONE) {
+						ImGui::PopStyleColor();
 					}
 				}
 

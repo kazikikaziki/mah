@@ -196,7 +196,7 @@ struct MJEvalResult {
 	MJSet sets[5];          // 面子（刻子、順子、雀頭）
 	MJSet kongs[4];         // 刻子
 	MJSet chows[4];         // 順子
-	MJSet pairs[1];         // 対子
+	MJSet pairs[7];         // 対子
 	MJID amari[13];         // 面子にできない余剰牌
 	int num_sets;           // 0 .. 4
 	int num_kongs;          // 0 .. 4
