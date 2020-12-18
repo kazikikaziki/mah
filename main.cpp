@@ -541,6 +541,78 @@ public:
 		}
 	}
 
+	struct Group {
+		int tile[4];
+		int num_tiles;
+		MJSetType type;
+
+		Group() {
+			tile[0] = tile[1] = tile[2] = tile[3] = 0;
+			num_tiles = 0;
+			type = MJ_SET_NONE;
+		}
+		bool operator < (const Group &h) const {
+			const Group &g = *this;
+			if (g.num_tiles > 0 && h.num_tiles > 0 && g.tile[0] != g.tile[0]) return g.tile[0] < g.tile[0];
+			if (g.num_tiles > 1 && h.num_tiles > 1 && g.tile[1] != g.tile[1]) return g.tile[1] < g.tile[1];
+			if (g.num_tiles > 2 && h.num_tiles > 2 && g.tile[2] != g.tile[2]) return g.tile[2] < g.tile[2];
+			if (g.num_tiles > 3 && h.num_tiles > 3 && g.tile[3] != g.tile[3]) return g.tile[3] < g.tile[3];
+			return true;
+		}
+	};
+	std::vector<Group> groups;
+
+	// 画面に表示するための情報
+	void getGroup(const MJEvalResult &eval, std::vector<Group> &groups) {
+		for (int i=0; i<eval.num_sets; i++) {
+			const MJSet &set = eval.sets[i];
+			Group g;
+			switch (set.type) {
+			case MJ_SET_PAIR:
+				g.type = MJ_SET_PAIR;
+				g.tile[0] = set.tile;
+				g.tile[1] = set.tile;
+				g.num_tiles = 2;
+				groups.push_back(g);
+				break;
+			case MJ_SET_PONG:
+				g.type = MJ_SET_PONG;
+				g.tile[0] = set.tile;
+				g.tile[1] = set.tile;
+				g.tile[2] = set.tile;
+				g.num_tiles = 3;
+				groups.push_back(g);
+				break;
+			case MJ_SET_CHOW:
+				g.type = MJ_SET_CHOW;
+				g.tile[0] = set.tile;
+				g.tile[1] = set.tile+1;
+				g.tile[2] = set.tile+2;
+				g.num_tiles = 3;
+				groups.push_back(g);
+				break;
+			case MJ_SET_KONG:
+				g.type = MJ_SET_KONG;
+				g.tile[0] = set.tile;
+				g.tile[1] = set.tile+1;
+				g.tile[2] = set.tile+2;
+				g.tile[3] = set.tile+3;
+				g.num_tiles = 4;
+				groups.push_back(g);
+				break;
+			}
+		}
+		if (0 < eval.num_amari && eval.num_amari <= 2) {
+			Group g;
+			g.type = MJ_SET_NONE; // 余り牌
+			g.tile[0] = (eval.num_amari > 0) ? eval.amari[0] : 0;
+			g.tile[1] = (eval.num_amari > 1) ? eval.amari[1] : 0;
+			g.num_tiles = eval.num_amari;
+			groups.push_back(g);
+		}
+		std::sort(groups.begin(), groups.end());
+	}
+
 	void guiPrintPatterns() {
 		ImGui::Text(u8"面子分けのパターン一覧");
 		ImGui_VSpace();
@@ -548,14 +620,22 @@ public:
 		ImGui_VSpace();
 		for (auto it=mEval.begin(); it!=mEval.end(); ++it) {
 			const MJEvalResult &eval = *it;
-				
-			std::string s;
-			s += MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
-			s += " || ";
-			s += MJ_ToString(eval.amari, eval.num_amari); // 余剰牌
+			
+		//	std::string melds = MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
+			std::string amari = MJ_ToString(eval.amari, eval.num_amari); // 余剰牌
+			
+			const ImVec4 white(1.0f, 1.0f, 1.0f, 1.0f);
+			const ImVec4 gray(0.3f, 0.3f, 0.3f, 1.0f);
+			const ImVec4 red(1.0f, 0.5f, 0.5f, 1.0f);
 
 			if (eval.num_yaku > 0) {
 				// 上がっている
+				std::string s;
+				s += MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
+				if (!amari.empty()) { // 余り牌なしの場合もある（シャンポン待ちの場合は対子が２組あるので余り牌扱いにならない）
+					s += " || ";
+					s += amari;
+				}
 				s += u8" 【" + MJ_ToString(mTsumo) + u8" ツモ】"; // ツモ
 				ImGui::SetNextTreeNodeOpen(true, ImGuiCond_Appearing);
 				if (ImGui::TreeNode(&eval/*ID*/, "%s", s.c_str())) {
@@ -600,13 +680,51 @@ public:
 
 			} else if (eval.shanten == 0) {
 				// テンパイ
+
+				// 面子ごとに分けて表示する。待ちにかかわる部分は色を変える
+				if (eval.wait_type == MJ_WAIT_SHABO) {
+					// シャボ待ち
+					// ２組ある対子がどちらも待ち牌にかかわっている
+					for (int i=0; i<eval.num_sets; i++) {
+						const MJSet &set = eval.sets[i];
+						if (i > 0) { ImGui::TextColored(gray, "|"); ImGui::SameLine(); }
+						if (set.ispair()) {
+							ImGui::TextColored(red, MJ_ToString(set).c_str());
+						} else {
+							ImGui::TextColored(white, MJ_ToString(set).c_str());
+						}
+						ImGui::SameLine();
+					}
+					// 余り牌なし
+				} else {
+					// シャボ待ち以外
+					for (int i=0; i<eval.num_sets; i++) {
+						const MJSet &set = eval.sets[i];
+						if (i > 0) { ImGui::TextColored(gray, "|"); ImGui::SameLine(); }
+						ImGui::TextColored(white, MJ_ToString(set).c_str());
+						ImGui::SameLine();
+					}
+					// 余り牌
+					ImGui::TextColored(gray, " || ");
+					ImGui::SameLine();
+					for (int i=0; i<eval.num_amari; i++) {
+						ImGui::TextColored(red, MJ_ToString(eval.amari[i]).c_str());
+						ImGui::SameLine();
+					}
+				}
+
+				std::string s;
 				s += u8"  【テンパイ】  " + MJ_ToString(eval.waits, eval.num_waits) + u8" 【" + MJ_ToString(eval.wait_type) + u8"待ち】";
 				if (ImGui::TreeNodeEx(&eval/*ID*/, ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet, "%s", s.c_str())) {
 					ImGui::TreePop();
 				}
 
 			} else {
-				// テンパイならず
+				// テンパイしていない
+				std::string s;
+				s += MJ_ToString(eval.sets, eval.num_sets, true, " | "); // 面子
+				s += " || ";
+				s += amari;
 				s += u8"  【" + std::to_string(eval.shanten) + u8"シャンテン】";
 				if (ImGui::TreeNodeEx(&eval/*ID*/, ImGuiTreeNodeFlags_Leaf|ImGuiTreeNodeFlags_Bullet, "%s", s.c_str())) {
 					ImGui::TreePop();

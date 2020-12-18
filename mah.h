@@ -93,6 +93,7 @@ struct MJSet {
 
 	bool isopen() const { return taken_from > 0; }
 	bool ismenzen() const { return !isopen(); }
+	bool ispair() const { return type == MJ_SET_PAIR; }
 	bool ispong() const { return type == MJ_SET_PONG; }
 	bool ischow() const { return type == MJ_SET_CHOW; }
 	bool iskong() const { return type == MJ_SET_KONG; }

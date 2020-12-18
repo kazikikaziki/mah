@@ -1703,19 +1703,23 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 		MJEvalResult res;
 		memcpy(res.tiles, tiles.mTiles.data(), tiles.mTiles.size()); // handtiles.tiles ではなく、ソート済みである tiles.mTiles を使う
 		res.num_tiles = tiles.mTiles.size();
-		res.tsumo = handtiles.tsumo;
+		res.tsumo = handtiles.tsumo; // ツモ牌
+		res.shanten = melds.mShanten; // シャンテン数
+		res.wait_type = melds.mWaitType; // 待ちの形
+
+		// 刻子
 		for (int i=0; i<melds.mPongs.size(); i++) {
-			MJSet set;
-			set.tile = melds.mPongs[i].tile;
-			set.type = MJ_SET_PONG;
+			const MJSet &set = melds.mPongs[i];
 			res.sets[res.num_sets++] = set;
 			res.kongs[res.num_kongs++] = set;
 		}
+		// 順子
 		for (int i=0; i<melds.mChows.size(); i++) {
 			const MJSet &set = melds.mChows[i];
 			res.sets[res.num_sets++] = set;
 			res.chows[res.num_chows++] = set;
 		}
+		// 対子
 		for (int i=0; i<melds.mPairs.size(); i++) {
 			MJSet set;
 			set.tile = melds.mPairs[i];
@@ -1723,17 +1727,28 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 			res.sets[res.num_sets++] = set;
 			res.pairs[res.num_pairs++] = set;
 		}
+		// 面子をソート
+		if (1) {
+			std::vector<MJSet> tmp;
+			for (int i=0; i<res.num_sets; i++) {
+				tmp.push_back(res.sets[i]);
+			}
+			std::sort(tmp.begin(), tmp.end());
+			for (int i=0; i<res.num_sets; i++) {
+				res.sets[i] = tmp[i];
+			}
+		}
+		// 余り牌
 		for (int i=0; i<melds.mAmari.size(); i++) {
 			res.amari[res.num_amari++] = melds.mAmari[i];
 		}
+		// 待ち牌
 		for (int i=0; i<melds.mWaits.size(); i++) {
 			res.waits[res.num_waits++] = melds.mWaits[i];
 		}
-		res.shanten = melds.mShanten;
-		res.wait_type = melds.mWaitType;
-
+		
 		if (res.shanten == 0) {
-			has_tempai = true;
+			has_tempai = true; // 見つかった面子分けパターンのなかにテンパイ形があったか？ ==> YES
 		}
 
 		// ツモ牌が指定されているなら、上がりかどうかも調べる
@@ -1919,14 +1934,9 @@ std::string MJ_ToString(const MJSet &set) {
 }
 std::string MJ_ToString(const MJSet *sets, int size, bool sort, const char *separator) {
 	std::string s;
-	std::vector<MJSet> tmp;
 	for (int i=0; i<size; i++) {
-		tmp.push_back(sets[i]);
-	}
-	std::sort(tmp.begin(), tmp.end());
-	for (auto it=tmp.begin(); it!=tmp.end(); ++it) {
 		if (!s.empty()) s += separator;
-		s += MJ_ToString(*it);
+		s += MJ_ToString(sets[i]);
 	}
 	return s;
 }
