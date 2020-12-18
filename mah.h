@@ -218,12 +218,14 @@ struct MJEvalResult {
 
 	// 解析結果
 	MJSet sets[5];          // 面子（刻子、順子、雀頭）
-	MJSet kongs[4];         // 刻子
+	MJSet kongs[4];         // 槓子
+	MJSet pongs[4];         // 刻子
 	MJSet chows[4];         // 順子
 	MJSet pairs[7];         // 対子
 	MJID amari[13];         // 面子にできない余剰牌
 	int num_sets;           // 0 .. 4
 	int num_kongs;          // 0 .. 4
+	int num_pongs;          // 0 .. 4
 	int num_chows;          // 0 .. 4
 	int num_pairs;          // 0 or 1
 	int num_amari;          // 0 .. 13
@@ -255,6 +257,7 @@ struct MJEvalResult {
 		memset(tiles, 0, sizeof(tiles));
 		memset(sets, 0, sizeof(sets));
 		memset(kongs, 0, sizeof(kongs));
+		memset(pongs, 0, sizeof(pongs));
 		memset(chows, 0, sizeof(chows));
 		memset(pairs, 0, sizeof(pairs));
 		memset(amari, 0, sizeof(amari));
@@ -265,6 +268,7 @@ struct MJEvalResult {
 		num_tiles = 0;
 		num_sets = 0;
 		num_kongs = 0;
+		num_pongs = 0;
 		num_chows = 0;
 		num_pairs = 0;
 		num_amari = 0;

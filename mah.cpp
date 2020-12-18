@@ -378,9 +378,9 @@ public:
 // https://dictionary.goo.ne.jp/word/en/meld/
 class MJMelds {
 public:
+	std::vector<MJSet> mKongs; // 槓子（それぞれの槓子の構成牌の１つが入る。最大で４順子）
 	std::vector<MJSet> mPongs; // 刻子（それぞれの刻子構成牌の１つが入る。最大で４刻子）
 	std::vector<MJSet> mChows; // 順子（それぞれの順子の構成牌の最初の１つが入る。最大で４順子）
-	std::vector<MJSet> mKongs; // 槓子（それぞれの槓子の構成牌の１つが入る。最大で４順子）
 	std::vector<MJID> mPairs;  // 対子（雀頭）がある場合、その構成牌。なければ 0
 	std::vector<MJID> mAmari;  // 面子として使えなかった余り牌。
 	std::vector<MJID> mWaits;  // テンパイ状態の場合、その待ち牌
@@ -392,6 +392,7 @@ public:
 		mShanten = -1;
 	}
 	void clear() {
+		mKongs.clear();
 		mPongs.clear();
 		mChows.clear();
 		mPairs.clear();
@@ -401,6 +402,7 @@ public:
 		mShanten = -1;
 	}
 	void sort() {
+		std::sort(mKongs.begin(), mKongs.end());
 		std::sort(mPongs.begin(), mPongs.end());
 		std::sort(mChows.begin(), mChows.end());
 		std::sort(mPairs.begin(), mPairs.end());
@@ -413,6 +415,7 @@ public:
 		a.sort();
 		b.sort();
 		return
+			a.mKongs == b.mKongs &&
 			a.mPongs == b.mPongs &&
 			a.mChows == b.mChows &&
 			a.mPairs == b.mPairs &&
@@ -428,6 +431,9 @@ public:
 		return mShanten==0 && mWaitType==MJ_WAIT_NONE; // シャンテン数０かつ待ちが存在しない
 	}
 	bool hasOpenSet() const {
+		for (auto it=mKongs.begin(); it!=mKongs.end(); ++it) {
+			if (it->isopen()) return true;
+		}
 		for (auto it=mPongs.begin(); it!=mPongs.end(); ++it) {
 			if (it->isopen()) return true;
 		}
@@ -693,14 +699,14 @@ public:
 			data.tiles = tiles;
 			for (int i=0; i<tiles.mOpenSets.size(); i++) { // 確定面子を追加しておく
 				const MJSet &set = tiles.mOpenSets[i];
+				if (tiles.mOpenSets[i].type == MJ_SET_KONG) {
+					data.melds.mKongs.push_back(set);
+				}
 				if (tiles.mOpenSets[i].type == MJ_SET_PONG) {
 					data.melds.mPongs.push_back(set);
 				}
 				if (tiles.mOpenSets[i].type == MJ_SET_CHOW) {
 					data.melds.mChows.push_back(set);
-				}
-				if (tiles.mOpenSets[i].type == MJ_SET_KONG) {
-					data.melds.mKongs.push_back(set);
 				}
 			}
 			// 面子の組み合わせを列挙する
@@ -1102,6 +1108,12 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 // melds に含まれている牌の種類をビットフラグ(MJ_BIT_MAN, MJ_BIT_PIN, MJ_BIT_SOU, MJ_BIT_CHR)の組み合わせで返す
 int MJ_ColorBits(const MJMelds &melds) {
 	int m = 0;
+	for (auto it=melds.mKongs.begin(); it!=melds.mKongs.end(); ++it) {
+		if (MJ_IsMan(it->tile)) m |= MJ_BIT_MAN;
+		if (MJ_IsPin(it->tile)) m |= MJ_BIT_PIN;
+		if (MJ_IsSou(it->tile)) m |= MJ_BIT_SOU;
+		if (MJ_IsChr(it->tile)) m |= MJ_BIT_CHR;
+	}
 	for (auto it=melds.mPongs.begin(); it!=melds.mPongs.end(); ++it) {
 		if (MJ_IsMan(it->tile)) m |= MJ_BIT_MAN;
 		if (MJ_IsPin(it->tile)) m |= MJ_BIT_PIN;
@@ -1127,6 +1139,10 @@ int MJ_ColorBits(const MJMelds &melds) {
 bool MJ_Has19JihaiOnly(const MJMelds &melds) {
 	if (!melds.mChows.empty()) {
 		return false; // 順子がある場合、必ず１９以外の数字があるのでダメ
+	}
+	for (auto it=melds.mKongs.begin(); it!=melds.mKongs.end(); ++it) {
+		int ok = MJ_GetBits(it->tile) & (MJ_BIT_CHR|MJ_BIT_NUM19);
+		if (!ok) return false;
 	}
 	for (auto it=melds.mPongs.begin(); it!=melds.mPongs.end(); ++it) {
 		int ok = MJ_GetBits(it->tile) & (MJ_BIT_CHR|MJ_BIT_NUM19);
@@ -1235,6 +1251,12 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 			int b = MJ_ColorBits(kansei) & MJ_BIT_CHR;
 			if (a && b==0) {
 				result.addYakuman(u8"清老頭");
+			}
+		}
+		// 四槓子
+		if (kansei.mKongs.size() == 4) {
+			if (tempai.mWaitType == MJ_WAIT_TANKI) {
+				result.addYakuman(u8"四槓子");
 			}
 		}
 		// 四暗刻
@@ -1377,7 +1399,7 @@ bool MJ_EvalYaku(const MJTiles &tiles, const MJMelds &tempai, MJID tsumo, MJID j
 	// ２ハン役
 	if (1) {
 		// 対々和
-		if (kansei.mPongs.size() == 4 && !kansei.isMenzen()) {
+		if (kansei.mPongs.size() + kansei.mKongs.size() == 4 && !kansei.isMenzen()) {
 			result.addYaku(2, u8"対々和");
 			is_chitoi = false; // 七対子と複合しない
 		}
@@ -1700,14 +1722,6 @@ void MJ_MakeGroup(const MJEvalResult &eval, std::vector<MJGroup> &groups) {
 			g.num_tiles = 2;
 			groups.push_back(g);
 			break;
-		case MJ_SET_PONG:
-			g.type = MJ_SET_PONG;
-			g.tiles[0] = set.tile;
-			g.tiles[1] = set.tile;
-			g.tiles[2] = set.tile;
-			g.num_tiles = 3;
-			groups.push_back(g);
-			break;
 		case MJ_SET_CHOW:
 			g.type = MJ_SET_CHOW;
 			g.tiles[0] = set.tile;
@@ -1716,12 +1730,20 @@ void MJ_MakeGroup(const MJEvalResult &eval, std::vector<MJGroup> &groups) {
 			g.num_tiles = 3;
 			groups.push_back(g);
 			break;
+		case MJ_SET_PONG:
+			g.type = MJ_SET_PONG;
+			g.tiles[0] = set.tile;
+			g.tiles[1] = set.tile;
+			g.tiles[2] = set.tile;
+			g.num_tiles = 3;
+			groups.push_back(g);
+			break;
 		case MJ_SET_KONG:
 			g.type = MJ_SET_KONG;
 			g.tiles[0] = set.tile;
-			g.tiles[1] = set.tile+1;
-			g.tiles[2] = set.tile+2;
-			g.tiles[3] = set.tile+3;
+			g.tiles[1] = set.tile;
+			g.tiles[2] = set.tile;
+			g.tiles[3] = set.tile;
 			g.num_tiles = 4;
 			groups.push_back(g);
 			break;
@@ -1768,18 +1790,6 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 		res.shanten = melds.mShanten; // シャンテン数
 		res.wait_type = melds.mWaitType; // 待ちの形
 
-		// 刻子
-		for (int i=0; i<melds.mPongs.size(); i++) {
-			const MJSet &set = melds.mPongs[i];
-			res.sets[res.num_sets++] = set;
-			res.kongs[res.num_kongs++] = set;
-		}
-		// 順子
-		for (int i=0; i<melds.mChows.size(); i++) {
-			const MJSet &set = melds.mChows[i];
-			res.sets[res.num_sets++] = set;
-			res.chows[res.num_chows++] = set;
-		}
 		// 対子
 		for (int i=0; i<melds.mPairs.size(); i++) {
 			MJSet set;
@@ -1787,6 +1797,24 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 			set.type = MJ_SET_PAIR;
 			res.sets[res.num_sets++] = set;
 			res.pairs[res.num_pairs++] = set;
+		}
+		// 順子
+		for (int i=0; i<melds.mChows.size(); i++) {
+			const MJSet &set = melds.mChows[i];
+			res.sets[res.num_sets++] = set;
+			res.chows[res.num_chows++] = set;
+		}
+		// 刻子
+		for (int i=0; i<melds.mPongs.size(); i++) {
+			const MJSet &set = melds.mPongs[i];
+			res.sets[res.num_sets++] = set;
+			res.pongs[res.num_pongs++] = set;
+		}
+		// 槓子
+		for (int i=0; i<melds.mKongs.size(); i++) {
+			const MJSet &set = melds.mKongs[i];
+			res.sets[res.num_sets++] = set;
+			res.kongs[res.num_kongs++] = set;
 		}
 		// 面子をソート
 		if (1) {
