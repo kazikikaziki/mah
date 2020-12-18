@@ -688,12 +688,10 @@ public:
 			mResult.clear();
 			mMaxMelds = 0;
 			mMinShanten = -1;
-			// 面子の組み合わせを列挙する
+
 			FINDDATA data;
 			data.tiles = tiles;
-
-			// 確定面子を追加しておく
-			for (int i=0; i<tiles.mOpenSets.size(); i++) {
+			for (int i=0; i<tiles.mOpenSets.size(); i++) { // 確定面子を追加しておく
 				const MJSet &set = tiles.mOpenSets[i];
 				if (tiles.mOpenSets[i].type == MJ_SET_PONG) {
 					data.melds.mPongs.push_back(set);
@@ -705,6 +703,7 @@ public:
 					data.melds.mKongs.push_back(set);
 				}
 			}
+			// 面子の組み合わせを列挙する
 			findNextMelds(data); // <-- これの結果は mResult に入る
 		}
 
@@ -846,21 +845,22 @@ private:
 			melds.mWaitType = MJ_WAIT_TANKI;
 			return;
 		}
+		if (num_melds==3 && melds.mToitsu.size()==2) {
+			// ３面子２対子の形になっている。シャボ町テンパイ
+			assert(melds.mAmari.size() == 0); // 余り牌なし
+			melds.mShanten = 0;
+			melds.mWaits.push_back(melds.mToitsu[0]);
+			melds.mWaits.push_back(melds.mToitsu[1]);
+			melds.mWaitType = MJ_WAIT_SHABO;
+			return;
+		}
 		if (num_melds==3 && melds.mToitsu.size()==1) {
 			// ３面子１雀頭の形になっている。余り牌が塔子になっているか調べる。塔子になっているならテンパイ状態
 			assert(melds.mAmari.size() == 2); // 面子にできなかった牌が２個ある
 			std::sort(melds.mAmari.begin(), melds.mAmari.end());
 			MJID a = melds.mAmari[0];
 			MJID b = melds.mAmari[1];
-			// 対子が余っているか
-			if (a == b) {
-				// 対子＝頭は１組しか判定しないため、対子が２組ある場合は残りの対子が余り牌扱いになっている。
-				melds.mShanten = 0;
-				melds.mWaits.push_back(a); // 余り牌による対子
-				melds.mWaits.push_back(melds.mToitsu[0]); // 頭と判定された対子
-				melds.mWaitType = MJ_WAIT_SHABO;
-				return;
-			}
+			assert(a != b); // 余り牌が対子になっているパターンは既に除外されているはず
 			// 隣り合った数字牌が余っているか
 			if (MJ_IsNext(a, b)) {
 				// １２が余っているか
@@ -917,7 +917,13 @@ private:
 		if (data.tiles.empty()) {
 			// すべての牌について処理が終わった。
 			assert(data.melds.mToitsu.size() <= 1); // ここでは七対子については調べていない。判定した対子数は 0 または 1 のはず
-			int num_melds = data.melds.mPongs.size() + data.melds.mChows.size() + data.melds.mToitsu.size();
+
+			// 余り牌が２個あり、それが同じ牌なら雀頭以外にもう一つの対子ができているものとする（シャボマチ判定に使う）
+			// 余り牌が対子になっているか確認
+			if (data.melds.mAmari.size() == 2 && data.melds.mAmari[0] == data.melds.mAmari[1]) {
+				data.melds.mToitsu.push_back(data.melds.mAmari[0]);
+				data.melds.mAmari.clear();
+			}
 
 			checkMachi(data.melds);
 			assert(data.melds.mShanten >= 0);
@@ -1014,7 +1020,7 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 
 	case MJ_WAIT_TANKI:
 	case MJ_WAIT_CHITOI:
-		assert(out_kansei->mAmari.size() == 1);// 余り牌は1個のはず
+		assert(tempai.mAmari.size() == 1);// 余り牌は1個のはず
 		assert(tempai.mWaits.size() == 1); // 待ち牌は１個のはず
 		if (tempai.mWaits[0] == tsumo) {
 			out_kansei->mToitsu.push_back(tsumo); // ツモった牌が対子になった
@@ -1023,8 +1029,8 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 		break;
 
 	case MJ_WAIT_KANCHAN:
-		assert(out_kansei->mAmari.size() == 2);// 余り牌は2個のはず
-		assert(out_kansei->mAmari[0]+2 == out_kansei->mAmari[1]);
+		assert(tempai.mAmari.size() == 2);// 余り牌は2個のはず
+		assert(tempai.mAmari[0]+2 == tempai.mAmari[1]);
 		if (MJ_IsChow(tempai.mAmari[0], tsumo, tempai.mAmari[1])) { // 嵌張塔子が順子化した
 			MJSet set;
 			set.tile = tsumo-1; // ツモった牌の一つ左が順子牌になる
@@ -1037,8 +1043,8 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 	case MJ_WAIT_PENCHAN:
 	case MJ_WAIT_RYANMEN:
 		// 両面・辺張塔子が順子化した
-		assert(out_kansei->mAmari.size() == 2); // 余り牌は2個のはず
-		assert(out_kansei->mAmari[0]+1 == out_kansei->mAmari[1]);
+		assert(tempai.mAmari.size() == 2); // 余り牌は2個のはず
+		assert(tempai.mAmari[0]+1 == tempai.mAmari[1]);
 		if (MJ_IsChow(tsumo, tempai.mAmari[0], tempai.mAmari[1])) {
 			MJSet set;
 			set.tile = tsumo; // ツモった牌が順子牌になる
@@ -1056,22 +1062,22 @@ bool MJ_Kansei(const MJMelds &tempai, MJID tsumo, MJMelds *out_kansei) {
 		break;
 
 	case MJ_WAIT_SHABO: // シャボ待ち
-		assert(out_kansei->mAmari.size() == 2); // シャボ待ちの場合、余り牌は2個のはず（もう一つの対子は雀頭扱い（＝余っていない）になっている
-		assert(out_kansei->mAmari[0] == out_kansei->mAmari[1]);
-		if (tempai.mAmari[0] == tsumo) { // 塔子扱いだった対子に重なった
+		assert(tempai.mAmari.size() == 0); // 余り牌は0個のはず
+		assert(tempai.mToitsu.size() == 2); // 対子が２組あるはず
+		if (tempai.mToitsu[0] == tsumo) {
 			MJSet set;
 			set.tile = tsumo;
 			set.type = MJ_SET_PONG;
 			out_kansei->mPongs.push_back(set);
+			out_kansei->mToitsu.erase(tempai.mToitsu.begin() + 0); // 対子[0]が刻子化したので、対子[0]を削除する
 			ok = true;
 		}
-		if (tempai.mToitsu.size()==1 && tempai.mToitsu[0]==tsumo) { // 雀頭扱いだった対子に重なった
+		if (tempai.mToitsu[1] == tsumo) {
 			MJSet set;
 			set.tile = tsumo;
 			set.type = MJ_SET_PONG;
 			out_kansei->mPongs.push_back(set);
-			out_kansei->mToitsu.clear();
-			out_kansei->mToitsu.push_back(out_kansei->mAmari[0]); // 塔子が雀頭化した
+			out_kansei->mToitsu.erase(tempai.mToitsu.begin() + 1); // 対子[1]が刻子化したので、対子[1]を削除する
 			ok = true;
 		}
 		break;
