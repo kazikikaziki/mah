@@ -306,7 +306,8 @@ MJStat MJ_Eval(const MJHandTiles &handtiles, const MJGameInfo &gameinfo, std::ve
 MJID MJ_GetDora(MJID id);
 
 // 牌の文字列表現から牌配列を作る
-// utf8 で入力し、萬子は「一～九」、筒子は「①～⑨」、索子は「１～９」、字牌は「東西南北白發中」で表す
+// utf8 で入力し、萬子は「一～九」、筒子は「①～⑨」、索子は「１～９」、字牌は「東南西北白發中」で表す
+// 例: MJ_ReadTiles(u8"１２３東東東南南南西西西北", tiles)
 int MJ_ReadTiles(const char *s, std::vector<MJID> &out_tiles);
 
 // 手牌を指定し、ポン可能な２牌とポン牌の組み合わせを得る

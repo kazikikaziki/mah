@@ -16,6 +16,10 @@
 
 #define ImGui_SameLineSpace() ImGui::SameLine(); ImGui::Dummy(ImVec2(4, 0)); ImGui::SameLine();
 #define ImGui_VSpace() ImGui::Dummy(ImVec2(0, 4));
+const ImVec4 YELLOW(1.0f, 1.0f, 0.0f, 1.0f);
+const ImVec4 WHITE(1.0f, 1.0f, 1.0f, 1.0f);
+const ImVec4 GRAY(0.3f, 0.3f, 0.3f, 1.0f);
+const ImVec4 RED(1.0f, 0.5f, 0.5f, 1.0f);
 
 const char *g_SampleTiles[] = {
 	u8"一一二二三三７８８８中中中 | 一盃口",
@@ -24,10 +28,18 @@ const char *g_SampleTiles[] = {
 	u8"一二三八九九九①②③１２３ | ジュンチャン",
 	u8"二二三三四四５５６６７７８ | 二盃口＋タンヤオ複合",
 	u8"一一二二三三四四五五六六七 | 二盃口＋チンイツ複合",
+	u8"東東南南西西北北白白發發中 | 七対子＋字一色複合",
 	u8"一一一二三四五六七八九九九 | 九連",
 	u8"一九①⑨１９東南西北白發中 | 国士",
 	NULL // Sentinel
 };
+
+static void _Tooltip(const char *text) {
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(text);
+	}
+}
+
 
 bool MJGui_TileButtons(MJID *tile) {
 	assert(tile);
@@ -81,7 +93,8 @@ bool MJGui_TileEdit(MJID *tile) {
 		}
 		ImGui_VSpace();
 		ImGui::Separator();
-		ImGui::Text(u8"牌を選んでください\n※牌数の整合性はチェックしません。\n同一牌を５個以上使わないよう気を付けてください");
+		ImGui::Text(u8"牌を選んでください\n※牌数の整合性はチェックしません。");
+		ImGui::TextColored(YELLOW, u8"同一牌を５個以上使わないよう気を付けてください");
 		if (changed) ImGui::CloseCurrentPopup();
 		ImGui::EndPopup();
 	}
@@ -149,9 +162,9 @@ bool MJGui_PongButton(const char *label, const std::vector<MJID> &tiles, MJSet *
 				}
 			}
 			ImGui::Separator();
-			ImGui::TextColored(ImVec4(1,1,0,1), u8"ポンした場合、自動的に右端の牌を捨てます");
+			ImGui::TextColored(YELLOW, u8"ポンした場合、自動的に右端の牌を捨てます");
 		} else {
-			ImGui::TextColored(ImVec4(1,1,0,1), u8"ポンできる牌はありません");
+			ImGui::TextColored(YELLOW, u8"ポンできる牌はありません");
 		}
 		ImGui::EndPopup();
 	}
@@ -178,9 +191,9 @@ bool MJGui_ChowButton(const char *label, const std::vector<MJID> &tiles, MJSet *
 				}
 			}
 			ImGui::Separator();
-			ImGui::TextColored(ImVec4(1,1,0,1), u8"チーした場合、自動的に右端の牌を捨てます");
+			ImGui::TextColored(YELLOW, u8"チーした場合、自動的に右端の牌を捨てます");
 		} else {
-			ImGui::TextColored(ImVec4(1,1,0,1), u8"チーできる牌はありません");
+			ImGui::TextColored(YELLOW, u8"チーできる牌はありません");
 		}
 		ImGui::EndPopup();
 	}
@@ -206,7 +219,7 @@ bool MJGui_KongButton(const char *label, const std::vector<MJID> &tiles, MJID ts
 				}
 			}
 		} else {
-			ImGui::TextColored(ImVec4(1,1,0,1), u8"カンできる牌はありません");
+			ImGui::TextColored(YELLOW, u8"カンできる牌はありません");
 		}
 		ImGui::EndPopup();
 	}
@@ -220,9 +233,6 @@ static void _RemoveTile(std::vector<MJID> &tiles, MJID id) {
 	if (it != tiles.end()) tiles.erase(it);
 }
 
-const ImVec4 WHITE(1.0f, 1.0f, 1.0f, 1.0f);
-const ImVec4 GRAY(0.3f, 0.3f, 0.3f, 1.0f);
-const ImVec4 RED(1.0f, 0.5f, 0.5f, 1.0f);
 
 
 class CTest: public CSimpleApp {
@@ -367,6 +377,7 @@ public:
 				if (MJGui_TileEdit(&mDora)) {
 					mShouldEval = true;
 				}
+				_Tooltip(u8"ドラ牌です。ドラ表示牌ではなく、ドラそのものを示します");
 				ImGui_SameLineSpace();
 				ImGui_SameLineSpace();
 				ImGui::PopID();
@@ -396,32 +407,35 @@ public:
 					ImGui_VSpace();
 					// 公開面子
 					{
-						std::string s;
-						for (int i=0; i<mOpenSets.size(); i++) {
-							const MJSet &set = mOpenSets[i];
-							switch (set.type) {
-							case MJ_SET_PONG:
-							case MJ_SET_CHOW:
-								{
-									MJID t0, t1, t2;
-									int rot = set.get_open_order(&t0, &t1, &t2);
-									if (rot == 1) { s += "["+MJ_ToString(t0)+"]" +     MJ_ToString(t1)     +     MJ_ToString(t2)     + "  "; } // 左の牌を横倒しにする
-									if (rot == 2) { s +=     MJ_ToString(t0)     + "["+MJ_ToString(t1)+"]" +     MJ_ToString(t2)     + "  "; } // 中央の牌を横倒しにする
-									if (rot == 3) { s +=     MJ_ToString(t0)     +     MJ_ToString(t1)     + "["+MJ_ToString(t2)+"]" + "  "; } // 右の牌を横倒しにする
-									break;
-								}
-							case MJ_SET_KONG:
-								{
-									std::string t = MJ_ToString(set.tile);
-									if (set.taken_from == -1) {s += t + t + t + t + "  ";} // 暗槓
-									if (set.taken_from ==  0) {s += "["+t+"]"+ t + t + t + "  ";} // 左の牌を横倒しにする
-									if (set.taken_from ==  1) {s += t + "["+t+"]"+ t + t + "  ";} // 中央の牌を横倒しにする
-									if (set.taken_from ==  2) {s += t + t + t + "["+t+"]"+ "  ";} // 右の牌を横倒しにする
-									break;
+						if (mOpenSets.size() > 0) {
+							std::string s;
+							for (int i=0; i<mOpenSets.size(); i++) {
+								const MJSet &set = mOpenSets[i];
+								switch (set.type) {
+								case MJ_SET_PONG:
+								case MJ_SET_CHOW:
+									{
+										MJID t0, t1, t2;
+										int rot = set.get_open_order(&t0, &t1, &t2);
+										if (rot == 1) { s += "["+MJ_ToString(t0)+"]" +     MJ_ToString(t1)     +     MJ_ToString(t2)     + "  "; } // 左の牌を横倒しにする
+										if (rot == 2) { s +=     MJ_ToString(t0)     + "["+MJ_ToString(t1)+"]" +     MJ_ToString(t2)     + "  "; } // 中央の牌を横倒しにする
+										if (rot == 3) { s +=     MJ_ToString(t0)     +     MJ_ToString(t1)     + "["+MJ_ToString(t2)+"]" + "  "; } // 右の牌を横倒しにする
+										break;
+									}
+								case MJ_SET_KONG:
+									{
+										std::string t = MJ_ToString(set.tile);
+										if (set.taken_from == -1) {s += t + t + t + t + "  ";} // 暗槓
+										if (set.taken_from ==  0) {s += "["+t+"]"+ t + t + t + "  ";} // 左の牌を横倒しにする
+										if (set.taken_from ==  1) {s += t + "["+t+"]"+ t + t + "  ";} // 中央の牌を横倒しにする
+										if (set.taken_from ==  2) {s += t + t + t + "["+t+"]"+ "  ";} // 右の牌を横倒しにする
+										break;
+									}
 								}
 							}
+							ImGui::Text(u8"副露: %s", s.c_str());
+							_Tooltip(u8"鳴いて場に晒した牌です。カッコ [] がついているのは鳴いた牌で、本来は横倒しで表示するべき牌です");
 						}
-						ImGui::Text("%s", s.c_str());
 					}
 					//
 					ImGui::Separator();
@@ -442,6 +456,7 @@ public:
 					if (MJGui_TileEdit(&mTsumo)) {
 						mShouldEval = true;
 					}
+					_Tooltip(u8"ツモってきた牌です。ツモ牌を変更する場合はここをクリックしてください");
 					ImGui::EndChild();
 					ImGui::PopStyleVar();
 				}
@@ -465,6 +480,7 @@ public:
 							mRawTiles.pop_back(); // 適当に一枚捨てる
 							mShouldEval = true;
 						}
+						_Tooltip(u8"手牌に対子があるなら、それを使ってポンします\nクリックして使う牌を選んでください");
 						ImGui::SameLine();
 					}
 					// チー
@@ -480,6 +496,7 @@ public:
 							mRawTiles.pop_back(); // 適当に一枚捨てる
 							mShouldEval = true;
 						}
+						_Tooltip(u8"手牌に塔子があるなら、それを使ってチーします\nクリックして使う牌を選んでください");
 						ImGui::SameLine();
 					}
 					// カン
@@ -514,6 +531,7 @@ public:
 							mOpenSets.push_back(openset);
 							mShouldEval = true;
 						}
+						_Tooltip(u8"手牌に刻子があるなら、それを使ってカンします\nクリックして使う牌を選んでください");
 						ImGui::SameLine();
 					}
 					// 理牌
@@ -521,9 +539,7 @@ public:
 						if (ImGui::Button(u8"理牌")) {
 							std::sort(mRawTiles.begin(), mRawTiles.end());
 						}
-						if (ImGui::IsItemHovered()) {
-							ImGui::SetTooltip(u8"ソートする");
-						}
+						_Tooltip(u8"手牌を並べ直します（ソート）");
 						ImGui::SameLine();
 					}
 					// プリセット
@@ -533,6 +549,7 @@ public:
 							mOpenSets.clear();
 							mShouldEval = true;
 						}
+						_Tooltip(u8"登録済みのテンパイ形を選び、手牌を作り直します");
 						ImGui::SameLine();
 					}
 					ImGui::EndChild();
