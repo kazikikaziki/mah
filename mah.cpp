@@ -2111,9 +2111,15 @@ bool MJ_EnumKong(const MJID *tiles, int size, MJID filter, MJID tsumo, std::vect
 			MJSet set;
 			set.tile = a;
 			set.type = MJ_SET_KONG;
-			if (i+3<tmp.size() && tmp[i+3]==a) { // ４つ目の牌を持っている？
-				set.taken_from = -1; // 誰からも鳴いていない（暗槓）
+			if (i+3<tmp.size() && tmp[i+3]==a) { 
+				// 自分は４個の牌を持っている。暗槓扱いにする
+				set.taken_from = -1; // 誰からも鳴いていない
 			} else {
+				// 自分は３個しか牌を持っていない
+				// 明槓扱いにする
+				if (tsumo == a) {
+					continue; // ツモ牌を含む明槓はありえない
+				}
 				set.taken_from = 1; // 取りあえず下家から鳴いたことにしておく
 			}
 			set.taken_index = 0; // どれも同じ牌なので、とりあえず面子構成牌[0] を鳴いたことにしておく

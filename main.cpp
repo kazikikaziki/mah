@@ -100,6 +100,7 @@ bool MJGui_TileEdit(MJID *tile) {
 	}
 	return changed;
 }
+
 bool MJGui_WindButtons(MJID *tile) {
 	assert(tile);
 	bool clicked = false;
@@ -112,8 +113,8 @@ bool MJGui_WindButtons(MJID *tile) {
 bool MJGui_WindEdit(MJID *tile) {
 	bool changed = false;
 	assert(tile);
-	ImGui::SetNextItemWidth(16);
-	if (ImGui::Button(MJ_ToString(*tile).c_str())) {
+	std::string s = MJ_ToString(*tile);
+	if (ImGui::Button(s.c_str())) {
 		ImGui::OpenPopup("##windbuttons");
 	}
 	if (ImGui::BeginPopup("##windbuttons")) {
@@ -211,11 +212,17 @@ bool MJGui_KongButton(const char *label, const std::vector<MJID> &tiles, MJID ts
 		if (MJ_EnumKong(tiles.data(), tiles.size(), MJ_NONE, tsumo, list)) {
 			for (auto it=list.begin(); it!=list.end(); ++it) {
 				const MJSet &set = *it;
-				std::string s = u8"【" + MJ_ToString(set.tile) + u8"】をカン";
+				std::string s = u8"【" + MJ_ToString(set.tile) + u8"】を";
+				if (set.taken_from >= 0) { // 手牌以外の牌を使っている？
+					s += u8"明カン";
+				} else {
+					s += u8"暗カン";
+				}
 				if (ImGui::MenuItem(s.c_str())) {
 					if (set.tile == tsumo) *tsumo_used = true; // ツモ牌を含んだカンをした？
 					*openset = set;
 					retval = true;
+					break;
 				}
 			}
 		} else {
@@ -521,7 +528,7 @@ public:
 								}
 							
 							} else {
-								// 明槓している。// 手牌から刻子を削除する
+								// 明槓している。手牌から刻子を削除する
 								_RemoveTile(mRawTiles, openset.tile);
 								_RemoveTile(mRawTiles, openset.tile);
 								_RemoveTile(mRawTiles, openset.tile);
