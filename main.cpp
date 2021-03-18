@@ -242,7 +242,7 @@ static void _RemoveTile(std::vector<MJID> &tiles, MJID id) {
 
 
 
-class CTest: public CSimpleApp {
+class CTest: public CApp {
 	std::vector<MJEvalResult> mEval; // 評価結果
 	std::vector<MJID> mRawTiles;     // 理牌なしの配列。表示、操作用
 	std::vector<MJID> mWaitingTiles; // 待ち牌
@@ -274,8 +274,6 @@ public:
 		ImGui::StyleColorsDark();
 		ImGui::GetStyle().ItemSpacing = ImVec2(2, 1);
 		reset();
-	}
-	virtual void onDraw(IDirect3DDevice9 *dev) {
 	}
 	MJID getNextTsumo() {
 		// ５個目を持ってこないように適当にやる

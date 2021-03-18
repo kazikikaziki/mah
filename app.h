@@ -1,15 +1,23 @@
 ﻿#pragma once
-#include <d3d9.h>
 
-
-class CSimpleApp {
+class CApp {
 public:
-	CSimpleApp();
+	CApp();
 	void run(int cw, int ch);
 	void postExit();
 
+	enum Type {
+		T_NONE,
+		T_D3D9,
+		T_D3DDEV9,
+		T_HWND,
+		T_SIZE_W,
+		T_SIZE_H,
+	};
+	void * getValuePtr(Type t);
+	int getValueInt(Type t);
+
 	// メインループ開始時に呼ばれる
-	// 例) ImGui::StyleColorsDark();
 	virtual void onStart() {}
 
 	// メインループ終了時に呼ばれる
@@ -17,10 +25,9 @@ public:
 
 	// ここで Direct3D を使う
 	// 例) dev->Clear(0, NULL, D3DCLEAR_TARGET, 0xFF0000FF, 0, 0);
-	virtual void onDraw(IDirect3DDevice9 *dev) {}
+	virtual void onDraw() {}
 
 	// ここで ImGui を使う
 	// 例) ImGui::ShowDemoWindow();
 	virtual void onGUI() {}
-
 };

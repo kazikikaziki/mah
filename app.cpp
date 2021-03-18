@@ -1,4 +1,8 @@
-﻿#include "app.h"
+﻿
+// シンプルアプリケーションクラス
+
+
+#include "app.h"
 //
 #include <assert.h>
 #include <d3d9.h>
@@ -41,9 +45,10 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 WNDCLASSEXW g_WC = {0};
 HWND g_hWnd = NULL;
-IDirect3D9 *g_D3D = NULL;
-IDirect3DDevice9 *g_D3DDev = NULL;
-D3DPRESENT_PARAMETERS g_D3DPP = {0};
+IDirect3D9 *g_D3D9 = NULL;
+IDirect3DDevice9 *g_D3D9_Dev = NULL;
+IDirect3DStateBlock9 *g_D3D9_Block = NULL;
+D3DPRESENT_PARAMETERS g_D3D9_PP = {0};
 bool g_ShouldResetDevice = false;
 bool g_ShouldExit = false;
 std::vector<ImWchar> g_Kanji;
@@ -63,8 +68,8 @@ LRESULT CALLBACK _WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
 	case WM_SIZE:
 		if (wp != SIZE_MINIMIZED) {
-			g_D3DPP.BackBufferWidth = LOWORD(lp);
-			g_D3DPP.BackBufferHeight  = HIWORD(lp);
+			g_D3D9_PP.BackBufferWidth = LOWORD(lp);
+			g_D3D9_PP.BackBufferHeight  = HIWORD(lp);
 			g_ShouldResetDevice = true;
 		}
 		break;
@@ -72,15 +77,15 @@ LRESULT CALLBACK _WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 	return DefWindowProcW(hWnd, msg, wp, lp);
 }
 
-CSimpleApp::CSimpleApp() {
+CApp::CApp() {
 }
-void CSimpleApp::postExit() {
+void CApp::postExit() {
 	g_ShouldExit = true;
 }
-void CSimpleApp::run(int cw, int ch) {
+void CApp::run(int cw, int ch) {
 	assert(g_hWnd == NULL);
-	assert(g_D3D == NULL);
-	assert(g_D3DDev == NULL);
+	assert(g_D3D9 == NULL);
+	assert(g_D3D9_Dev == NULL);
 	g_ShouldResetDevice = false;
 	g_ShouldExit = false;
 
@@ -90,7 +95,8 @@ void CSimpleApp::run(int cw, int ch) {
 	g_WC.lpszClassName = APPWINDOWCLASSNAME;
 	g_WC.lpfnWndProc = _WndProc;
 	RegisterClassExW(&g_WC);
-	g_hWnd = CreateWindowExW(0, g_WC.lpszClassName, NULL, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, NULL, NULL, NULL, NULL);
+	g_hWnd = CreateWindowExW(0, g_WC.lpszClassName, NULL, 
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, NULL, NULL, NULL, NULL);
 	if (g_hWnd == NULL) goto END;
 	ShowWindow(g_hWnd, SW_SHOW);
 	if (1) {
@@ -105,23 +111,25 @@ void CSimpleApp::run(int cw, int ch) {
 		SetWindowPos(g_hWnd, NULL, 0, 0, ww, hh, SWP_NOACTIVATE|SWP_NOZORDER|SWP_NOMOVE);
 	}
 	// Init Direct3D
-	g_D3D = Direct3DCreate9(D3D_SDK_VERSION);
-	if (g_D3D == NULL) goto END;
-	ZeroMemory(&g_D3DPP, sizeof(g_D3DPP));
-	g_D3DPP.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	g_D3DPP.Windowed = TRUE;
-	g_D3DPP.EnableAutoDepthStencil = TRUE;
-	g_D3DPP.AutoDepthStencilFormat = D3DFMT_D24S8;
-	g_D3DPP.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-	g_D3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, g_hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING|D3DCREATE_MULTITHREADED, &g_D3DPP, &g_D3DDev);
-	if (g_D3DDev == NULL) goto END;
+	g_D3D9 = Direct3DCreate9(D3D_SDK_VERSION);
+	if (g_D3D9 == NULL) goto END;
+	ZeroMemory(&g_D3D9_PP, sizeof(g_D3D9_PP));
+	g_D3D9_PP.SwapEffect = D3DSWAPEFFECT_DISCARD;
+	g_D3D9_PP.Windowed = TRUE;
+	g_D3D9_PP.EnableAutoDepthStencil = TRUE;
+	g_D3D9_PP.AutoDepthStencilFormat = D3DFMT_D24S8;
+	g_D3D9_PP.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	g_D3D9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, g_hWnd, 
+		D3DCREATE_HARDWARE_VERTEXPROCESSING|D3DCREATE_MULTITHREADED, &g_D3D9_PP, &g_D3D9_Dev);
+	if (g_D3D9_Dev == NULL) goto END;
+	g_D3D9_Dev->CreateStateBlock(D3DSBT_ALL, &g_D3D9_Block);
 
 	// Init ImGUI
 	{
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
 		ImGui_ImplWin32_Init(g_hWnd);
-		ImGui_ImplDX9_Init(g_D3DDev);
+		ImGui_ImplDX9_Init(g_D3D9_Dev);
 		ImGuiIO &io = ImGui::GetIO();
 		io.IniFilename = ""; // ImGUI 独自の ini ファイルを抑制
 		io.LogFilename = ""; // ImGUI 独自の log ファイルを抑制
@@ -157,32 +165,43 @@ void CSimpleApp::run(int cw, int ch) {
 			TranslateMessage(&msg);
 			DispatchMessageW(&msg);
 		}
-		g_D3DDev->BeginScene();
+		g_D3D9_Dev->BeginScene();
+		g_D3D9_Dev->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, 0, 1.0f, 0);
+		D3DVIEWPORT9 vp = {
+			0, 0, 
+			g_D3D9_PP.BackBufferWidth, g_D3D9_PP.BackBufferHeight,
+			0.0f, 1.0f
+		};
+		g_D3D9_Dev->SetViewport(&vp);
 		if (1) {
-			onDraw(g_D3DDev);
+			onDraw();
 		}
-		if (1) {
+		if (ImGui::GetCurrentContext()) {
 			ImGui_ImplDX9_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 			onGUI();
 			ImGui::EndFrame();
-			g_D3DDev->SetRenderState(D3DRS_ZENABLE, FALSE);
-			g_D3DDev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-			g_D3DDev->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-			g_D3DDev->Clear(0, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, 0, 1.0f, 0);
+
+			g_D3D9_Block->Capture();
+			g_D3D9_Dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+			g_D3D9_Dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+			g_D3D9_Dev->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 			ImGui::Render();
 			ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+			g_D3D9_Block->Apply();
 		}
-		g_D3DDev->EndScene();
-		if (g_D3DDev->Present(NULL, NULL, NULL, NULL) == D3DERR_DEVICELOST) {
-			if (g_D3DDev->TestCooperativeLevel() == D3DERR_DEVICENOTRESET) {
+		g_D3D9_Dev->EndScene();
+		if (g_D3D9_Dev->Present(NULL, NULL, NULL, NULL) == D3DERR_DEVICELOST) {
+			if (g_D3D9_Dev->TestCooperativeLevel() == D3DERR_DEVICENOTRESET) {
 				g_ShouldResetDevice = true;
 			}
 		}
 		if (g_ShouldResetDevice) {
 			ImGui_ImplDX9_InvalidateDeviceObjects();
-			g_D3DDev->Reset(&g_D3DPP);
+			g_D3D9_Block->Release();
+			g_D3D9_Dev->Reset(&g_D3D9_PP);
+			g_D3D9_Dev->CreateStateBlock(D3DSBT_ALL, &g_D3D9_Block);
 			ImGui_ImplDX9_CreateDeviceObjects();
 			g_ShouldResetDevice = false;
 		}
@@ -194,19 +213,34 @@ END:
 	if (ImGui::GetCurrentContext()) {
 		ImGui::DestroyContext();
 	}
-	if (g_D3DDev) {
-		g_D3DDev->Release();
-		g_D3DDev = NULL;
+	if (g_D3D9_Dev) {
+		g_D3D9_Dev->Release();
+		g_D3D9_Dev = NULL;
 	}
-	if (g_D3D) {
-		g_D3D->Release();
-		g_D3D = NULL;
+	if (g_D3D9) {
+		g_D3D9->Release();
+		g_D3D9 = NULL;
 	}
-	ZeroMemory(&g_D3DPP, sizeof(g_D3DPP));
+	ZeroMemory(&g_D3D9_PP, sizeof(g_D3D9_PP));
 	if (g_hWnd) {
 		DestroyWindow(g_hWnd);
 		g_hWnd = NULL;
 	}
 	UnregisterClassW(g_WC.lpszClassName, g_WC.hInstance);
 	ZeroMemory(&g_WC, sizeof(g_WC));
+}
+void * CApp::getValuePtr(Type t) {
+	switch (t) {
+	case T_D3D9: return g_D3D9;
+	case T_D3DDEV9: return g_D3D9_Dev;
+	case T_HWND: return g_hWnd;
+	}
+	return NULL;
+}
+int CApp::getValueInt(Type t) {
+	switch (t) {
+	case T_SIZE_W: return g_D3D9_PP.BackBufferWidth;
+	case T_SIZE_H: return g_D3D9_PP.BackBufferHeight;
+	}
+	return 0;
 }
